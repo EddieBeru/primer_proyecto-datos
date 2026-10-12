@@ -16,7 +16,6 @@ class Enemy:
     suelta: Optional[list[str]] = None
     clase: str = field(default="enemigo", init=False)
 
-
 @dataclass
 class Trap:
     id: str
@@ -25,13 +24,9 @@ class Trap:
     rearme: Optional[int] = None
     clase: str = field(default="trampa", init=False)
 
-
-
-
 @dataclass
 class CatalogoResponse:
     entidades: list["Entidad"] = field(default_factory=list)
-
 
 @dataclass
 class CatalogVersion:
