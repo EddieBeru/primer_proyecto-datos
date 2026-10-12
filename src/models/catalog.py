@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
-    from api.models.types import Entidad
+    from models.types import Entidad
 
 @dataclass
 class Enemy:

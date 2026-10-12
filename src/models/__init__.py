@@ -1,7 +1,7 @@
 
 from api.models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
 from api.models.objects import Antidote, Armor, Key, Potion, RewindScroll, Torch, Weapon
-from api.models.types import Entidad
+from models.types import Entidad
 
 #Importaciones
 __all__ = [
