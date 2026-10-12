@@ -1,11 +1,8 @@
-
 from dataclasses import dataclass
-
 
 @dataclass
 class ErrorResponse:
     error: str
-
 
 @dataclass
 class RateLimitedResponse:

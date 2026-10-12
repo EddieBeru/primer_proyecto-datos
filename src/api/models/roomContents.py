@@ -7,12 +7,10 @@ class EnemyPlacement:
     tipo: str
     vida: Optional[int] = None
 
-
 @dataclass
 class TrapPlacement:
     instancia: str
     tipo: str
-
 
 @dataclass
 class RoomContentEntry:
@@ -20,7 +18,6 @@ class RoomContentEntry:
     enemigos: list[EnemyPlacement] = field(default_factory=list)
     objetos: list[str] = field(default_factory=list)
     trampas: list[TrapPlacement] = field(default_factory=list)
-
 
 @dataclass
 class ContenidoResponse:

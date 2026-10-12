@@ -7,7 +7,6 @@ class PlayerInitial:
     defensa: int
     velocidad: int  # > 0
 
-
 @dataclass
 class DungeonGeneral:
     id: str
@@ -22,7 +21,6 @@ class DungeonGeneral:
     inventario_max: int
     jugador: PlayerInitial
 
-
 @dataclass
 class DungeonSummary:
     id: str
@@ -30,12 +28,10 @@ class DungeonSummary:
     salas: int
     dificultad: int
 
-
 @dataclass
 class DungeonVersion:
     id: str
     version: str
-
 
 @dataclass
 class CriptasResponse:
