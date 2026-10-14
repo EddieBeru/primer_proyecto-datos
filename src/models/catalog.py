@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
-    from models.types import Entidad
+    from src.models.types import Entidad
 
 @dataclass
 class Enemy:
@@ -53,7 +53,7 @@ class CatalogoResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "CatalogoResponse":
         # Import local para evitar ciclo con models.types
-        from models.objects import (
+        from src.models.objects import (
             Antidote,
             Armor,
             Key,
