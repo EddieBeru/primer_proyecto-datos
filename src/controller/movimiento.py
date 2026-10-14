@@ -4,9 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from src.controller.c2_1_modelo import EstadoPartida, SalaViva
-from src.controller.c2_2_agenda import Agenda, Evento
-from src.controller.c2_3_reloj import RelojVirtual
+from src.controller.modelo import EstadoPartida, SalaViva
+from src.controller.agenda import Agenda, Evento
+from src.controller.reloj import RelojVirtual
 
 RASTRO_FRESCO = 10
 # TODO(profe pregunta 7 + C2-8): confirmar valor/duracion del rastro y agregar su decaimiento con agenda.

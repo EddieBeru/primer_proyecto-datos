@@ -1,5 +1,5 @@
 
-from src.controller.c2_1_modelo import (
+from src.controller.modelo import (
     DEFAULTS,
     EnemigoInstancia,
     EstadoPartida,
@@ -8,16 +8,16 @@ from src.controller.c2_1_modelo import (
     SalaViva,
     TrampaInstancia,
 )
-from src.controller.c2_2_agenda import Agenda, Evento
-from src.controller.c2_3_reloj import BASE_TURNO, RelojVirtual, intervalo_por_velocidad
-from src.controller.c2_4_movimiento import (
+from src.controller.agenda import Agenda, Evento
+from src.controller.reloj import BASE_TURNO, RelojVirtual, intervalo_por_velocidad
+from src.controller.movimiento import (
     ProveedorSalas,
     ResultadoMovimiento,
     ejecutar_cierre,
     intentar_mover,
 )
-from src.controller.c2_5_inventario import Inventario, InventarioLlenoError
-from src.controller.c2_6_combate import (
+from src.controller.inventario import Inventario, InventarioLlenoError
+from src.controller.combate import (
     ResultadoAtaque,
     ataque_enemigo,
     ataque_jugador,
