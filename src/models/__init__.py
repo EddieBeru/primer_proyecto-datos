@@ -1,7 +1,7 @@
 
-from models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
-from models.objects import Antidote, Armor, Key, Potion, RewindScroll, Torch, Weapon
-from models.types import Entidad
+from src.models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
+from src.models.objects import Antidote, Armor, Key, Potion, RewindScroll, Torch, Weapon
+from src.models.types import Entidad
 
 #Importaciones
 __all__ = [

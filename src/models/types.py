@@ -1,7 +1,7 @@
 from typing import TypeAlias, Union
 
-from models.catalog import Enemy, Trap
-from models.objects import Antidote, Armor, Key, Potion, RewindScroll, Torch, Weapon
+from src.models.catalog import Enemy, Trap
+from src.models.objects import Antidote, Armor, Key, Potion, RewindScroll, Torch, Weapon
 
 # Almacena la lista de todas las clases de entidaddes. 
 Entidad: TypeAlias = Union[
