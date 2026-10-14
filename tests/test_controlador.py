@@ -1,0 +1,782 @@
+"""Tests de todo el Controlador 2 (motor): modelo, agenda, reloj, movimiento,
+inventario, combate, efectos, enemigos, deshacer, victoria, bitacora y fachada.
+
+Un solo documento. Estilo pytest (funciones test_*), como el resto de tests/.
+Se corre con:  python -m pytest tests/test_controlador.py
+"""
+
+from types import SimpleNamespace
+
+from src.adapters.fake_provider import CRIPTA_ID, FakeProvider
+from src.adapters.mergesort import mergesort
+from src.controller import (
+    Agenda,
+    BitacoraMemoria,
+    EnemigoInstancia,
+    EstadoPartida,
+    Fachada,
+    Inventario,
+    InventarioLlenoError,
+    PilaDeshacer,
+    RelojVirtual,
+    SalaViva,
+    TrampaInstancia,
+    actualizar_estado,
+    aplicar_inversa,
+    ataque_enemigo,
+    ataque_jugador,
+    calcular_puntaje,
+    decidir_destino,
+    deshacer_una,
+    ejecutar_cierre,
+    ejecutar_fin_efecto,
+    ejecutar_rearme,
+    envenenar,
+    formatear,
+    hay_derrota,
+    hay_victoria,
+    intentar_mover,
+    mover_enemigo,
+    ordenar_puntajes,
+    parsear,
+    pisar_trampa,
+    reproducir,
+    turno_enemigo,
+    usar_antidoto,
+    usar_antorcha,
+    usar_pocion,
+)
+from src.models.dungeons import DungeonGeneral
+from src.models.roomContents import EnemyPlacement, RoomContentEntry
+from src.models.rooms import Exit, Room
+
+
+# ------------------------------------------------------------- ayudantes
+
+IDS_FICHAS = [
+    "esqueleto-guardian-01", "murcielago-errante-01", "sombra-rastreadora-01",
+    "jefe-cripta-01", "espada-hierro-01", "escudo-madera-01", "pocion-roja-01",
+    "pocion-veloz-01", "antidoto-01", "llave-hierro-01", "llave-salida-01",
+    "antorcha-01", "pergamino-01", "pinchos-01", "veneno-01",
+]
+
+
+def ficha_chica():
+    return DungeonGeneral.from_dict({
+        "id": "c", "version": "v1", "salas_total": 3, "paginas": 1,
+        "salas_por_pagina": 50, "sala_inicial": 1, "sala_salida": 3,
+        "llave_salida": "llave-sal", "presupuesto_solicitudes": 9,
+        "inventario_max": 5,
+        "jugador": {"vida_max": 30, "ataque": 6, "defensa": 2, "velocidad": 5},
+    })
+
+
+def estado_chico():
+    return EstadoPartida.nueva_partida(ficha_chica(), "cat-v1")
+
+
+class ProveedorVivo:
+    """Adapta el FakeProvider (C1-1, SalaLista) a lo que pide C2 (K1, SalaViva)."""
+
+    def __init__(self):
+        self.fake = FakeProvider()
+        self.catalogo = {i: self.fake.ficha(i) for i in IDS_FICHAS}
+
+    def sala_lista(self, n):
+        sl = self.fake.sala_lista(n)
+        sv = SalaViva.desde_esqueleto(sl.room)
+        sv.enemigos = [EnemigoInstancia(e.instancia, e.ficha.id, e.vida_actual, n)
+                       for e in sl.enemigos]
+        sv.objetos_suelo = [o.ficha.id for o in sl.objetos]
+        sv.trampas = [TrampaInstancia(t.instancia, t.ficha.id, n, t.armada)
+                      for t in sl.trampas]
+        return sv
+
+    def general(self):
+        return self.fake.preparar_cripta(CRIPTA_ID)
+
+
+def fachada_fake():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    return Fachada(est, prov, dict(prov.catalogo)), prov
+
+
+def sala_simple(n=1, salidas=None):
+    return SalaViva.desde_esqueleto(
+        Room.from_dict({"id": n, "nombre": f"S{n}", "salidas": salidas or {}}))
+
+
+# ------------------------------------------------------------- C2-1 modelo
+
+def test_jugador_nace_lleno():
+    j = estado_chico().jugador
+    assert (j.vida_actual, j.vida_max) == (30, 30)
+    assert j.inventario == [] and j.vivo
+
+
+def test_jugador_rechaza_rangos():
+    base = ficha_chica().jugador
+    for malo in ({"vida_max": 0}, {"velocidad": 0}):
+        d = dict(vida_max=base.vida_max, ataque=base.ataque,
+                 defensa=base.defensa, velocidad=base.velocidad)
+        d.update(malo)
+        try:
+            type(estado_chico().jugador)(**d, vida_actual=1)
+            assert False, d
+        except ValueError:
+            pass
+
+
+def test_salida_vacia_es_abierta():
+    s = SalaViva.desde_esqueleto(
+        Room.from_dict({"id": 1, "nombre": "A", "salidas": {"N": {"sala": 2}}}))
+    assert s.salidas["N"].cerrada is False and s.salidas["N"].llave is None
+
+
+def test_puede_pasar_pide_llave():
+    est = estado_chico()
+    salida = SalaViva.desde_esqueleto(Room.from_dict(
+        {"id": 1, "nombre": "A",
+         "salidas": {"E": {"sala": 2, "cerrada": True, "llave": "k"}}}))
+    ok, msg = salida.salidas["E"].puede_pasar(est.jugador)
+    assert not ok and "k" in msg
+    est.jugador.inventario.append("k")
+    assert salida.salidas["E"].puede_pasar(est.jugador)[0]
+
+
+def test_vida_vacia_usa_vida_max_del_tipo():
+    e = EnemigoInstancia.desde_colocacion(
+        EnemyPlacement(instancia="x", tipo="goblin", vida=None), 1, 40)
+    assert e.vida_actual == 40 and e.vivo
+
+
+def test_tipo_vs_instancia_independientes():
+    s = sala_simple()
+    s.hidratar_contenido(RoomContentEntry.from_dict(
+        {"sala": 1, "enemigos": [{"instancia": "a", "tipo": "g"},
+                                {"instancia": "b", "tipo": "g"}],
+         "objetos": ["moneda"], "trampas": [{"instancia": "t", "tipo": "p"}]}),
+        {"g": 10})
+    assert len(s.enemigos) == 2 and s.objetos_suelo == ["moneda"]
+    assert s.trampas[0].armada is True
+    s.enemigos[0].recibir_dano(99)
+    assert not s.enemigos[0].vivo and s.enemigos[1].vivo
+
+
+def test_estado_roundtrip_identico():
+    est = estado_chico()
+    est.registrar_sala(sala_simple(1, {"E": {"sala": 2}}))
+    assert EstadoPartida.desde_dict(est.a_dict()) == est
+
+
+# ------------------------------------------------------------- C2-2 agenda
+
+def test_agenda_orden_tiempo():
+    ag = Agenda()
+    ag.programar(10, "a", {})
+    ag.programar(3, "b", {})
+    assert [e.tipo for e in ag] == ["b", "a"]
+    assert ag.sacar_proximo().tipo == "b" and len(ag) == 1
+
+
+def test_agenda_empate_desempata_seq():
+    ag = Agenda()
+    e1 = ag.programar(5, "primero", {})
+    e2 = ag.programar(5, "segundo", {})
+    assert ag.sacar_proximo().seq == e1.seq
+    assert ag.sacar_proximo().seq == e2.seq
+
+
+def test_agenda_vacia():
+    ag = Agenda()
+    assert ag.vacia and ag.ver_proximo() is None and ag.sacar_proximo() is None
+
+
+def test_agenda_cancelar_en_medio():
+    ag = Agenda()
+    ag.programar(1, "a", {})
+    medio = ag.programar(2, "b", {})
+    ag.programar(3, "c", {})
+    assert ag.cancelar_por_seq(medio.seq) and not ag.cancelar_por_seq(999)
+    assert [e.tipo for e in ag] == ["a", "c"]
+
+
+def test_agenda_cancelar_donde():
+    ag = Agenda()
+    ag.programar(1, "veneno", {})
+    ag.programar(2, "veneno", {})
+    ag.programar(3, "turno", {})
+    assert ag.cancelar_donde(lambda e: e.tipo == "veneno") == 2
+    assert [e.tipo for e in ag] == ["turno"]
+
+
+def test_agenda_serializa_k2_y_sigue_seq():
+    ag = Agenda()
+    ag.programar(7, "turno", {"actor": "g"})
+    ag.programar(3, "cierre_puerta", {})
+    lista = ag.a_lista()
+    ag2 = Agenda.desde_lista(lista)
+    assert ag2.a_lista() == lista
+    nuevo = ag2.programar(9, "x", {})
+    assert nuevo.seq > max(e["seq"] for e in lista)
+
+
+# ------------------------------------------------------------- C2-3 reloj
+
+def test_intervalo_menos_espera_si_mas_velocidad():
+    rj = RelojVirtual()
+    assert rj.intervalo(10) < rj.intervalo(5)
+    try:
+        rj.intervalo(0)
+        assert False
+    except ValueError:
+        pass
+
+
+def test_turnos_rapido_antes_que_lento():
+    rj, ag = RelojVirtual(), Agenda()
+    rj.programar_turno(ag, "lento", 5)
+    rj.programar_turno(ag, "rapido", 10)
+    assert rj.avanzar(ag).datos["actor"] == "rapido"
+    assert rj.avanzar(ag).datos["actor"] == "lento"
+    assert rj.avanzar(Agenda()) is None
+
+
+def test_avanzar_pasado_es_error():
+    rj, ag = RelojVirtual(ahora=10), Agenda()
+    ag.programar(5, "viejo", {})
+    try:
+        rj.avanzar(ag)
+        assert False
+    except ValueError:
+        pass
+
+
+# ------------------------------------------------------------- C2-4 movimiento
+
+def test_mover_sin_salida():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    r = intentar_mover(est, "N", ProveedorVivo(), Agenda(), RelojVirtual())
+    assert not r.ok and "camino" in r.mensaje
+
+
+def test_puerta_llave_sin_y_con():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    est.registrar_sala(prov.sala_lista(2))
+    est.sala_actual = 2
+    ag, rj = Agenda(), RelojVirtual()
+    r = intentar_mover(est, "S", prov, ag, rj)  # 2->4 cerrada llave-hierro-01
+    assert not r.ok and "llave-hierro-01" in r.mensaje
+    est.jugador.inventario.append("llave-hierro-01")
+    r = intentar_mover(est, "S", prov, ag, rj)
+    assert r.ok and r.abrio_puerta and est.sala_actual == 4
+
+
+def test_recorre_cripta_fake_6_salas():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    ag, rj = Agenda(), RelojVirtual()
+
+    def mover(direccion):
+        r = intentar_mover(est, direccion, prov, ag, rj)
+        assert r.ok, (direccion, r.mensaje)
+        return r
+
+    mover("E")  # 1->2
+    mover("O")  # 2->1
+    mover("S")  # 1->3
+    est.jugador.inventario.append("llave-hierro-01")  # recoger (se prueba aparte)
+    mover("E")  # 3->4
+    assert mover("N").abrio_puerta  # 4->2 abre con llave
+    assert mover("S").abrio_puerta  # 2->4 abre la otra puerta
+    mover("S")  # 4->6
+    mover("O")  # 6->5
+    est.jugador.inventario.append("llave-salida-01")  # recoger (se prueba aparte)
+    assert mover("E").abrio_puerta  # 5->6 abre salida
+    assert len(est.salas_visitadas) == 6
+
+
+def test_ruta_con_llaves_abre_dos_puertas():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    ag, rj = Agenda(), RelojVirtual()
+    assert intentar_mover(est, "S", prov, ag, rj).ok  # 1->3
+    est.jugador.inventario.append("llave-hierro-01")
+    assert intentar_mover(est, "E", prov, ag, rj).ok  # 3->4
+    r = intentar_mover(est, "N", prov, ag, rj)  # 4->2 abre
+    assert r.ok and r.abrio_puerta
+    r = intentar_mover(est, "S", prov, ag, rj)  # 2->4 abre (otra puerta)
+    assert r.ok and r.abrio_puerta
+
+
+def test_cierre_automatico_se_programa_y_ejecuta():
+    class Prov:
+        def sala_lista(self, n):
+            return sala_simple(n, {"O": {"sala": 1}} if n == 2 else {})
+
+    est = estado_chico()
+    s1 = sala_simple(1, {"E": {"sala": 2, "cerrada": True, "llave": "k",
+                              "cierre_automatico": 5}})
+    est.registrar_sala(s1)
+    est.jugador.inventario.append("k")
+    ag, rj = Agenda(), RelojVirtual()
+    r = intentar_mover(est, "E", Prov(), ag, rj)
+    assert r.ok and r.evento_cierre_seq is not None
+    assert ag.ver_proximo().tipo == "cierre_puerta"
+    rj.avanzar(ag)
+    assert ejecutar_cierre(est, 1, "E") and s1.salidas["E"].cerrada
+
+
+def test_proveedor_falla_revierte_apertura():
+    class ProvRoto:
+        def sala_lista(self, n):
+            raise RuntimeError("sin red")
+
+    est = estado_chico()
+    s1 = sala_simple(1, {"E": {"sala": 2, "cerrada": True, "llave": "k",
+                              "cierre_automatico": 5}})
+    est.registrar_sala(s1)
+    est.jugador.inventario.append("k")
+    ag, rj = Agenda(), RelojVirtual()
+    r = intentar_mover(est, "E", ProvRoto(), ag, rj)
+    assert not r.ok and s1.salidas["E"].cerrada
+    assert all(e.tipo != "cierre_puerta" for e in ag)
+
+
+# ------------------------------------------------------------- C2-5 inventario
+
+def test_inventario_lleno():
+    inv = Inventario(2)
+    inv.recoger("a")
+    inv.recoger("b")
+    assert inv.lleno
+    try:
+        inv.recoger("c")
+        assert False
+    except InventarioLlenoError:
+        pass
+
+
+def test_soltar_primero_ultimo_medio():
+    inv = Inventario(5, ["a", "b", "c"])
+    assert inv.soltar_en(0) == "a"
+    assert inv.soltar_en(len(inv) - 1) == "c"
+    inv2 = Inventario(5, ["x", "y", "z"])
+    assert inv2.soltar_en(1) == "y" and inv2.a_lista() == ["x", "z"]
+    try:
+        Inventario(2).soltar_en(0)
+        assert False
+    except IndexError:
+        pass
+
+
+def test_equipar_fondo_al_frente():
+    inv = Inventario(5, ["a", "b", "c"])
+    assert inv.equipar(2) == "c" and inv.a_lista()[0] == "c"
+    assert inv.equipar(0) == "c"
+
+
+def test_doble_sentido():
+    inv = Inventario(5, ["a", "b", "c"])
+    assert list(reversed(inv)) == ["c", "b", "a"]
+    assert inv.contiene("b") and not inv.contiene("z")
+
+
+def test_ordenar_con_mergesort_real():
+    inv = Inventario(5, ["c", "a", "b"])
+    inv.ordenar(mergesort)
+    assert inv.a_lista() == ["a", "b", "c"]
+
+
+def test_ordenar_sin_algoritmo_falla():
+    try:
+        Inventario(3, ["b", "a"]).ordenar(None)
+        assert False
+    except TypeError:
+        pass
+
+
+# ------------------------------------------------------------- C2-6 combate
+
+def test_dano_minimo_uno():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 10, 1)]
+    r = ataque_jugador(est, "x", 0, 99, None, {})
+    assert r.dano == 1 and not r.mato
+
+
+def test_mata_y_deja_botin():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 3, 1)]
+    r = ataque_jugador(est, "x", 0, 0, ["moneda"], {})
+    assert r.mato and "moneda" in est.sala_en_curso().objetos_suelo
+
+
+def test_bonus_equipo_suma():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 100, 1)]
+    arma = SimpleNamespace(clase="arma", ataque_bonus=10)
+    sin = ataque_jugador(est, "x", 0, 0, None, {})
+    est.jugador.arma_equipada = "espada"
+    con = ataque_jugador(est, "x", 0, 0, None, {"espada": arma})
+    assert con.dano == sin.dano + 10
+
+
+def test_enemigo_mata_marca_derrota():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 10, 1)]
+    est.jugador.vida_actual = 2
+    r = ataque_enemigo(est, "x", 50, {})
+    assert r.mato and est.estado == "derrota" and est.jugador.vida_actual == 0
+
+
+def test_atacar_ausente_o_muerto():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    assert "aquí" in ataque_jugador(est, "zz", 1, 0, None, {}).mensaje
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 0, 1)]
+    assert "muerto" in ataque_jugador(est, "x", 1, 0, None, {}).mensaje
+
+
+# ------------------------------------------------------------- C2-7 efectos
+
+def test_trampa_dana_desarma_y_rearma():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))  # t1-1 pinchos-01 dano 10 rearme 3
+    ag, rj = Agenda(), RelojVirtual()
+    vida = est.jugador.vida_actual
+    res, inv = pisar_trampa(est, ag, rj, "t1-1", prov.catalogo)
+    assert res.ok and res.dano == 10 and est.jugador.vida_actual == vida - 10
+    assert not est.salas[1].trampas[0].armada and len(res.eventos) == 1
+    rj.avanzar(ag)
+    assert ejecutar_rearme(est, "t1-1") and est.salas[1].trampas[0].armada
+
+
+def test_trampa_desarmada_no_dana():
+    est = estado_chico()
+    s = sala_simple()
+    s.trampas = [TrampaInstancia("t", "p", 1, armada=False)]
+    est.registrar_sala(s)
+    res, _ = pisar_trampa(est, Agenda(), RelojVirtual(), "t", {})
+    assert res.ok and res.dano == 0
+
+
+def test_veneno_ticks_y_antidoto_cancela():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    ag, rj = Agenda(), RelojVirtual()
+    envenenar(est, ag, rj, 3, 2)
+    assert est.jugador.efectos["veneno"] == 3
+    est.jugador.inventario.append("ant-x")
+    res, _ = usar_antidoto(est, ag, "ant-x")
+    assert "veneno" not in est.jugador.efectos
+    assert all(e.tipo != "veneno" for e in ag) and res.ok
+
+
+def test_pocion_veloz_dura_y_termina():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(4))
+    ag, rj = Agenda(), RelojVirtual()
+    est.jugador.inventario.append("pocion-veloz-01")
+    res, _ = usar_pocion(est, ag, rj, "pocion-veloz-01", prov.catalogo)
+    assert res.ok and est.jugador.efectos["veloz"] == 5
+    assert "pocion-veloz-01" not in est.jugador.inventario
+    rj.avanzar(ag)
+    assert ejecutar_fin_efecto(est, "veloz") and "veloz" not in est.jugador.efectos
+
+
+def test_antorcha_dura_y_termina():
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    ag, rj = Agenda(), RelojVirtual()
+    est.jugador.inventario.append("antorcha-01")
+    res, _ = usar_antorcha(est, ag, rj, "antorcha-01", prov.catalogo)
+    assert res.ok and est.jugador.efectos["antorcha"] == 10
+    assert ejecutar_fin_efecto(est, "antorcha")
+
+
+# ------------------------------------------------------------- C2-8 enemigos
+
+def _mundo_ia():
+    est = estado_chico()
+    for n, salidas in ((1, {"E": {"sala": 2}}),
+                       (2, {"O": {"sala": 1}, "E": {"sala": 3}}),
+                       (3, {"O": {"sala": 2}})):
+        est.registrar_sala(sala_simple(n, salidas))
+    cat = {"g": SimpleNamespace(comportamiento="guardián", velocidad=5),
+           "e": SimpleNamespace(comportamiento="errante", velocidad=5),
+           "r": SimpleNamespace(comportamiento="rastreador", velocidad=5)}
+    return est, cat
+
+
+def test_guardian_quieto():
+    est, cat = _mundo_ia()
+    est.salas[1].enemigos = [EnemigoInstancia("g1", "g", 10, 1)]
+    assert decidir_destino(est, "g1", cat, 0) is None
+
+
+def test_errante_determinista():
+    est, cat = _mundo_ia()
+    est.salas[2].enemigos = [EnemigoInstancia("e1", "e", 10, 2)]
+    assert decidir_destino(est, "e1", cat, 7) == decidir_destino(est, "e1", cat, 7)
+
+
+def test_rastreador_va_al_rastro():
+    est, cat = _mundo_ia()
+    est.salas[2].enemigos = [EnemigoInstancia("r1", "r", 10, 2)]
+    est.salas[3].rastro = 9
+    assert decidir_destino(est, "r1", cat, 0) == 3
+
+
+def test_mover_enemigo_cambia_sala():
+    est, cat = _mundo_ia()
+    est.salas[2].enemigos = [EnemigoInstancia("e1", "e", 10, 2)]
+    assert mover_enemigo(est, "e1", 3)
+    assert est.salas[2].enemigos == [] and est.salas[3].enemigos[0].sala_actual == 3
+
+
+def test_turno_reprograma_y_decae_rastro():
+    est, cat = _mundo_ia()
+    est.salas[1].rastro = 5
+    est.salas[2].enemigos = [EnemigoInstancia("e1", "e", 10, 2)]
+    ag, rj = Agenda(), RelojVirtual()
+    turno_enemigo(est, ag, rj, "e1", cat)
+    assert any(e.tipo == "turno" for e in ag)
+    assert est.salas[1].rastro == 4
+
+
+# ------------------------------------------------------------- C2-9 deshacer
+
+def test_pila_tope_cinco():
+    pila = PilaDeshacer()
+    for i in range(7):
+        pila.apilar({"op": "equipar", "datos": {"orden_antes": [i]}, "eventos": []})
+    assert len(pila) == 5
+    assert pila.desde_lista(pila.a_lista()).a_lista() == pila.a_lista()
+
+
+def test_seis_acciones_deshacer_cinco():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.jugador.inventario = ["pergamino", "a", "b"]
+    pila = PilaDeshacer()
+    pila.apilar({"op": "equipar", "datos": {"orden_antes": ["pergamino", "a", "b"]},
+                 "eventos": []})
+    for _ in range(5):
+        pila.apilar({"op": "equipar",
+                     "datos": {"orden_antes": list(est.jugador.inventario)},
+                     "eventos": []})
+    ag = Agenda()
+    for _ in range(5):
+        assert aplicar_inversa(est, ag, pila.desapilar())
+    assert est.jugador.inventario == ["pergamino", "a", "b"]
+
+
+def test_deshacer_combate_restaura_y_quita_botin():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().enemigos = [EnemigoInstancia("x", "t", 3, 1)]
+    r = ataque_jugador(est, "x", 0, 0, ["moneda"], {})
+    assert r.mato
+    ag = Agenda()
+    assert aplicar_inversa(est, ag, {"op": "dano_enemigo",
+                                     "datos": {"instancia": "x", "vida_antes": 3,
+                                               "botin": ["moneda"]}, "eventos": []})
+    assert est.sala_en_curso().enemigos[0].vida_actual == 3
+    assert "moneda" not in est.sala_en_curso().objetos_suelo
+
+
+def test_deshacer_puerta_cancela_cierre():
+    est = estado_chico()
+    s1 = sala_simple(1, {"E": {"sala": 2, "cerrada": True, "llave": "k",
+                              "cierre_automatico": 5}})
+    est.registrar_sala(s1)
+    ag = Agenda()
+    ev = ag.programar(5, "cierre_puerta", {"sala": 1, "direccion": "E"})
+    s1.salidas["E"].cerrada = False
+    assert aplicar_inversa(est, ag, {"op": "mover",
+                                     "datos": {"origen": 1, "abrio": True,
+                                               "sala_puerta": 1, "direccion": "E"},
+                                     "eventos": [ev.seq]})
+    assert s1.salidas["E"].cerrada
+    assert all(e.tipo != "cierre_puerta" for e in ag)
+
+
+def test_deshacer_sin_pergamino_falla():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    pila = PilaDeshacer([{"op": "equipar", "datos": {"orden_antes": []},
+                          "eventos": []}])
+    ok, msg = deshacer_una(est, Agenda(), pila, {})
+    assert not ok and "pergamino" in msg.lower()
+
+
+def test_deshacer_consume_pergamino():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.jugador.inventario = ["pergamino-01", "a"]
+    cat = {"pergamino-01": SimpleNamespace(clase="pergamino_retroceso")}
+    pila = PilaDeshacer([{"op": "equipar", "datos": {"orden_antes": ["a"]},
+                          "eventos": []}])
+    ok, _ = deshacer_una(est, Agenda(), pila, cat)
+    assert ok and est.jugador.inventario == ["a"] and pila.vacia
+
+
+# ------------------------------------------------------------- C2-10 victoria
+
+def test_victoria_derrota_y_sin_llave():
+    est = estado_chico()  # salida 3, llave "llave-sal"
+    est.sala_actual = 3
+    assert not hay_victoria(est) and actualizar_estado(est) == "jugando"
+    est.jugador.inventario.append("llave-sal")
+    assert hay_victoria(est) and actualizar_estado(est) == "victoria"
+    est.jugador.vida_actual = 0
+    assert hay_derrota(est) and actualizar_estado(est) == "derrota"
+
+
+def test_puntaje_determinista():
+    v = estado_chico()
+    assert calcular_puntaje(v, 2) == calcular_puntaje(v, 2)
+    assert calcular_puntaje(v, 3) > calcular_puntaje(v, 2)
+
+
+def test_puntajes_con_mergesort_real():
+    assert ordenar_puntajes([30, 10, 20], mergesort) == [10, 20, 30]
+    try:
+        ordenar_puntajes([2, 1], None)
+        assert False
+    except TypeError:
+        pass
+
+
+# ------------------------------------------------------------- C2-11 bitacora
+
+def test_linea_formato_y_parseo():
+    linea = formatear(12, "mover", "jugador", "E")
+    assert linea == "12|mover|jugador|E"
+    assert parsear(linea) == {"reloj": 12, "tipo": "mover",
+                              "actor": "jugador", "detalle": "E"}
+
+
+def test_linea_invalida_falla():
+    for mala in ["0|volar|jugador|", "solo-dos|campos", "1|mover|a|b|c"]:
+        try:
+            parsear(mala)
+            assert False, mala
+        except ValueError:
+            pass
+    try:
+        formatear(0, "volar", "j", "")
+        assert False
+    except ValueError:
+        pass
+    try:
+        formatear(0, "mover", "j", "a|b")
+        assert False
+    except ValueError:
+        pass
+
+
+def test_replay_termina_igual():
+    prov = ProveedorVivo()
+
+    def nueva():
+        est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+        est.registrar_sala(prov.sala_lista(1))
+        return Fachada(est, prov, dict(prov.catalogo))
+
+    a = nueva()
+    a.consola(["e"])
+    lineas = a.bitacora.leer()
+    assert lineas and isinstance(a.bitacora, BitacoraMemoria)
+    b = nueva()
+    reproducir(b, lineas)
+    assert b.estado.sala_actual == a.estado.sala_actual == 2
+
+
+# ------------------------------------------------------------- C2-12 fachada
+
+def test_consola_solo_fachada_llega_a_victoria():
+    fac, _ = fachada_fake()
+    salidas = fac.consola(["s", "recoger llave-hierro-01", "e", "n", "s", "s",
+                           "o", "recoger llave-salida-01", "e", "foto"])
+    assert fac.estado.estado == "victoria", salidas
+    assert len(fac.estado.salas_visitadas) == 6
+
+
+def test_foto_trae_todo_k5():
+    fac, _ = fachada_fake()
+    f = fac.foto()
+    assert f.sala_id == 1 and f.sala_nombre == "Entrada"
+    assert set(f.puertas) >= {"E", "S"}
+    assert isinstance(f.objetos_suelo, list) and isinstance(f.trampas, list)
+    assert {"vida", "vida_max", "ataque", "defensa", "velocidad", "efectos"} <= set(f.jugador)
+    assert f.enemigos and "comportamiento" in f.enemigos[0]
+    assert f.inventario == [] and f.equipado is None and f.pergaminos == 0
+    assert isinstance(f.mensajes, list) and f.presupuesto == 999
+    assert f.estado == "jugando" and f.error is None and f.en_pausa is False
+
+
+def test_recoger_llena_error_amable():
+    est = estado_chico()
+    est.inventario_max = 1
+    est.registrar_sala(sala_simple())
+    est.sala_en_curso().objetos_suelo = ["a", "b"]
+    fac = Fachada(est, ProveedorVivo(), {})
+    assert fac.recoger("a")[0]
+    ok, msg = fac.recoger("b")
+    assert not ok and "llena" in msg and fac.foto().error is not None
+
+
+def test_fachada_deshacer_revierte_recogida():
+    fac, _ = fachada_fake()  # sala 1 tiene antorcha-01 en el suelo
+    assert fac.recoger("antorcha-01")[0]
+    fac.estado.jugador.inventario.append("pergamino-01")
+    ok, _ = fac.deshacer()
+    assert ok and "antorcha-01" not in fac.estado.jugador.inventario
+    assert "antorcha-01" in fac.foto().objetos_suelo
+    assert "pergamino-01" not in fac.estado.jugador.inventario  # consumido
+
+
+def test_fachada_avanzar_ejecuta_cierre():
+    est = estado_chico()
+    s1 = sala_simple(1, {"E": {"sala": 2, "cerrada": True, "llave": "k",
+                              "cierre_automatico": 5}})
+    est.registrar_sala(sala_simple(2))
+    est.registrar_sala(s1)
+    est.jugador.inventario.append("k")
+
+    class Prov2:
+        def sala_lista(self, n):
+            return sala_simple(n)
+
+    fac = Fachada(est, Prov2(), {})
+    assert fac.mover("E")[0]
+    assert fac.avanzar() == "cierre_puerta"
+    assert s1.salidas["E"].cerrada
+
+
+def test_fachada_atacar_y_botín_fake():
+    fac, prov = fachada_fake()  # e1-1 esqueleto guardian vida 40, suelta pocion-roja-01
+    vidas = []
+    for _ in range(10):
+        ok, _ = fac.atacar("e1-1")
+        vidas.append(fac.estado.salas[1].enemigos[0].vida_actual)
+        if "pocion-roja-01" in fac.foto().objetos_suelo:
+            break
+    assert "pocion-roja-01" in fac.foto().objetos_suelo
+    assert vidas[0] < 40
