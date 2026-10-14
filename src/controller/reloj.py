@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.controller.c2_2_agenda import Agenda, Evento
+from src.controller.agenda import Agenda, Evento
 
 BASE_TURNO = 100
 # TODO(profe pregunta 6): reemplazar por la formula real de tiempo-entre-turnos del enunciado.
