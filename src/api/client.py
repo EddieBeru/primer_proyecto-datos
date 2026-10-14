@@ -39,7 +39,7 @@ class Client:
         }
 
         try:
-            response = requests.request(method, url, headers=headers, json=data)
+            response = requests.request(method, url, headers=headers, json=data, timeout=10)
         except requests.RequestException as e:
             raise NetworkError(f"Fallo de red: {str(e)}") from e
 

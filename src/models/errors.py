@@ -38,3 +38,9 @@ class RateLimitedError(CriptaError):
     def __init__(self, message: str, reintentar_en: int):
         super().__init__(message)
         self.reintentar_en = reintentar_en
+
+
+class PresupuestoAgotadoError(CriptaError):
+    """Presupuesto de solicitudes agotado. Decisión equipo pendiente (K4)."""
+
+    pass
