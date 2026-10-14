@@ -50,3 +50,9 @@ class BitacoraError(CriptaError):
     """Bitácora ilegible o línea corrupta. No insistir, avisar."""
 
     pass
+
+
+class GuardadoError(CriptaError):
+    """Archivo de partida dañado o inexistente. Error amable, no crash."""
+
+    pass
