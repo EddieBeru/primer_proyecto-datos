@@ -38,6 +38,15 @@ def rutina_mock():
         version = src.api.endpoints.version_cripta(primera_cripta_id, budget)
         print(version)
         print(f"Presupuesto restante: {budget.get_presupuesto()}")
+
+        print("Descargando esqueleto completo (mapa de salas)...")
+        plano = src.api.endpoints.esqueleto_completo(primera_cripta_id, budget, info=info)
+        print(f"Salas en el plano: {len(plano)}")
+        for numero in sorted(plano):
+            sala = plano[numero]
+            salidas = ", ".join(f"{d}->{s.sala}" for d, s in sala.salidas.items())
+            print(f"  Sala {numero} ({sala.nombre}): {salidas}")
+        print(f"Presupuesto restante: {budget.get_presupuesto()}")
     except PresupuestoAgotadoError as e:
         print(f"Presupuesto agotado: {e}")
         return

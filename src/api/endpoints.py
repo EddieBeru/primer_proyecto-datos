@@ -15,7 +15,7 @@ from src.models.objects import (
     Weapon,
 )
 from src.models.roomContents import ContenidoResponse
-from src.models.rooms import SkeletonPage
+from src.models.rooms import Room, SkeletonPage
 from src.models.types import Entidad
 
 client = Client()
@@ -32,6 +32,7 @@ _PARSERS = {
     "pergamino_retroceso": RewindScroll.from_dict,
 }
 
+# Funciones helpers
 def _pedir_con_reintento(budget, pide, max_intentos=3, esperar_fn=time.sleep):
     """Envuelve una petición con presupuesto + reintento ante 429.
 
@@ -54,6 +55,26 @@ def _pedir_con_reintento(budget, pide, max_intentos=3, esperar_fn=time.sleep):
             esperar_fn(max(1, e.reintentar_en))
     raise ultimo
 
+def esqueleto_completo(id: str, budget=None, info: DungeonGeneral | None = None) -> dict[int, Room]:
+    """Devuelve un dict {número de sala: Room} con todas las salas de la cripta.
+
+    Si ya tienes la ficha (p. ej. de iniciar_cripta), pásala en info
+    para no gastar otra petición en refetchearla.
+    """
+    if info is None:
+        info = info_cripta(id, budget)
+    plano = {}
+    for pagina in range(1, info.paginas + 1):
+        lote = esqueleto(id, pagina, budget)
+        for sala in lote.salas:
+            plano[sala.id] = sala
+    if len(plano) != info.salas_total:
+        raise UnexpectedResponseError(
+            f"Se esperaban {info.salas_total} salas, llegaron {len(plano)}"
+        )
+    return plano
+
+# Funciones de alto nivel
 def _parse_entidad(payload: dict) -> Entidad:
     try:
         parser = _PARSERS[payload.get("clase", "")]
@@ -66,7 +87,6 @@ def _parse_entidad(payload: dict) -> Entidad:
     except (KeyError, TypeError, ValueError) as e:
         raise UnexpectedResponseError(f"Ficha inválida: {str(e)}") from e
 
-
 def _validar_lote(ids: Sequence) -> list:
     ids = list(ids)
     if not 1 <= len(ids) <= 10:
@@ -75,13 +95,12 @@ def _validar_lote(ids: Sequence) -> list:
         raise ValueError("Lote con ids repetidos, API responde 400")
     return ids
 
-
+# Endpoints de la API
 def listar_criptas(budget=None) -> CriptasResponse:
     def _pedir():
         return client.make_request("criptas", model=CriptasResponse)
 
     return _pedir_con_reintento(budget, _pedir)
-
 
 def info_cripta(id: str, budget=None) -> DungeonGeneral:
     def _pedir():
@@ -89,13 +108,11 @@ def info_cripta(id: str, budget=None) -> DungeonGeneral:
 
     return _pedir_con_reintento(budget, _pedir)
 
-
 def version_cripta(id: str, budget=None) -> DungeonVersion:
     def _pedir():
         return client.make_request(f"criptas/{id}/version", model=DungeonVersion)
 
     return _pedir_con_reintento(budget, _pedir)
-
 
 def esqueleto(id: str, pagina: int = 1, budget=None) -> SkeletonPage:
     if pagina < 1:
@@ -106,7 +123,6 @@ def esqueleto(id: str, pagina: int = 1, budget=None) -> SkeletonPage:
 
     return _pedir_con_reintento(budget, _pedir)
 
-
 def contenido(id: str, salas: Sequence[int], budget=None) -> ContenidoResponse:
     lote = _validar_lote(salas)
     qs = ",".join(map(str, lote))
@@ -116,13 +132,11 @@ def contenido(id: str, salas: Sequence[int], budget=None) -> ContenidoResponse:
 
     return _pedir_con_reintento(budget, _pedir)
 
-
 def version_catalogo(budget=None) -> CatalogVersion:
     def _pedir():
         return client.make_request("catalogo/version", model=CatalogVersion)
 
     return _pedir_con_reintento(budget, _pedir)
-
 
 def lote_catalogo(ids: Sequence[str], budget=None) -> CatalogoResponse:
     lote = _validar_lote(ids)
@@ -132,7 +146,6 @@ def lote_catalogo(ids: Sequence[str], budget=None) -> CatalogoResponse:
         return client.make_request(f"catalogo?ids={qs}", model=CatalogoResponse)
 
     return _pedir_con_reintento(budget, _pedir)
-
 
 def ficha_catalogo(id: str, budget=None) -> Entidad:
     def _pedir():
