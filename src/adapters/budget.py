@@ -1,6 +1,4 @@
-import time
-
-from models.errors import PresupuestoAgotadoError
+from src.models.errors import PresupuestoAgotadoError
 
 class BudgetAdapter:
     def __init__(self, presupuesto = 14):
