@@ -147,6 +147,24 @@ def lote_catalogo(ids: Sequence[str], budget=None) -> CatalogoResponse:
 
     return _pedir_con_reintento(budget, _pedir)
 
+
+def lote_catalogo_auto(ids: Sequence[str], budget=None) -> dict[str, Entidad]:
+    """Pide N fichas del catálogo en lotes de máx 10 (endpoint 7).
+
+    - Quita repetidos preservando orden (el API responde 400 si se repiten).
+    - Parte en grupos de 10, una petición por grupo (cada una descuenta 1).
+    - Retorna dict {id: ficha}. Lista vacía → {} sin peticiones.
+    """
+    unicos = list(dict.fromkeys(ids))
+    if not unicos:
+        return {}
+    fichas: dict[str, Entidad] = {}
+    for i in range(0, len(unicos), 10):
+        lote = lote_catalogo(unicos[i:i + 10], budget)
+        for entidad in lote.entidades:
+            fichas[entidad.id] = entidad
+    return fichas
+
 def ficha_catalogo(id: str, budget=None) -> Entidad:
     def _pedir():
         payload = client.make_request(f"catalogo/{id}")
