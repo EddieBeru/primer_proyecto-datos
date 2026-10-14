@@ -14,6 +14,8 @@ EstadoJuego = Literal["jugando", "victoria", "derrota"]
 # Valores por defecto para campos que el API puede traer vacios.
 # Acordados en Fase 0; marcados como pendientes de confirmar con el profe.
 # (docs: "separacion vista controlador.md" 2.7, "vista y flujos api.md" Parte 4).
+# TODO(profe pregunta 3): confirmar que "vacio" significa estos defaults y no "no aplica".
+# TODO(profe pregunta 1): confirmar si version/reintentos descuentan; afecta presupuesto_restante.
 DEFAULTS: dict[str, Any] = {
     # Exit.cerrada ausente -> puerta abierta.
     "cerrada": False,
@@ -32,8 +34,10 @@ DEFAULTS: dict[str, Any] = {
     "duracion": 0,
     # Key.abre ausente o vacio -> PENDIENTE profe (preguntas 2 y 8).
     # Supuesto temporal: la llave vale si su id == salida.llave.
+    # TODO(profe pregunta 2): confirmar si manda salida.llave o Key.abre cuando hay conflicto.
     "abre": None,
     # Rastro fresco para rastreador (C2-8): 0 = sin rastro.
+    # TODO(profe pregunta 7 + C2-8): confirmar regla de frescura/duracion del rastro.
     "rastro": 0,
 }
 
@@ -57,6 +61,9 @@ class JugadorVivo:
     antes de C2-7. Ej: {"veneno": 3, "veloz": 5, "antorcha": 10}.
     """
 
+    # TODO(C2-5): sincronizar este orden con el Inventario enlazado (a_lista/desde_jugador).
+    # TODO(C1-8): esta lista en orden es lo que se guarda a bytes (K2).
+    # TODO(C2-7): veneno/pocion/antorcha/antidoto consumen `efectos` + agenda.
     vida_max: int
     vida_actual: int
     ataque: int
@@ -171,6 +178,8 @@ class EnemigoInstancia:
         cls, col: EnemyPlacement, sala: int, vida_max_tipo: int
     ) -> "EnemigoInstancia":
         """``vida`` vacia -> vida_max del tipo (DEFAULTS pendiente profe)."""
+        # TODO(profe pregunta 3): confirmar que vida vacia = vida_max del tipo.
+        # TODO(C1-7): `vida_max_tipo` viene de la ficha del catalogo (cache LRU C1-6).
         vida = col.vida if col.vida is not None else vida_max_tipo
         return cls(instancia=col.instancia, tipo_id=col.tipo, vida_actual=vida, sala_actual=sala)
 
@@ -223,6 +232,8 @@ class SalaViva:
     trampas: list[TrampaInstancia] = field(default_factory=list)
     visitada: bool = False
     rastro: int = DEFAULTS["rastro"]
+    # TODO(C1-7): esta es la "sala lista" que arma C1 (Flujo C: contenido + catalogo).
+    # TODO(C2-8): `rastro` lo consume el rastreador; falta decaimiento con agenda.
 
     @classmethod
     def desde_esqueleto(cls, sala: Room) -> "SalaViva":
@@ -281,9 +292,14 @@ class EstadoPartida:
     presupuesto_restante: int = 0
     # Placeholders con forma minima para no bloquear a C1-8:
     # agenda C2-2: [{t, seq, tipo, datos}]; pila C2-9: [{inversa, datos}].
+    # TODO(C2-2 hecho): Agenda.a_lista/desde_lista ya produce esta forma; falta cablear reloj<->EstadoPartida.
+    # TODO(C2-9): definir forma final de cada entrada de pila_deshacer (accion inversa, no copia total).
+    # TODO(C1-8): C1 serializa estos dos campos a bytes con struct; avisar si cambia su forma (regla 6.3).
     agenda: list[dict[str, Any]] = field(default_factory=list)
     pila_deshacer: list[dict[str, Any]] = field(default_factory=list)
     estado: EstadoJuego = "jugando"
+    # TODO(C2-10): `estado` y puntaje los decide fin-de-juego; pendiente formula de puntaje (profe pregunta 9).
+    # TODO(C2-11/C1-9): cada cambio aqui debe anotarse a bitacora (K3) para --replay.
 
     @classmethod
     def nueva_partida(cls, ficha: DungeonGeneral, version_catalogo: str) -> "EstadoPartida":

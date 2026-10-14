@@ -20,6 +20,10 @@ class _NodoInv:
 class Inventario:
     """Mochila con tope por CANTIDAD (peso se ignora: duda 8, pendiente profe)."""
 
+    # TODO(profe pregunta 8): confirmar si `peso` limita algo o solo cuenta `inventario_max`.
+    # TODO(C1-11): `ordenar` necesita el mergesort de C1; C2 no implementa el suyo.
+    # TODO(C1-8/K2): `a_lista` es el orden que se guarda en JugadorVivo.inventario.
+    # TODO(C2-10): puntajes tambien se ordenan con el mergesort de C1.
     def __init__(self, maximo: int, items: list[str] | None = None) -> None:
         if maximo <= 0:
             raise ValueError("maximo debe ser > 0")
@@ -70,6 +74,8 @@ class Inventario:
 
     def recoger(self, item_id: str) -> None:
         """Agrega al fondo. Lanza InventarioLlenoError si no cabe."""
+        # TODO(C2-9): guardar "soltar este id" como inversa para el pergamino de retroceso.
+        # TODO(C2-11): anotar recogida a bitacora (K3).
         if self.lleno:
             raise InventarioLlenoError(f"Mochila llena ({self.maximo}).")
         n = _NodoInv(item_id)
@@ -95,6 +101,8 @@ class Inventario:
 
     def equipar(self, pos: int) -> str:
         """Mueve el de pos al frente (equipar = ir al frente)."""
+        # TODO(C2-6/C2-12): si el item es arma/armadura, la fachada debe reflejarlo en arma_equipada/armadura_equipada.
+        # TODO(C2-9): guardar la posicion anterior como accion inversa (tope 5).
         if pos == 0:
             return self._cabeza.valor  # type: ignore[union-attr]
         valor = self._desenganchar(self._nodo_en(pos))

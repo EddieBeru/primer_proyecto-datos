@@ -41,6 +41,9 @@ class _Nodo:
 class Agenda:
     """Cola de prioridad ordenada por (t, seq) sobre lista enlazada."""
 
+    # TODO(C2-7): tipos que se programaran aqui: veneno, rearme_trampa, fin_pocion/antorcha.
+    # TODO(C2-4/C2-8): tipos cierre_puerta y turno_enemigo ya previstos; turnos los crea RelojVirtual.
+    # TODO(C2-9): cada programar() debe guardar su seq para que el deshacer lo cancele.
     def __init__(self) -> None:
         self._cabeza: _Nodo | None = None
         self._seq: int = 0  # proximo numero de secuencia
@@ -133,12 +136,14 @@ class Agenda:
             actual = actual.siguiente
 
     # -- K2: la agenda se guarda como list[dict] dentro de EstadoPartida --
+    # TODO(C1-8): C1 escribe/lee esta lista a bytes; no cambiar sus claves sin regla 6.3.
     def a_lista(self) -> list[dict[str, Any]]:
         return [e.a_dict() for e in self]
 
     @classmethod
     def desde_lista(cls, items: list[dict[str, Any]]) -> "Agenda":
         """Reconstruye conservando seqs (para que el determinismo siga)."""
+        # TODO(C1-11): cuando el mergesort propio exista, usarlo aqui en vez de sorted().
         ag = cls()
         max_seq = -1
         # items ya vienen ordenados por (t, seq) desde a_lista; se reenlazan

@@ -9,11 +9,14 @@ from src.controller.c2_2_agenda import Agenda, Evento
 from src.controller.c2_3_reloj import RelojVirtual
 
 RASTRO_FRESCO = 10
+# TODO(profe pregunta 7 + C2-8): confirmar valor/duracion del rastro y agregar su decaimiento con agenda.
 
 
 class ProveedorSalas(Protocol):
     """Contrato K1 minimo que C2 necesita de C1 (falso o real)."""
 
+    # TODO(C1-1): usar primero el proveedor falso para no bloquear el motor.
+    # TODO(C1-7): cambiar al real cuando entregue "sala lista" (Flujo C); C2 no cambia.
     def sala_lista(self, n: int) -> SalaViva: ...
 
 
@@ -34,6 +37,10 @@ def intentar_mover(
     reloj: RelojVirtual,
 ) -> ResultadoMovimiento:
     """Flujo E completo. No lanza por sala inexistente: la pide al proveedor."""
+    # TODO(C1-3): descontar presupuesto por cada sala pedida; si se agota, decidir (Parte 4).
+    # TODO(K4 con C1-2): mapear 429/404/500/sin-red del proveedor a mensaje amable (pantalla 1.6).
+    # TODO(C2-9): guardar la inversa (cerrar puerta + volver a sala origen + seq de cierre) en la pila.
+    # TODO(C2-11/C1-9): anotar apertura/cruce a bitacora (K3) para --replay.
     try:
         actual = estado.salas[estado.sala_actual]
     except KeyError:
@@ -42,6 +49,7 @@ def intentar_mover(
     if salida is None:
         return ResultadoMovimiento(False, "No hay camino por ahí.")
     if salida.cerrada:
+        # TODO(profe pregunta 2): si Key.abre discrepa de salida.llave, definir cual manda.
         if salida.llave is None:
             return ResultadoMovimiento(False, "Está trabada.")
         if not estado.jugador.tiene_llave(salida.llave):
