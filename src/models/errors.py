@@ -44,3 +44,15 @@ class PresupuestoAgotadoError(CriptaError):
     """Presupuesto de solicitudes agotado. Decisión equipo pendiente (K4)."""
 
     pass
+
+
+class BitacoraError(CriptaError):
+    """Bitácora ilegible o línea corrupta. No insistir, avisar."""
+
+    pass
+
+
+class GuardadoError(CriptaError):
+    """Archivo de partida dañado o inexistente. Error amable, no crash."""
+
+    pass
