@@ -1,22 +1,15 @@
-import time
-
-from models.errors import PresupuestoAgotadoError
+from src.models.errors import PresupuestoAgotadoError
 
 class BudgetAdapter:
-    def __init__(self, presupuesto = 14):
-        self.presupuesto = presupuesto
+    """Contador C1-3. Cada intento HTTP cuesta 1 vía gastar().
 
-    def ejecutar(self, peticion, max_intentos, espera):
-        ultimo = None
-        for intento in range(max_intentos):
-            self.gastar()
-            try:
-                return peticion()
-            except (PresupuestoAgotadoError, Exception) as e:
-                ultimo = e
-                if intento < max_intentos - 1:
-                    time.sleep(espera)
-        raise ultimo
+    Se crea con iniciar_cripta() (session.py), no a mano.
+    """
+
+    def __init__(self, presupuesto = 14):
+        if presupuesto < 0:
+            raise ValueError(f"presupuesto inicial inválido: {presupuesto}")
+        self.presupuesto = presupuesto
 
     def get_presupuesto(self):
         return self.presupuesto
@@ -30,4 +23,6 @@ class BudgetAdapter:
         self.presupuesto -= 1
 
     def reiniciar(self, presupuesto = 14):
+        if presupuesto < 0:
+            raise ValueError(f"presupuesto inicial inválido: {presupuesto}")
         self.presupuesto = presupuesto

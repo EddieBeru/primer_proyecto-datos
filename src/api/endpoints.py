@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+import time
 
 from src.api.client import Client
 from src.models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
 from src.models.dungeons import CriptasResponse, DungeonGeneral, DungeonVersion
-from src.models.errors import UnexpectedResponseError
+from src.models.errors import RateLimitedError, UnexpectedResponseError
 from src.models.objects import (
     Antidote,
     Armor,
@@ -31,6 +32,27 @@ _PARSERS = {
     "pergamino_retroceso": RewindScroll.from_dict,
 }
 
+def _pedir_con_reintento(budget, pide, max_intentos=3, esperar_fn=time.sleep):
+    """Envuelve una petición con presupuesto + reintento ante 429.
+
+    - Cada intento descuenta 1 vía budget.gastar().
+    - PresupuestoAgotadoError sale directo, sin reintentar.
+    - Solo RateLimitedError reintenta, esperando max(1, reintentar_en)
+      vía esperar_fn (inyectable para no congelar Pygame).
+    - Otros errores (404, 500, red) propagan inmediato.
+    - budget=None: una sola llamada sin contar (compatibilidad / pruebas).
+    """
+    if budget is None:
+        return pide()
+    ultimo = None
+    for _ in range(max_intentos):
+        budget.gastar()
+        try:
+            return pide()
+        except RateLimitedError as e:
+            ultimo = e
+            esperar_fn(max(1, e.reintentar_en))
+    raise ultimo
 
 def _parse_entidad(payload: dict) -> Entidad:
     try:
@@ -54,40 +76,67 @@ def _validar_lote(ids: Sequence) -> list:
     return ids
 
 
-def listar_criptas() -> CriptasResponse:
-    return client.make_request("criptas", model=CriptasResponse)
+def listar_criptas(budget=None) -> CriptasResponse:
+    def _pedir():
+        return client.make_request("criptas", model=CriptasResponse)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def info_cripta(id: str) -> DungeonGeneral:
-    return client.make_request(f"criptas/{id}", model=DungeonGeneral)
+def info_cripta(id: str, budget=None) -> DungeonGeneral:
+    def _pedir():
+        return client.make_request(f"criptas/{id}", model=DungeonGeneral)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def version_cripta(id: str) -> DungeonVersion:
-    return client.make_request(f"criptas/{id}/version", model=DungeonVersion)
+def version_cripta(id: str, budget=None) -> DungeonVersion:
+    def _pedir():
+        return client.make_request(f"criptas/{id}/version", model=DungeonVersion)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def esqueleto(id: str, pagina: int = 1) -> SkeletonPage:
+def esqueleto(id: str, pagina: int = 1, budget=None) -> SkeletonPage:
     if pagina < 1:
         raise ValueError(f"pagina empieza en 1, llegó {pagina}")
-    return client.make_request(f"criptas/{id}/salas?pagina={pagina}", model=SkeletonPage)
+
+    def _pedir():
+        return client.make_request(f"criptas/{id}/salas?pagina={pagina}", model=SkeletonPage)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def contenido(id: str, salas: Sequence[int]) -> ContenidoResponse:
+def contenido(id: str, salas: Sequence[int], budget=None) -> ContenidoResponse:
     lote = _validar_lote(salas)
     qs = ",".join(map(str, lote))
-    return client.make_request(f"criptas/{id}/contenido?salas={qs}", model=ContenidoResponse)
+
+    def _pedir():
+        return client.make_request(f"criptas/{id}/contenido?salas={qs}", model=ContenidoResponse)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def version_catalogo() -> CatalogVersion:
-    return client.make_request("catalogo/version", model=CatalogVersion)
+def version_catalogo(budget=None) -> CatalogVersion:
+    def _pedir():
+        return client.make_request("catalogo/version", model=CatalogVersion)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def lote_catalogo(ids: Sequence[str]) -> CatalogoResponse:
+def lote_catalogo(ids: Sequence[str], budget=None) -> CatalogoResponse:
     lote = _validar_lote(ids)
     qs = ",".join(lote)
-    return client.make_request(f"catalogo?ids={qs}", model=CatalogoResponse)
+
+    def _pedir():
+        return client.make_request(f"catalogo?ids={qs}", model=CatalogoResponse)
+
+    return _pedir_con_reintento(budget, _pedir)
 
 
-def ficha_catalogo(id: str) -> Entidad:
-    payload = client.make_request(f"catalogo/{id}")
-    return _parse_entidad(payload)
+def ficha_catalogo(id: str, budget=None) -> Entidad:
+    def _pedir():
+        payload = client.make_request(f"catalogo/{id}")
+        return _parse_entidad(payload)
+
+    return _pedir_con_reintento(budget, _pedir)
