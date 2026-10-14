@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+import time
 
 from src.api.client import Client
 from src.models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
 from src.models.dungeons import CriptasResponse, DungeonGeneral, DungeonVersion
-from src.models.errors import UnexpectedResponseError
+from src.models.errors import PresupuestoAgotadoError, UnexpectedResponseError
 from src.models.objects import (
     Antidote,
     Armor,
@@ -31,6 +32,17 @@ _PARSERS = {
     "pergamino_retroceso": RewindScroll.from_dict,
 }
 
+def ejecutar(budget, peticion, max_intentos, espera):
+    ultimo = None
+    for intento in range(max_intentos):
+        budget.gastar()
+        try:
+            return peticion()
+        except (PresupuestoAgotadoError, Exception) as e:
+            ultimo = e
+            if intento < max_intentos - 1:
+                time.sleep(espera)
+    raise ultimo
 
 def _parse_entidad(payload: dict) -> Entidad:
     try:
@@ -54,8 +66,11 @@ def _validar_lote(ids: Sequence) -> list:
     return ids
 
 
-def listar_criptas() -> CriptasResponse:
-    return client.make_request("criptas", model=CriptasResponse)
+def listar_criptas(budget) -> CriptasResponse:
+    def _pedir():
+        return client.make_request("criptas", model=CriptasResponse)
+    
+    return ejecutar(budget, _pedir, max_intentos=3, espera=1)
 
 
 def info_cripta(id: str) -> DungeonGeneral:

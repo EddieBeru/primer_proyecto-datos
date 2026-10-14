@@ -6,18 +6,6 @@ class BudgetAdapter:
     def __init__(self, presupuesto = 14):
         self.presupuesto = presupuesto
 
-    def ejecutar(self, peticion, max_intentos, espera):
-        ultimo = None
-        for intento in range(max_intentos):
-            self.gastar()
-            try:
-                return peticion()
-            except (PresupuestoAgotadoError, Exception) as e:
-                ultimo = e
-                if intento < max_intentos - 1:
-                    time.sleep(espera)
-        raise ultimo
-
     def get_presupuesto(self):
         return self.presupuesto
 
