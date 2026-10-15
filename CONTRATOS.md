@@ -52,3 +52,20 @@ Intenciones: mover N/S/E/O, atacar, equipar, soltar, recorrer, deshacer, pausar,
 - Motor: daño `max(1, atk+randint(0,4)-def)` con Random(semilla); intervalo `max(1,costo*100//vel)` con tabla costos; reescale velocidad con seq nuevo; activación orden instancia; errante azar; rastreador vecinas abiertas <400 empate menor id; veneno 80x5; rearme 300 default; regen 200 capada; abrir(50)≠mover(100); trampas auto al entrar; fallos lleno/sin-llave sin tiempo; pergamino por intervalo con exclusión y tope 5.
 - Caché: default 25, pin en-uso no desalojable, disco persiste, valida versiones.
 - Sorts: mergesort + insertsort, `orden_auto` (n<=32 o casi-ordenado -> inserción).
+
+## Enmienda Sesión/orquestador (2026-10-15, regla 6.3)
+
+- Nueva capa `src/game/` (Sesion + consola): coordina ciclo de vida sin decidir
+  reglas ni tocar HTTP/disco directo. C2 nunca ve la Sesión; C1 nunca ve C2.
+- K1: la Sesión inyecta `backend` (endpoints/offline/falso) a RoomLoader y
+  convierte SalaLista→SalaViva en `ProveedorSesion` (el catálogo vive ahí).
+- K2: `Sesion.guardar/cargar` envuelven `fachada.guardar/cargar` + savegame v2;
+  `cargar` valida versiones contra el backend de la sesión (mismatch = error,
+  nunca silencioso) y recarga fichas referenciadas. Presupuesto restante se
+  sincroniza a `estado.presupuesto_restante` tras cada paso (la foto lo expone).
+- K3: la Sesión escribe el header `#cripta` al iniciar y vuelca líneas nuevas
+  tras cada paso. Replay: valida header vs backend, re-ejecuta vía `paso()`
+  (con drenaje §2.3) para fidelidad; líneas de consecuencia se derivan solas.
+- K5: loop oficial = intención → drenar agenda hasta turno-jugador/fin → foto.
+  Tope 500 eventos por paso; errores de evento = error amable sin crash.
+- `savegame.validar_versiones` acepta `backend` (antes cableaba endpoints real).

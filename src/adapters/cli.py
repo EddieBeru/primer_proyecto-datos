@@ -29,6 +29,7 @@ class CLIConfig:
     jugador: str = "jugador"
     guardar: str | None = None
     cargar: str | None = None
+    jugar: bool = False
 
 
 def parse_args(argv=None):
@@ -50,7 +51,9 @@ def parse_args(argv=None):
                         help="nombre para la tabla de puntajes")
     parser.add_argument("--guardar", default=None, help="ruta binaria de guardado")
     parser.add_argument("--cargar", default=None, help="ruta binaria a cargar")
+    parser.add_argument("--jugar", action="store_true",
+                        help="partida interactiva en consola vía Sesión")
     args = parser.parse_args(argv)
     return CLIConfig(cache_size=args.cache_size, replay=args.replay, bench=args.bench,
                      offline=args.offline, semilla=args.semilla, jugador=args.jugador,
-                     guardar=args.guardar, cargar=args.cargar)
+                     guardar=args.guardar, cargar=args.cargar, jugar=args.jugar)

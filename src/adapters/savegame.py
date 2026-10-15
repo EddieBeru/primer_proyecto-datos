@@ -282,9 +282,10 @@ def comparar_json(estado: dict) -> dict:
                 pass
 
 
-def validar_versiones(estado, budget=None):
-    """Compara versiones guardadas vs servidor (endpoints 3 y 6)."""
-    ver_cripta = endpoints.version_cripta(estado["cripta_id"], budget)
-    ver_cat = endpoints.version_catalogo(budget)
+def validar_versiones(estado, budget=None, backend=None):
+    """Compara versiones guardadas vs disponibles (endpoints 3 y 6 u offline/fake)."""
+    be = backend or endpoints
+    ver_cripta = be.version_cripta(estado["cripta_id"], budget)
+    ver_cat = be.version_catalogo(budget)
     return (ver_cripta.version == estado["version_cripta"],
             ver_cat.version == estado["version_catalogo"])

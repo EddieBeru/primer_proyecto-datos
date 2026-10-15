@@ -15,6 +15,8 @@ def main(argv=None):
         return modo_replay(cfg)
     if cfg.bench:
         return modo_bench()
+    if cfg.jugar:
+        return modo_jugar(cfg)
     return rutina(cfg)
 
 
@@ -29,52 +31,69 @@ def modo_bench():
 
 
 def modo_replay(cfg):
-    from src.adapters.gamelog import Bitacora
-    from src.controller import EstadoPartida, Fachada, reproducir
-    from src.controller.bitacora import BitacoraIncompatibleError, parsear_header
+    """--replay vía Sesión: valida header, reconstruye (red/offline) y re-ejecuta."""
+    from src.controller.bitacora import BitacoraIncompatibleError
+    from src.game.sesion import Sesion
     if not os.path.isfile(cfg.replay):
         print(f"Bitácora inexistente: {cfg.replay}")
         return 1
+    ses = _nueva_sesion(cfg, log_ruta=None)
     try:
-        lineas = Bitacora(cfg.replay).leer()
-    except CriptaError as e:
-        print(f"Bitácora ilegible: {e}")
-        return 1
-    if not lineas or not lineas[0].startswith("#cripta"):
-        print("Replay sin header #cripta: no se puede validar versión.")
-        return 1
-    try:
-        head = parsear_header(lineas[0])
-    except ValueError as e:
-        print(f"Header inválido: {e}")
-        return 1
-    # Estado mínimo compatible para validar: se reconstruye al cargar partida.
-    print(f"--replay {cfg.replay}: {head['cripta_id']} {head['version_cripta']} semilla {head['semilla']}")
-    if cfg.cargar:
-        from src.adapters import savegame
-        try:
-            data = savegame.cargar(cfg.cargar)
-        except CriptaError as e:
-            print(f"No se pudo cargar: {e}")
-            return 1
-        est = EstadoPartida.desde_dict(data)
-    else:
-        print("Replay necesita --cargar <partida.bin> o red para el estado inicial.")
-        return 1
-    fac = Fachada(est, _ProveedorVacio(), {}, Bitacora(cfg.replay), semilla=head["semilla"])
-    try:
-        reproducir(fac, lineas)
+        foto = ses.reproducir(cfg.replay)
     except BitacoraIncompatibleError as e:
         print(str(e))
         return 1
-    f = fac.foto()
-    print(f"replay ok: sala {f.sala_id} estado {f.estado} acciones {est.acciones_jugador}")
+    except CriptaError as e:
+        print(f"No se pudo reproducir: {e}")
+        return 1
+    print(f"replay ok: sala {foto.sala_id} estado {foto.estado}")
     return 0
 
 
-class _ProveedorVacio:
-    def sala_lista(self, n):
-        raise CriptaError(f"replay sin red: sala {n} debe estar cargada")
+def _nueva_sesion(cfg, log_ruta="partida.log"):
+    from src.game.sesion import Sesion
+    backend = endpoints
+    if cfg.offline:
+        from src.adapters.offline import OfflineBackend
+        backend = OfflineBackend(cfg.offline)
+        print(f"Modo offline: {cfg.offline} (no cuenta red)")
+    return Sesion(backend=backend, cache_size=cfg.cache_size, jugador=cfg.jugador,
+                  log_ruta=log_ruta)
+
+
+def modo_jugar(cfg):
+    """Partida interactiva en consola vía Sesión (la Vista hará lo mismo)."""
+    from src.game.consola import bucle, renderizar
+    ses = _nueva_sesion(cfg)
+    try:
+        if cfg.cargar:
+            foto = ses.cargar_en_frio(cfg.cargar)
+            print(f"Partida cargada de {cfg.cargar}.")
+            renderizar(foto)
+        else:
+            criptas = ses.backend.listar_criptas()
+            ids = [c.id for c in criptas.criptas]
+            if not ids:
+                print("No se encontraron criptas.")
+                return 1
+            print(f"Criptas: {ids}")
+            foto = ses.iniciar(ids[0], semilla=cfg.semilla)
+            print(f"Cripta {ids[0]}, semilla {cfg.semilla}.")
+    except RateLimitedError as e:
+        print(f"Servidor ocupado. Reintentar en {e.reintentar_en}s.")
+        return 1
+    except CriptaError as e:
+        print(f"Error al iniciar: {e}")
+        return 1
+    if cfg.guardar:
+        try:
+            ses.guardar(cfg.guardar)
+            print(f"Guardado inicial en {cfg.guardar}.")
+            return 0
+        except CriptaError as e:
+            print(f"No se pudo guardar: {e}")
+            return 1
+    return bucle(ses)
 
 
 def rutina(cfg):
