@@ -3,3 +3,7 @@ __pycache__/
 paquete_demo/
 
 .venv/
+partida.log
+partida.bin
+partida.bin.cache
+puntajes.jsonl

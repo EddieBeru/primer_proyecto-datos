@@ -1,13 +1,21 @@
 """Gestor de sprites (Parte 1 §4/§6 + guía §8): dibujante único por id.
 
-Todo procedural (cuadros de color): sin archivos externos. Se carga una vez
-(`SpriteManager()`) y se reutiliza. Id desconocido -> sprite de reemplazo
-magenta, cacheado. 9 clases + 3 comportamientos + puertas 4 dir x 4 estados.
+PNGs en `assets/sprites/` (ej. el personaje jugable); lo que falte se
+dibuja procedural y el id desconocido usa el reemplazo magenta. Se carga
+una vez y se reutiliza. 9 clases + 3 comportamientos + puertas.
 """
 
 from __future__ import annotations
 
+import pathlib
+
 import pygame
+
+ASSETS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "assets" / "sprites"
+
+# Personaje jugable (WASD): 2 frames estilo Pokémon Rojo/Azul.
+JUGADOR_PNGS = ["Little Caesars Feliz.png", "Little Caesars Blink.png"]
+JUGADOR_ALTO = 48  # el prota es más grande que el mosaico, como en Rojo/Azul
 
 TAM = 36  # lado del mosaico base
 
@@ -80,10 +88,60 @@ class SpriteManager:
         self._cache: dict[str, pygame.Surface] = {}
         self._reemplazo = _mosaico(REEMPLAZO)
         self._jugador = _mosaico(JUGADOR)
+        self._jugador_frames: list[pygame.Surface] = self._cargar_jugador()
+        self._frame_cache: dict[tuple[int, str], pygame.Surface] = {}
         self._puertas = {
             estado: _mosaico(color, tam=TAM - 8)
             for estado, color in COLORES_PUERTA.items()
         }
+
+    def _cargar_jugador(self) -> list[pygame.Surface]:
+        """Frames PNG del prota escalados; vacío si falta el arte (fallback)."""
+        frames = []
+        for nombre in JUGADOR_PNGS:
+            ruta = ASSETS_DIR / nombre
+            if not ruta.is_file():
+                continue
+            try:
+                img = pygame.image.load(str(ruta))
+            except pygame.error:
+                continue
+            try:  # sin ventana (tests) no hay formato: usa la imagen tal cual
+                img = img.convert_alpha()
+            except pygame.error:
+                pass
+            alto = JUGADOR_ALTO
+            ancho = max(1, img.get_width() * alto // max(img.get_height(), 1))
+            frames.append(pygame.transform.scale(img, (ancho, alto)))
+        return frames
+
+    @property
+    def jugador_png(self) -> bool:
+        """Hay arte PNG para el personaje (si no, procedural de respaldo)."""
+        return len(self._jugador_frames) > 0
+
+    def jugador_frame(self, moviendo: bool, tick: int, facing: str = "S",
+                      total: int = 0) -> tuple[pygame.Surface, int]:
+        """Frame + salto del prota estilo Pokémon Rojo/Azul.
+
+        Quieto: frame 0, con parpadeo (frame 1 sin salto) cada ~4 s.
+        Moviendo: alterna 0/1 cada 2 ticks y el frame 1 salta 3px
+        (transformación por offset, sin mutar la imagen). Mirar al Oeste
+        espeja (flip) el arte frontal.
+        """
+        if not self._jugador_frames:
+            return self._jugador, 0
+        idx, hop = 0, 0
+        if moviendo and len(self._jugador_frames) > 1 and (tick // 2) % 2 == 1:
+            idx, hop = 1, -3
+        elif not moviendo and len(self._jugador_frames) > 1 and total % 240 < 12:
+            idx = 1  # parpadeo en reposo, sin salto
+        clave = (idx, facing)
+        if clave not in self._frame_cache:
+            img = self._jugador_frames[idx]
+            self._frame_cache[clave] = pygame.transform.flip(img, True, False) \
+                if facing == "O" else img
+        return self._frame_cache[clave], hop
 
     def sprite(self, item_id: str) -> pygame.Surface:
         if item_id in self._cache:

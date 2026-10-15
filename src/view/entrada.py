@@ -30,25 +30,16 @@ def intencion_para_tecla(key: int, foto, facing: str,
                          sel_inv: int = 0) -> str | None:
     """Traduce una tecla a intención `ses.paso()` o acción local.
 
-    Retorna el texto de intención, o una acción local con prefijo "@":
-    "@pausa", "@tab-inv", "@tab-suelo", "@dev", "@enemigo+N/-N". El App las
-    ejecuta sin llamar a `paso()`. `None` = tecla sin uso.
+    Movimiento (WASD/flechas), Espacio (atacar) y F (recoger) los resuelve
+    el App por proximidad (`_paso_libre`, `atacar_cercano`, `recoger_cercano`);
+    aquí solo van intenciones sin posición. Retorna texto de intención o
+    acción local "@...". `None` = tecla sin uso.
     """
     direccion = MOVER.get(key)
     if direccion is not None:
-        return direccion
+        return "@paso"
     if key == pygame.K_e:
         return f"abrir {facing}"
-    if key == pygame.K_SPACE:
-        vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
-        if not vivos:
-            return None
-        return f"atacar {vivos[sel_enemigo % len(vivos)]['instancia']}"
-    if key == pygame.K_f:
-        suelo = list(foto.objetos_suelo or [])
-        if not suelo:
-            return None
-        return f"recoger {suelo[sel_suelo % len(suelo)]}"
     if key == pygame.K_r:
         inv = list(foto.inventario or [])
         if not inv:
@@ -70,9 +61,6 @@ def intencion_para_tecla(key: int, foto, facing: str,
         return "@tab-inv"
     if key == pygame.K_t:
         return "@tab-suelo"
-    if key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
-               pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8):
-        return f"@enemigo+{key - pygame.K_1}"
     if key == pygame.K_F1:
         return "@dev"
     if key == pygame.K_g:

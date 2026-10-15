@@ -21,6 +21,32 @@ MURO = (18, 18, 26)
 # Posición de cada puerta dentro del área de sala (N arriba, etc.).
 POS_PUERTA = {"N": (0.5, 0.0), "S": (0.5, 1.0), "E": (1.0, 0.5), "O": (0.0, 0.5)}
 
+RADIO_PUERTA = 40  # px para cruzar/recibir aviso
+RADIO_OBJETO = 56  # px para recoger del suelo
+RADIO_ENEMIGO = 64  # px para atacar
+
+
+def rect_puerta(area: pygame.Rect, direccion: str) -> pygame.Rect:
+    """Rect de la puerta (misma geometría que dibujar_fondo)."""
+    fx, fy = POS_PUERTA[direccion]
+    x = area.x + int(fx * (area.w - TAM)) + (0 if fx in (0.0, 1.0) else 0)
+    y = area.y + int(fy * (area.h - TAM))
+    return pygame.Rect(x, y, TAM, TAM)
+
+
+def pos_suelo(area: pygame.Rect, i: int) -> tuple[int, int]:
+    """Centro del i-ésimo objeto del suelo (misma geometría que dibujar)."""
+    x = area.x + 12 + (i % 6) * (TAM + 6)
+    y = area.y + area.h - 2 * (TAM + 6) + (i // 6) * (TAM + 6)
+    return x + TAM // 2, y + TAM // 2
+
+
+def pos_enemigo(area: pygame.Rect, i: int) -> tuple[int, int]:
+    """Centro del slot del i-ésimo enemigo vivo (misma geometría que dibujar)."""
+    x = area.x + 20 + (i % 4) * (TAM + 14)
+    y = area.y + area.h // 2 - TAM // 2
+    return x + TAM // 2, y + TAM // 2
+
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                   sprites: SpriteManager) -> None:
@@ -29,8 +55,8 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     pygame.draw.rect(sup, MURO, area, 6)
     for direccion, (fx, fy) in POS_PUERTA.items():
         puerta = (foto.puertas or {}).get(direccion)
-        x = area.x + int(fx * (area.w - TAM)) + (0 if fx in (0.0, 1.0) else 0)
-        y = area.y + int(fy * (area.h - TAM))
+        rect = rect_puerta(area, direccion)
+        x, y = rect.x, rect.y
         if puerta is None:
             pygame.draw.rect(sup, MURO, pygame.Rect(x, y, TAM, TAM))
             continue
@@ -45,8 +71,8 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     """Capa 2: objetos del suelo + trampas (armada vs desactivada)."""
     suelo = list(foto.objetos_suelo or [])
     for i, item_id in enumerate(suelo):
-        x = area.x + 12 + (i % 6) * (TAM + 6)
-        y = area.y + area.h - 2 * (TAM + 6) + (i // 6) * (TAM + 6)
+        cx, cy = pos_suelo(area, i)
+        x, y = cx - TAM // 2, cy - TAM // 2
         sup.blit(sprites.sprite(item_id), (x, y))
         if i == sel_suelo % max(len(suelo), 1):
             pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(x, y, TAM, TAM), 2)
@@ -62,15 +88,31 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
 
 def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     sprites: SpriteManager, fuente: pygame.Font,
-                    sel_enemigo: int = 0, ref_vida: dict | None = None) -> None:
-    """Capa 3: jugador + enemigos con barra de vida y color por comportamiento."""
+                    sel_enemigo: int = 0, ref_vida: dict | None = None,
+                    facing: str = "N", desplaza: tuple[int, int] = (0, 0),
+                    paso_jugador: tuple[bool, int, int] = (False, 0, 0),
+                    pos_jugador: tuple[float, float] | None = None) -> None:
+    """Capa 3: jugador + enemigos con barra de vida y color por comportamiento.
+
+    `facing` dibuja hacia dónde mira el personaje; `desplaza` es un offset
+    visual del paso (solo vista, sin coordenadas en el modelo).
+    `paso_jugador=(moviendo, tick, total)` anima frames PNG estilo Rojo/Azul.
+    `pos_jugador` = posición libre en px (None = centro, modo consola).
+    """
     ref_vida = ref_vida or {}
-    jx, jy = area.x + area.w // 2 - TAM // 2, area.y + area.h // 2 - TAM // 2
-    sup.blit(sprites.jugador, (jx, jy))
+    moviendo, tick, total = paso_jugador
+    img_jugador, hop = sprites.jugador_frame(moviendo, tick, facing, total)
+    if pos_jugador is None:
+        jx = area.x + area.w // 2 - img_jugador.get_width() // 2 + desplaza[0]
+        jy = area.y + area.h // 2 - TAM // 2 + desplaza[1] + hop
+    else:
+        jx = pos_jugador[0] - img_jugador.get_width() // 2 + desplaza[0]
+        jy = pos_jugador[1] - img_jugador.get_height() + TAM // 2 + desplaza[1] + hop
+    sup.blit(img_jugador, (jx, jy))
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
     for i, enemigo in enumerate(vivos):
-        x = area.x + 20 + (i % 4) * (TAM + 14)
-        y = area.y + area.h // 2 - TAM // 2
+        cx, cy = pos_enemigo(area, i)
+        x, y = cx - TAM // 2, cy - TAM // 2
         sup.blit(sprites.enemigo(str(enemigo.get("comportamiento", ""))), (x, y))
         vida = int(enemigo.get("vida", 0))
         _barra(sup, x, y - 10, TAM, 6, vida, max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
