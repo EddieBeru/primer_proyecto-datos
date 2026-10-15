@@ -16,7 +16,9 @@ def renderizar(foto, salida=print) -> None:
     j = foto.jugador
     salida(f"— sala {foto.sala_id} {foto.sala_nombre} [{foto.estado}]")
     puertas = ", ".join(
-        f"{d}→{v['destino']}{'🔒' if v['cerrada'] else ''}" for d, v in sorted(foto.puertas.items()))
+        f"{d}→{v['destino']}{'🔒' if v['cerrada'] else ''}"
+        f"{f'⏳{v.get(\"cierre_en\")}' if v.get('cierre_en') is not None and not v['cerrada'] else ''}"
+        for d, v in sorted(foto.puertas.items()))
     salida(f"  puertas: {puertas or '—'}")
     salida(f"  enemigos: {', '.join(f'{e["instancia"]}({e["tipo"][:12]}:{e["vida"]})' for e in foto.enemigos) or '—'}")
     salida(f"  suelo: {', '.join(foto.objetos_suelo) or '—'}")

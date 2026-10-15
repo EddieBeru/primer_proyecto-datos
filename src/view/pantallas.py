@@ -80,7 +80,7 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     sup.blit(titulo, (10, 8))
     pygame.draw.line(sup, DORADO, (10, 30),
                      (sup.get_width() - 10, 30), 2)
-    capas.dibujar_fondo(sup, area_sala, foto, sprites)
+    capas.dibujar_fondo(sup, area_sala, foto, sprites, fuente)
     capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo, fuente)
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,

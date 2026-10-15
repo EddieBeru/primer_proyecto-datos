@@ -63,8 +63,11 @@ def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int
 
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
-                  sprites: SpriteManager) -> None:
-    """Capa 1: piso damero + puertas (inexistente/abierta/cerrada-llave/trabada)."""
+                  sprites: SpriteManager, fuente: pygame.Font | None = None) -> None:
+    """Capa 1: piso damero + puertas (inexistente/abierta/cerrada-llave/trabada).
+
+    Puerta abierta con cierre programado: badge con ticks restantes.
+    """
     sup.fill(FONDO_SALA, area)
     paso = 24
     for yy in range(area.y, area.y + area.h, paso):
@@ -83,6 +86,13 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         sup.blit(img, (x, y))
         if puerta.get("cerrada") and puerta.get("llave"):
             pygame.draw.circle(sup, paleta.LLAVE_PUNTO, (x + TAM // 2, y + TAM // 2), 5)
+        cierre = puerta.get("cierre_en")
+        if fuente is not None and cierre is not None and not puerta.get("cerrada"):
+            # Badge ASCII (la fuente no trae emojis): ticks restantes.
+            etiqueta = fuente.render(f"{cierre}t", True, paleta.TITULO)
+            fondo = pygame.Rect(x - 4, y + TAM + 2, etiqueta.get_width() + 8, 18)
+            sup.fill(paleta.MURO, fondo)
+            sup.blit(etiqueta, (x, y + TAM + 2))
 
 
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",

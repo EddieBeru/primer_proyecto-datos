@@ -144,6 +144,18 @@ class Fachada:
         actualizar_estado(self.estado)
         return True, mensaje
 
+    def _cierre_restante(self, sala_id: int, direccion: str) -> int | None:
+        """Ticks hasta el cierre automático de la puerta (None si no hay)."""
+        restante: int | None = None
+        for ev in self.agenda:
+            d = ev.datos or {}
+            if ev.tipo == "cierre_puerta" and d.get("sala") == sala_id \
+                    and d.get("direccion") == direccion:
+                r = ev.t - self.reloj.ahora
+                if r >= 0 and (restante is None or r < restante):
+                    restante = r
+        return restante
+
     def _tipo_de(self, instancia_id: str) -> str | None:
         for sala in self.estado.salas.values():
             for e in sala.enemigos:
@@ -527,8 +539,12 @@ class Fachada:
     # -- foto K5 (lo unico que la Vista lee) --
     def foto(self) -> FotoEstado:
         sala = self.estado.salas.get(self.estado.sala_actual)
-        puertas = {k: {"destino": v.destino, "cerrada": v.cerrada, "llave": v.llave}
-                   for k, v in (sala.salidas.items() if sala else {})}
+        puertas = {}
+        for k, v in (sala.salidas.items() if sala else {}):
+            puertas[k] = {"destino": v.destino, "cerrada": v.cerrada,
+                          "llave": v.llave,
+                          "cierre_en": self._cierre_restante(sala.id, k)
+                          if sala is not None else None}
         pergaminos = sum(1 for i in self.estado.jugador.inventario
                          if getattr(self.catalogo.get(i), "clase", "") == "pergamino_retroceso"
                          or "pergamino" in i)
