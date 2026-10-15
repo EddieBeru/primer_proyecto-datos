@@ -3,9 +3,9 @@ victoria con puerta, replay con header, guardado v2, sorts, presupuesto."""
 
 from types import SimpleNamespace
 
-from src.adapters.orden import insertsort, orden_auto, vista_ordenada
-from src.adapters.mergesort import mergesort
-from src.controller import (
+from src.controller1.orden import insertsort, orden_auto, vista_ordenada
+from src.controller1.mergesort import mergesort
+from src.controller2 import (
     Azar,
     EstadoPartida,
     Fachada,
@@ -63,7 +63,7 @@ def test_replay_valida_header():
 
 
 def test_guardado_v2_roundtrip_y_sala(tmp_path):
-    from src.adapters import savegame
+    from src.controller1 import savegame
     est = EstadoPartida.nueva_partida(ficha(), "cat", semilla=3)
     from tests.test_controlador import ProveedorVivo
     prov = ProveedorVivo()
@@ -102,7 +102,7 @@ def test_victoria_exige_puerta():
 
 
 def test_presupuesto_cuenta_lista_y_reintentos():
-    from src.adapters.budget import BudgetAdapter
+    from src.controller1.budget import BudgetAdapter
     b = BudgetAdapter(3)
     b.gastar()
     b.gastar()
@@ -113,7 +113,7 @@ def test_presupuesto_cuenta_lista_y_reintentos():
 
 
 def test_cache_pin_en_uso():
-    from src.adapters.lru_cache import CacheLRU
+    from src.controller1.lru_cache import CacheLRU
     c = CacheLRU(2)
     c.guardar("a", 1)
     c.guardar("b", 2)

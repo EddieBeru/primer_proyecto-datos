@@ -1,7 +1,7 @@
 """C1-6: tabla hash propia (sin dict como índice), con colisiones."""
 
-from src.adapters.lista_doble import Nodo
-from src.adapters.tabla_hash import TablaHash
+from src.controller1.lista_doble import Nodo
+from src.controller1.tabla_hash import TablaHash
 
 
 def test_poner_obtener_eliminar():
@@ -40,7 +40,7 @@ def test_colisiones_con_pocas_cubetas():
 
 def test_sin_dict_como_indice():
     dentro_doc = False
-    for linea in open("src/adapters/tabla_hash.py"):
+    for linea in open("src/controller1/tabla_hash.py"):
         s = linea.strip()
         if s.startswith('"""'):
             dentro_doc = not dentro_doc

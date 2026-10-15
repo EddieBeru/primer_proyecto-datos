@@ -4,9 +4,9 @@ import os
 
 import pytest
 
-from src.adapters.fake_provider import CRIPTA_ID, FakeProvider
-from src.controller.bitacora import BitacoraIncompatibleError
-from src.game.sesion import Sesion
+from src.controller1.fake_provider import CRIPTA_ID, FakeProvider
+from src.controller2.bitacora import BitacoraIncompatibleError
+from src.orchestrator.sesion import Sesion
 from src.models.catalog import CatalogVersion
 from src.models.dungeons import DungeonVersion
 from src.models.errors import GuardadoError
@@ -122,7 +122,7 @@ def test_replay_version_incompatible(tmp_path):
 
 
 def test_cargar_versiones_distintas_falla(tmp_path, monkeypatch):
-    from src.adapters import savegame
+    from src.controller1 import savegame
     ses = nueva_sesion(tmp_path)
     ses.iniciar(CRIPTA_ID)
     ruta = str(tmp_path / "p.bin")
@@ -135,8 +135,8 @@ def test_cargar_versiones_distintas_falla(tmp_path, monkeypatch):
 
 
 def test_backends_cumplen_protocolo():
-    import src.api.endpoints as ep
-    from src.adapters.offline import OfflineBackend
+    import src.controller1.endpoints as ep
+    from src.controller1.offline import OfflineBackend
     for b in (ep, OfflineBackend):
         for m in ("info_cripta", "version_cripta", "version_catalogo",
                   "esqueleto_completo", "contenido", "lote_catalogo_auto"):

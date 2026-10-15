@@ -54,6 +54,6 @@ python -m pytest tests/ -q
 | Compartido (contratos, sin dueño) | `src/models/` | formas del API (`dungeons`, `rooms`, `roomContents`, `catalog`, `objects`, `types`) + `errors` (K4) |
 | Vista futura | `src/view/` | vacía hasta cumplir “Controlador en raya” (§7.3); Pygame solo leerá `FotoEstado` y enviará intenciones |
 
-Compatibilidad: las rutas anteriores (`src.adapters.*`, `src.api.*`, `src.controller.*`, `src.game.*`) siguen funcionando como shims que reexportan las carpetas nuevas; los tests las usan como prueba de no-ruptura.
+Rutas únicas: solo existen `controller1` / `controller2` / `orchestrator` (más `models`, `view` y `main`).
 
 Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` vía Sesión); C1 nunca importa `controller2` (bitácora trata líneas como opacas); solo el orquestador ve ambos.

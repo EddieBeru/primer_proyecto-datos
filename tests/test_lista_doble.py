@@ -1,6 +1,6 @@
 """C1-6: lista doble (orden ambos sentidos, mover al frente, sacar cola)."""
 
-from src.adapters.lista_doble import ListaDoble, Nodo
+from src.controller1.lista_doble import ListaDoble, Nodo
 
 
 def test_agregar_y_recorrer():

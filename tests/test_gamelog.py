@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.adapters.gamelog import Bitacora
+from src.controller1.gamelog import Bitacora
 from src.models.errors import BitacoraError
 
 

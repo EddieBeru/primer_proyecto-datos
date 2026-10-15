@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.adapters.cli import CLIConfig, parse_args
+from src.controller1.cli import CLIConfig, parse_args
 
 
 def test_defaults():

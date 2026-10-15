@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.api import endpoints
+from src.controller1 import endpoints
 from src.models.dungeons import DungeonGeneral, PlayerInitial
 from src.models.errors import UnexpectedResponseError
 from src.models.rooms import Exit, Room, SkeletonPage

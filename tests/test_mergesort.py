@@ -3,7 +3,7 @@
 import random
 import time
 
-from src.adapters.mergesort import mergesort
+from src.controller1.mergesort import mergesort
 
 
 def test_vacia_y_uno():
@@ -50,7 +50,7 @@ def test_oraculo_aleatorio():
 
 def test_sin_sort_prohibido():
     dentro_doc = False
-    for linea in open("src/adapters/mergesort.py"):
+    for linea in open("src/controller1/mergesort.py"):
         s = linea.strip()
         if s.startswith('"""'):
             dentro_doc = not dentro_doc

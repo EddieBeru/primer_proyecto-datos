@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.adapters import savegame
-from src.api import endpoints
+from src.controller1 import savegame
+from src.controller1 import endpoints
 from src.models.errors import GuardadoError
 
 

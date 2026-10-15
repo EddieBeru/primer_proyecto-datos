@@ -1,7 +1,7 @@
 """C1-5: lote_catalogo_auto parte en lotes de 10, sin repetidos, sin red."""
 
-from src.adapters.budget import BudgetAdapter
-from src.api import endpoints
+from src.controller1.budget import BudgetAdapter
+from src.controller1 import endpoints
 from src.models.catalog import CatalogoResponse
 
 

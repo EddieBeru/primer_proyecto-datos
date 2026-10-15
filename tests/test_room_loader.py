@@ -2,10 +2,10 @@
 
 import pytest
 
-from src.adapters.budget import BudgetAdapter
-from src.adapters.lru_cache import CacheLRU
-from src.adapters.room_loader import RoomLoader
-from src.api import endpoints
+from src.controller1.budget import BudgetAdapter
+from src.controller1.lru_cache import CacheLRU
+from src.controller1.room_loader import RoomLoader
+from src.controller1 import endpoints
 from src.models.catalog import Enemy, Trap
 from src.models.errors import NotFoundError, UnexpectedResponseError
 from src.models.objects import Antidote

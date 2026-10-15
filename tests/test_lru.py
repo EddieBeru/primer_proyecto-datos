@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.adapters.lru_cache import CacheLRU
+from src.controller1.lru_cache import CacheLRU
 
 
 def test_desalojo_menos_usado():

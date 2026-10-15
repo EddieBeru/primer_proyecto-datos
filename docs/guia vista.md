@@ -20,7 +20,7 @@ VISTA  →  solo habla con Sesion (src/game/sesion.py)
 
 - La vista **no decide reglas**: no calcula daño, no mueve enemigos, no abre
   puertas por su cuenta, no descuenta presupuesto, no inventa contenido.
-- La vista **no llama a C1 ni al API**: nada de `src.api`, `RoomLoader`,
+- La vista **no llama a C1 ni al API**: nada de `src.controller1`, `RoomLoader`,
   `CacheLRU`, `savegame` directo. Todo pasa por `Sesion`.
 - Si falta un dato en la foto, no lo derives: pide ampliación de K5.
 - Referencia viva de este contrato: `src/game/consola.py` (consola oficial).
@@ -32,7 +32,7 @@ VISTA  →  solo habla con Sesion (src/game/sesion.py)
 ## 1. Conexión en 10 líneas
 
 ```python
-from src.game.sesion import Sesion
+from src.orchestrator.sesion import Sesion
 
 # 1. Crear sesión (elige backend UNA vez; ver §2)
 ses = Sesion(backend=None,       # None = API real; ver §2 para offline/falso
@@ -66,7 +66,7 @@ después; solo lo pasa al constructor (normalmente desde `main.py --offline`).
 
 | Backend | Cuándo | Cómo |
 |---|---|---|
-| API real | Juego normal | `Sesion(backend=None)` (usa `src.api.endpoints`) |
+| API real | Juego normal | `Sesion(backend=None)` (usa `src.controller1.endpoints`) |
 | Offline | Sin internet / evaluación | `Sesion(backend=OfflineBackend("paquete/"))` — lee disco, **no gasta presupuesto** |
 | Falso | Tests / desarrollo sin red | Backend propio estilo `tests/test_sesion.py::FakeBackend` (6 salas fijas) |
 
@@ -302,7 +302,7 @@ foto = ses.cargar_en_frio("partida.bin")  # resume sin iniciar antes
 
 ```python
 from tests.test_sesion import FakeBackend  # cripto de 6 salas sin red
-from src.game.sesion import Sesion
+from src.orchestrator.sesion import Sesion
 
 ses = Sesion(backend=FakeBackend(), log_ruta="p.log")
 foto = ses.iniciar("cripta-ejemplo", semilla=5)
@@ -322,8 +322,8 @@ Tu vista debe poder replicar exactamente esta secuencia con botones/teclas
 
 ## 12. Checklist "vista lista" y errores típicos
 
-- [ ] Solo importas `src.game.sesion` (+ `OfflineBackend` para probar). Nada
-      de `src.api`, `RoomLoader`, `savegame`, `EstadoPartida` en tu código.
+- [ ] Solo importas `src.orchestrator.sesion` (+ `OfflineBackend` para probar). Nada
+      de `src.controller1`, `RoomLoader`, `savegame`, `EstadoPartida` en tu código.
 - [ ] Cada frame se dibuja desde la última `FotoEstado`; nunca guardas
       referencia mutable ni la modificas.
 - [ ] `abrir` antes de `mover` en puertas cerradas; atacar por `instancia`.

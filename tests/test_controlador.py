@@ -7,9 +7,9 @@ Se corre con:  python -m pytest tests/test_controlador.py
 
 from types import SimpleNamespace
 
-from src.adapters.fake_provider import CRIPTA_ID, FakeProvider
-from src.adapters.mergesort import mergesort
-from src.controller import (
+from src.controller1.fake_provider import CRIPTA_ID, FakeProvider
+from src.controller1.mergesort import mergesort
+from src.controller2 import (
     Agenda,
     BitacoraMemoria,
     EnemigoInstancia,
@@ -264,7 +264,7 @@ def test_mover_sin_salida():
 
 
 def test_puerta_llave_sin_y_con():
-    from src.controller.movimiento import abrir_puerta
+    from src.controller2.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -282,7 +282,7 @@ def test_puerta_llave_sin_y_con():
 
 
 def test_recorre_cripta_fake_6_salas():
-    from src.controller.movimiento import abrir_puerta
+    from src.controller2.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -316,7 +316,7 @@ def test_recorre_cripta_fake_6_salas():
 
 
 def test_ruta_con_llaves_abre_dos_puertas():
-    from src.controller.movimiento import abrir_puerta
+    from src.controller2.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -331,7 +331,7 @@ def test_ruta_con_llaves_abre_dos_puertas():
 
 
 def test_cierre_automatico_se_programa_y_ejecuta():
-    from src.controller.movimiento import abrir_puerta
+    from src.controller2.movimiento import abrir_puerta
 
     class Prov:
         def sala_lista(self, n):
@@ -492,7 +492,7 @@ def test_trampa_desarmada_no_dana():
 
 
 def test_veneno_ticks_y_antidoto_cancela():
-    from src.controller.efectos import envenenar_legacy
+    from src.controller2.efectos import envenenar_legacy
     est = estado_chico()
     est.registrar_sala(sala_simple())
     ag, rj = Agenda(), RelojVirtual()

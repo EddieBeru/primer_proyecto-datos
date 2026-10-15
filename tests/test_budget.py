@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.adapters.budget import BudgetAdapter
-from src.api import endpoints
+from src.controller1.budget import BudgetAdapter
+from src.controller1 import endpoints
 from src.models.errors import NotFoundError, PresupuestoAgotadoError, RateLimitedError
 
 

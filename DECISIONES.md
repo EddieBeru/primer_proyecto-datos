@@ -59,3 +59,5 @@ Formato: qué / por qué / descartado.
     Descartado: imports lazy cruzados (`controller`→`adapters` y viceversa).
 25. **`consola.py` tenía `SyntaxError` (f-string con `\"` anidados): nadie la importaba.**
     Se destapó al moverla al orquestador; se reescribió la línea con comillas de distinto tipo (mismo texto). Sin esto `--jugar` nunca habría arrancado.
+26. **Shims eliminados: solo quedan las 3 carpetas.**
+    Tests y docs migrados a rutas canónicas; se borraron `adapters/`, `api/`, `controller/` y `game/`. Una sola fuente de verdad.
