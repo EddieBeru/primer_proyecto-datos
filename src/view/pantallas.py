@@ -10,16 +10,18 @@ from typing import TYPE_CHECKING
 import pygame
 
 from src.view import capas
+from src.view import paleta
+from src.view import texto as _texto
 from src.view import ui
 from src.view.sprites import SpriteManager
 
 if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
     from src.controller2.fachada import FotoEstado
 
-BLANCO = (230, 230, 230)
-GRIS = (150, 150, 150)
-DORADO = (230, 200, 80)
-FONDO = (24, 24, 34)
+BLANCO = paleta.TEXTO
+GRIS = paleta.SECUNDARIO
+DORADO = paleta.TITULO
+FONDO = paleta.FONDO_APP
 
 
 def _titulo(sup: pygame.Surface, fuente: pygame.Font, texto: str, y: int = 60) -> int:
@@ -74,16 +76,29 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
                            True, DORADO)
     sup.blit(titulo, (10, 8))
+    pygame.draw.line(sup, DORADO, (10, 30),
+                     (sup.get_width() - 10, 30), 2)
     capas.dibujar_fondo(sup, area_sala, foto, sprites)
-    capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo)
+    capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo, fuente)
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
                           pos_jugador)
     barra_x = area_sala.right + 12
-    ui.dibujar_barra_vida(sup, barra_x, 40, 180, foto)
+    panel = pygame.Rect(barra_x - 6, 34, sup.get_width() - (barra_x - 6) - 8,
+                        sup.get_height() - 34 - 8)
+    sup.fill(paleta.PANEL, panel)
+    pygame.draw.line(sup, DORADO, (panel.x, panel.y),
+                     (panel.x, panel.bottom), 2)
+    ui.dibujar_barra_vida(sup, barra_x, 40, min(180, panel.w - 6), foto)
     y = ui.dibujar_stats(sup, fuente, barra_x, 62, foto, dev)
     ui.dibujar_inventario(sup, fuente, barra_x, y + 8, foto, sprites, sel_inv)
-    ui.dibujar_mensajes(sup, fuente, 10, sup.get_height() - 150, foto)
+    fondo_msg = pygame.Rect(10, sup.get_height() - 152, area_sala.width,
+                            144)
+    sup.fill(paleta.PANEL, fondo_msg)
+    pygame.draw.line(sup, DORADO, (fondo_msg.x, fondo_msg.y),
+                     (fondo_msg.right, fondo_msg.y), 2)
+    ui.dibujar_mensajes(sup, fuente, 14, sup.get_height() - 148, foto,
+                        ancho_max=area_sala.width - 12)
     ui.dibujar_toast(sup, fuente, foto.error or "")
 
 
@@ -107,18 +122,29 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
 
 def pantalla_error(sup: pygame.Surface, fuente: pygame.Font, mensaje: str) -> None:
     """1.6 Error amable a pantalla completa (red, presupuesto, guardado)."""
-    sup.fill((60, 10, 10))
-    _titulo(sup, fuente, "Algo salió mal (la partida sigue a salvo)")
-    sup.blit(fuente.render(mensaje, True, BLANCO), (60, 140))
-    sup.blit(fuente.render("Pulsa Esc para volver", True, GRIS), (60, 180))
+    sup.fill(paleta.PELIGRO_FONDO)
+    etiqueta = fuente.render("Algo salió mal (la partida sigue a salvo)",
+                             True, paleta.TEXTO_CLARO)
+    sup.blit(etiqueta, (sup.get_width() // 2 - etiqueta.get_width() // 2, 60))
+    y = 140
+    for parte in _texto.envolver(mensaje, fuente, sup.get_width() - 120, 4):
+        sup.blit(fuente.render(parte, True, paleta.TEXTO_CLARO), (60, y))
+        y += 24
+    sup.blit(fuente.render("Pulsa Esc para volver", True, paleta.TEXTO_CLARO),
+             (60, y + 8))
 
 
 def pantalla_version(sup: pygame.Surface, fuente: pygame.Font, mensaje: str) -> None:
     """1.7 Partida de versión anterior: nunca cargar a medias (guía §9)."""
-    sup.fill((50, 40, 10))
-    _titulo(sup, fuente, "Versión anterior")
-    sup.blit(fuente.render(mensaje, True, BLANCO), (60, 140))
-    sup.blit(fuente.render("Pulsa Esc para volver", True, GRIS), (60, 180))
+    sup.fill(paleta.MURO)
+    etiqueta = fuente.render("Versión anterior", True, paleta.TEXTO_CLARO)
+    sup.blit(etiqueta, (sup.get_width() // 2 - etiqueta.get_width() // 2, 60))
+    y = 140
+    for parte in _texto.envolver(mensaje, fuente, sup.get_width() - 120, 4):
+        sup.blit(fuente.render(parte, True, paleta.TEXTO_CLARO), (60, y))
+        y += 24
+    sup.blit(fuente.render("Pulsa Esc para volver", True, paleta.TEXTO_CLARO),
+             (60, y + 8))
 
 
 def menu_pausa(sup: pygame.Surface, fuente: pygame.Font) -> None:

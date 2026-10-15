@@ -10,16 +10,18 @@ from typing import TYPE_CHECKING
 
 import pygame
 
+from src.view import paleta
+from src.view import texto as _texto
 from src.view.sprites import TAM, SpriteManager
 
 if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
     from src.controller2.fachada import FotoEstado
 
-BLANCO = (230, 230, 230)
-GRIS = (150, 150, 150)
-ROJO = (200, 60, 60)
-VERDE = (0, 180, 0)
-DORADO = (230, 200, 80)
+BLANCO = paleta.TEXTO
+GRIS = paleta.SECUNDARIO
+ROJO = paleta.PELIGRO
+VERDE = paleta.VIDA
+DORADO = paleta.TITULO
 
 
 def dibujar_barra_vida(sup: pygame.Surface, x: int, y: int, w: int,
@@ -27,9 +29,14 @@ def dibujar_barra_vida(sup: pygame.Surface, x: int, y: int, w: int,
     """Barra de vida: actual contra máxima (Parte 1 §3)."""
     vida = int(foto.jugador.get("vida", 0))
     maxima = max(int(foto.jugador.get("vida_max", 1)), 1)
-    pygame.draw.rect(sup, (60, 0, 0), pygame.Rect(x, y, w, 14))
+    pygame.draw.rect(sup, paleta.VIDA_FONDO, pygame.Rect(x, y, w, 14))
     pygame.draw.rect(sup, VERDE,
                      pygame.Rect(x, y, w * max(min(vida, maxima), 0) // maxima, 14))
+
+
+def _ancho_panel(sup: pygame.Surface, x: int) -> int:
+    """Ancho disponible desde x hasta el borde derecho."""
+    return max(sup.get_width() - x - 8, 100)
 
 
 def dibujar_stats(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
@@ -45,9 +52,11 @@ def dibujar_stats(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
     lineas.append(f"Pergaminos: {foto.pergaminos} (U)")
     if dev:
         lineas.append(f"[dev] solicitudes: {foto.presupuesto}")
+    ancho = _ancho_panel(sup, x)
     for linea in lineas:
-        sup.blit(fuente.render(linea, True, BLANCO), (x, y))
-        y += 20
+        for parte in _texto.envolver(linea, fuente, ancho, 99):
+            sup.blit(fuente.render(parte, True, BLANCO), (x, y))
+            y += 20
     return y
 
 
@@ -55,37 +64,57 @@ def dibujar_inventario(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
                        foto: "FotoEstado", sprites: SpriteManager,
                        sel_inv: int = 0) -> int:
     """Inventario en orden real; [0] = equipado resaltado (Parte 1 §3)."""
-    sup.blit(fuente.render("Mochila (Tab, Enter=equipar, R=usar, Q=soltar):",
-                           True, DORADO), (x, y))
-    y += 22
+    ancho = _ancho_panel(sup, x)
+    for parte in _texto.envolver("Mochila (Tab, Enter=equipar, R=usar, Q=soltar):",
+                                 fuente, ancho, 2):
+        sup.blit(fuente.render(parte, True, DORADO), (x, y))
+        y += 22
     inv = list(foto.inventario or [])
     if not inv:
         sup.blit(fuente.render("(vacía)", True, GRIS), (x, y))
         return y + 20
+    texto_w = max(_ancho_panel(sup, x) - (TAM + 6), 60)
     for i, item_id in enumerate(inv):
-        sup.blit(sprites.sprite(item_id), (x, y))
         marca = " [E]" if i == 0 else ""
         color = DORADO if i == 0 else BLANCO
-        sup.blit(fuente.render(f"{item_id}{marca}", True, color), (x + TAM + 6, y + 8))
+        partes = _texto.envolver(f"{_texto.etiqueta_item(item_id)}{marca}",
+                                 fuente, texto_w, 3)
+        alto = max(TAM, len(partes) * 20)
+        sup.blit(sprites.sprite(item_id), (x, y))
+        for k, parte in enumerate(partes):
+            sup.blit(fuente.render(parte, True, color), (x + TAM + 6, y + 8 + k * 20))
         if i == sel_inv % len(inv):
-            pygame.draw.rect(sup, BLANCO, pygame.Rect(x, y, TAM, TAM), 2)
-        y += TAM + 4
+            pygame.draw.rect(sup, DORADO, pygame.Rect(x, y, TAM, TAM), 2)
+        y += alto + 6
     return y
 
 
 def dibujar_mensajes(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
-                     foto: "FotoEstado", max_lineas: int = 5) -> None:
-    """Panel con las últimas 4-5 líneas de bitácora tal cual (guía §3)."""
+                     foto: "FotoEstado", max_lineas: int = 5,
+                     ancho_max: int | None = None) -> None:
+    """Panel con las últimas líneas de bitácora, ajustadas al ancho."""
+    ancho = ancho_max if ancho_max is not None else max(sup.get_width() - x - 10, 100)
+    usadas = 0
     for linea in (foto.mensajes or [])[-max_lineas:]:
-        sup.blit(fuente.render(linea, True, GRIS), (x, y))
-        y += 18
+        if usadas >= max_lineas:
+            return
+        for parte in _texto.envolver(linea, fuente, ancho, max_lineas - usadas):
+            if usadas >= max_lineas:
+                return
+            sup.blit(fuente.render(parte, True, GRIS), (x, y))
+            y += 18
+            usadas += 1
 
 
 def dibujar_toast(sup: pygame.Surface, fuente: pygame.Font, texto: str) -> None:
-    """Error amable (guía §6): toast abajo; la partida sigue."""
+    """Error amable (guía §6): toast abajo ajustado a 2 líneas; sigue."""
     if not texto:
         return
-    etiqueta = fuente.render(texto, True, (255, 255, 255))
-    fondo = pygame.Rect(10, sup.get_height() - 34, etiqueta.get_width() + 16, 26)
+    lineas = _texto.envolver(texto, fuente, sup.get_width() - 36, 2)
+    etiquetas = [fuente.render(parte, True, paleta.TEXTO_CLARO) for parte in lineas]
+    alto = len(etiquetas) * 22 + 4
+    fondo = pygame.Rect(10, sup.get_height() - 10 - alto,
+                        max(e.get_width() for e in etiquetas) + 16, alto)
     pygame.draw.rect(sup, ROJO, fondo)
-    sup.blit(etiqueta, (fondo.x + 8, fondo.y + 4))
+    for i, etiqueta in enumerate(etiquetas):
+        sup.blit(etiqueta, (fondo.x + 8, fondo.y + 2 + i * 22))
