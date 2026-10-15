@@ -10,13 +10,15 @@ from typing import TYPE_CHECKING
 
 import pygame
 
+from src.view import paleta
+from src.view import texto as _texto
 from src.view.sprites import TAM, SpriteManager
 
 if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
     from src.controller2.fachada import FotoEstado
 
-FONDO_SALA = (38, 36, 48)
-MURO = (18, 18, 26)
+FONDO_SALA = paleta.FONDO_SALA
+MURO = paleta.MURO
 
 # Posición de cada puerta dentro del área de sala (N arriba, etc.).
 POS_PUERTA = {"N": (0.5, 0.0), "S": (0.5, 1.0), "E": (1.0, 0.5), "O": (0.0, 0.5)}
@@ -62,8 +64,13 @@ def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                   sprites: SpriteManager) -> None:
-    """Capa 1: piso + puertas (inexistente/abierta/cerrada-llave/trabada)."""
+    """Capa 1: piso damero + puertas (inexistente/abierta/cerrada-llave/trabada)."""
     sup.fill(FONDO_SALA, area)
+    paso = 24
+    for yy in range(area.y, area.y + area.h, paso):
+        for xx in range(area.x, area.x + area.w, paso):
+            if ((xx - area.x) // paso + (yy - area.y) // paso) % 2:
+                sup.fill(paleta.PISO_ALT, pygame.Rect(xx, yy, paso, paso))
     pygame.draw.rect(sup, MURO, area, 6)
     for direccion, (fx, fy) in POS_PUERTA.items():
         puerta = (foto.puertas or {}).get(direccion)
@@ -75,11 +82,12 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         img = sprites.puerta(bool(puerta.get("cerrada")), puerta.get("llave"))
         sup.blit(img, (x, y))
         if puerta.get("cerrada") and puerta.get("llave"):
-            pygame.draw.circle(sup, (230, 200, 80), (x + TAM // 2, y + TAM // 2), 5)
+            pygame.draw.circle(sup, paleta.LLAVE_PUNTO, (x + TAM // 2, y + TAM // 2), 5)
 
 
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
-                     sprites: SpriteManager, sel_suelo: int = 0) -> None:
+                     sprites: SpriteManager, sel_suelo: int = 0,
+                     fuente: pygame.Font | None = None) -> None:
     """Capa 2: objetos del suelo + trampas (armada vs desactivada)."""
     suelo = list(foto.objetos_suelo or [])
     for i, item_id in enumerate(suelo):
@@ -87,7 +95,13 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         x, y = cx - TAM // 2, cy - TAM // 2
         sup.blit(sprites.sprite(item_id), (x, y))
         if i == sel_suelo % max(len(suelo), 1):
-            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(x, y, TAM, TAM), 2)
+            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, TAM, TAM), 2)
+            etiqueta = fuente.render(_texto.etiqueta_item(item_id), True, paleta.TEXTO) \
+                if fuente is not None else None
+            if etiqueta is not None:
+                fondo = pygame.Rect(x, y + TAM + 2, etiqueta.get_width() + 4, 18)
+                sup.fill(paleta.ETIQUETA_FONDO, fondo)
+                sup.blit(etiqueta, (x + 2, y + TAM + 2))
     for j, trampa in enumerate(foto.trampas or []):
         x = area.x + 12 + (j % 6) * (TAM + 6)
         y = area.y + 12 + (j // 6) * (TAM + 6)
@@ -131,20 +145,20 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         vida = int(enemigo.get("vida", 0))
         _barra(sup, x, y - 10, TAM, 6, vida, max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
         etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
-                                  True, (230, 230, 230))
+                                  True, paleta.TEXTO)
         sup.blit(etiqueta, (x, y + TAM + 2))
         if enemigo.get("instancia") == golpe:
             pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 3)
         if enemigo.get("instancia") in alcance:
             pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 2)
         if i == sel_enemigo % max(len(vivos), 1):
-            pygame.draw.rect(sup, (255, 255, 0), pygame.Rect(x, y, TAM, TAM), 2)
+            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, TAM, TAM), 2)
 
 
 def _barra(sup: pygame.Surface, x: int, y: int, w: int, h: int,
            vida: int, referencia: int) -> None:
     """Barra proporcional a la primera vida vista (guía §8; K5 no trae máximo)."""
     referencia = max(referencia, 1)
-    pygame.draw.rect(sup, (60, 0, 0), pygame.Rect(x, y, w, h))
-    pygame.draw.rect(sup, (0, 180, 0),
+    pygame.draw.rect(sup, paleta.VIDA_FONDO, pygame.Rect(x, y, w, h))
+    pygame.draw.rect(sup, paleta.VIDA,
                      pygame.Rect(x, y, max(0, w * min(vida, referencia) // referencia), h))

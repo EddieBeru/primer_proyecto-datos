@@ -60,7 +60,8 @@ def _nueva_sesion(cfg, log_ruta="partida.log"):
         backend = OfflineBackend(cfg.offline)
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     return Sesion(backend=backend, cache_size=cfg.cache_size, jugador=cfg.jugador,
-                  log_ruta=log_ruta)
+                  log_ruta=log_ruta,
+                  cache_ruta=None if cfg.offline else "cache.pkl")
 
 
 def modo_vista(cfg):
@@ -123,12 +124,15 @@ def modo_jugar(cfg):
             print(f"Partida cargada de {cfg.cargar}.")
             renderizar(foto)
         else:
-            criptas = ses.backend.listar_criptas()
-            ids = [c.id for c in criptas.criptas]
-            if not ids:
-                print("No se encontraron criptas.")
-                return 1
-            print(f"Criptas: {ids}")
+            if cfg.cripta:
+                ids = [cfg.cripta]
+            else:
+                criptas = ses.backend.listar_criptas()
+                ids = [c.id for c in criptas.criptas]
+                if not ids:
+                    print("No se encontraron criptas.")
+                    return 1
+                print(f"Criptas: {ids}")
             foto = ses.iniciar(ids[0], semilla=cfg.semilla)
             print(f"Cripta {ids[0]}, semilla {cfg.semilla}.")
     except RateLimitedError as e:
@@ -156,20 +160,25 @@ def rutina(cfg):
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     print("Listando criptas:")
     try:
-        criptas = listar_criptas() if backend is endpoints else backend.listar_criptas()
+        if cfg.cripta and backend is not endpoints:
+            from src.models.dungeons import DungeonSummary
+            criptas = [DungeonSummary(id=cfg.cripta, nombre=cfg.cripta, salas=0, dificultad=0)]
+        else:
+            resp = listar_criptas() if backend is endpoints else backend.listar_criptas()
+            criptas = resp.criptas
     except RateLimitedError as e:
         print(f"Servidor ocupado. Reintentar en {e.reintentar_en}s.")
         return 1
     except CriptaError as e:
         print(f"Error al obtener la lista de criptas: {e}")
         return 1
-    criptas = criptas.criptas
+    criptas = criptas
     print(criptas)
     if not criptas:
         print("No se encontraron criptas.")
         return 1
 
-    primera_cripta_id = criptas[0].id
+    primera_cripta_id = cfg.cripta or criptas[0].id
     print(f"Iniciando sesión de la cripta con ID: {primera_cripta_id}")
     try:
         if backend is endpoints:
@@ -188,13 +197,18 @@ def rutina(cfg):
     print(f"Presupuesto restante: {budget.get_presupuesto()}")
 
     try:
-        print(f"Obteniendo versión de la cripta con ID: {primera_cripta_id}")
-        version = backend.version_cripta(primera_cripta_id, budget)
-        print(version)
+        print(f"Versión cripta (de la ficha, sin gastar): {info.version}")
 
         print("Validando caché del catálogo (Flujo H)...")
         ver_cat = backend.version_catalogo(budget)
         cache = CacheLRU(cfg.cache_size)
+        if backend is endpoints:
+            try:
+                import os
+                if os.path.isfile("cache.pkl"):
+                    cache = CacheLRU.cargar_disco("cache.pkl", cfg.cache_size)
+            except Exception:
+                pass
         if cache.invalida_si_cambia(ver_cat.version):
             print(f"Caché nueva, versión catálogo: {ver_cat.version}")
         print(f"Presupuesto restante: {budget.get_presupuesto()}")
@@ -219,6 +233,11 @@ def rutina(cfg):
             print(f"  trampa {t.instancia}: {t.ficha.id}")
         print(f"Fichas en caché: {len(cache)} (tope {cfg.cache_size})")
         print(f"Presupuesto restante: {budget.get_presupuesto()}")
+        if backend is endpoints:
+            try:
+                cache.guardar_disco("cache.pkl")
+            except Exception:
+                pass
         rep = budget.reporte()
         print(f"Reporte red: realizadas={rep['realizadas']} presupuesto={rep['presupuesto']} "
               f"hits={rep['hits']} misses={rep['misses']}")

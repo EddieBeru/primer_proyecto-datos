@@ -11,6 +11,8 @@ import pathlib
 
 import pygame
 
+from src.view import paleta
+
 ASSETS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "assets" / "sprites"
 
 # Personaje jugable (WASD): 2 frames estilo Pokémon Rojo/Azul.
@@ -19,31 +21,17 @@ JUGADOR_ALTO = 48  # el prota es más grande que el mosaico, como en Rojo/Azul
 
 TAM = 36  # lado del mosaico base
 
-# 9 clases del catálogo -> color.
-COLORES_CLASE = {
-    "enemigo": (200, 60, 60),
-    "arma": (200, 200, 220),
-    "armadura": (120, 140, 180),
-    "pocion": (220, 80, 120),
-    "antidoto": (120, 220, 140),
-    "llave": (230, 200, 80),
-    "antorcha": (240, 140, 40),
-    "pergamino_retroceso": (200, 160, 240),
-    "trampa": (140, 140, 140),
-}
+# 9 clases del catálogo -> color (tema piedra + antorcha).
+COLORES_CLASE = dict(paleta.CLASE_COLORES)
 
 # Comportamientos visibles (guía §8).
-COLORES_COMPORTAMIENTO = {
-    "guardián": (200, 60, 60),
-    "errante": (230, 130, 40),
-    "rastreador": (150, 80, 200),
-}
+COLORES_COMPORTAMIENTO = dict(paleta.COMPORTAMIENTO_COLORES)
 
 # Puertas: estado -> color (4 direcciones x 4 estados, Parte 1 §6).
 COLORES_PUERTA = {
-    "abierta": (120, 200, 120),
-    "cerrada-llave": (200, 60, 60),
-    "trabada": (110, 110, 110),
+    "abierta": paleta.PUERTA_ABIERTA,
+    "cerrada-llave": paleta.PUERTA_LLAVE,
+    "trabada": paleta.PUERTA_TRABADA,
 }
 
 REEMPLAZO = (255, 0, 255)  # sprite de reemplazo: id sin dibujante
@@ -58,7 +46,7 @@ def _mosaico(color, tam: int = TAM, borde=(20, 20, 20)) -> pygame.Surface:
 
 
 def clase_de_id(item_id: str) -> str:
-    """Adivina la clase por el id (solo para elegir color; nada de reglas)."""
+    """Adivina la clase por el id (solo para elegir dibujo; nada de reglas)."""
     bajo = item_id.lower()
     if "pocion" in bajo:
         return "pocion"
@@ -70,15 +58,71 @@ def clase_de_id(item_id: str) -> str:
         return "antorcha"
     if "pergamino" in bajo:
         return "pergamino_retroceso"
-    if "espada" in bajo or "arma" in bajo:
+    if any(k in bajo for k in ("espada", "arma", "daga", "cuchillo", "arco",
+                               "maza", "hacha", "baston", "lanza")):
         return "arma"
-    if "escudo" in bajo or "armadura" in bajo:
+    if any(k in bajo for k in ("escudo", "armadura", "casco", "yelmo", "botas",
+                               "guantes", "cota", "capa")):
         return "armadura"
-    if "pinchos" in bajo or "veneno" in bajo or "trampa" in bajo:
+    if any(k in bajo for k in ("pinchos", "veneno", "trampa", "dardos")):
         return "trampa"
-    if any(k in bajo for k in ("esqueleto", "murcielago", "sombra", "jefe", "rata", "goblin")):
+    if any(k in bajo for k in ("esqueleto", "murcielago", "sombra", "jefe",
+                               "rata", "goblin", "lobo", "orco", "fantasma",
+                               "vampiro", "zombie", "golem", "arana")):
         return "enemigo"
+    if bajo.startswith("ent_"):
+        return "enemigo"
+    if bajo.startswith("trp_"):
+        return "trampa"
+    if bajo.startswith("itm_"):
+        return "objeto"
     return "desconocida"
+
+
+def _tinta(base: tuple[int, ...]) -> tuple[int, int, int]:
+    """Color de trazo que contrasta con el fondo del mosaico."""
+    return (255, 250, 240) if sum(base[:3]) < 420 else paleta.MURO
+
+
+def _glifo(sup: pygame.Surface, clase: str, base: tuple[int, ...]) -> None:
+    """Pictograma centrado por clase (no toca las esquinas: test usa (5,5))."""
+    t = _tinta(base)
+    if clase == "arma":  # espada diagonal + guarda
+        pygame.draw.line(sup, t, (12, 24), (24, 12), 4)
+        pygame.draw.line(sup, t, (12, 17), (17, 12), 3)
+        pygame.draw.circle(sup, t, (23, 13), 2)
+    elif clase == "armadura":  # escudo
+        pygame.draw.polygon(sup, t, [(12, 10), (24, 10), (24, 18), (18, 26),
+                                     (12, 18)], 2)
+        pygame.draw.line(sup, t, (18, 10), (18, 20), 2)
+    elif clase == "pocion":  # frasco
+        pygame.draw.circle(sup, t, (18, 22), 6, 2)
+        pygame.draw.rect(sup, t, pygame.Rect(16, 8, 4, 8))
+    elif clase == "antidoto":  # cruz
+        pygame.draw.rect(sup, t, pygame.Rect(15, 10, 6, 16))
+        pygame.draw.rect(sup, t, pygame.Rect(10, 15, 16, 6))
+    elif clase == "llave":  # aro + dientes
+        pygame.draw.circle(sup, t, (14, 14), 5, 2)
+        pygame.draw.line(sup, t, (17, 17), (26, 26), 3)
+        pygame.draw.line(sup, t, (22, 22), (22, 26), 2)
+        pygame.draw.line(sup, t, (25, 25), (25, 29), 2)
+    elif clase == "antorcha":  # llama + palo
+        pygame.draw.line(sup, t, (18, 20), (18, 29), 3)
+        pygame.draw.polygon(sup, t, [(18, 7), (23, 17), (18, 21), (13, 17)])
+    elif clase == "pergamino_retroceso":  # rollo con líneas
+        pygame.draw.rect(sup, t, pygame.Rect(11, 12, 14, 13), 2)
+        for yy in (16, 20, 24):
+            pygame.draw.line(sup, t, (14, yy), (22, yy), 1)
+    elif clase == "trampa":  # pinchos
+        for xx in (12, 18, 24):
+            pygame.draw.polygon(sup, t, [(xx - 3, 26), (xx + 3, 26), (xx, 14)])
+    elif clase == "enemigo":  # ojos
+        for ex in (14, 22):
+            pygame.draw.circle(sup, (255, 250, 240), (ex, 16), 4)
+            pygame.draw.circle(sup, paleta.MURO, (ex, 16), 2)
+    elif clase == "objeto":  # caja
+        pygame.draw.rect(sup, t, pygame.Rect(11, 14, 14, 12), 2)
+        pygame.draw.line(sup, t, (11, 19), (25, 19), 1)
 
 
 class SpriteManager:
@@ -151,6 +195,8 @@ class SpriteManager:
         sup = _mosaico(color)
         if clase == "desconocida":
             sup = self._reemplazo
+        else:
+            _glifo(sup, clase, color)
         self._cache[item_id] = sup
         return sup
 
@@ -166,16 +212,13 @@ class SpriteManager:
         return self._jugador
 
     def enemigo(self, comportamiento: str) -> pygame.Surface:
-        """Enemigo inconfundible: círculo del color + anillo blanco + "!"."""
-        sup = _mosaico(COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO))
+        """Enemigo inconfundible: círculo del color + anillo blanco + ojos."""
+        color = COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO)
+        sup = _mosaico(color)
         centro, radio = TAM // 2, TAM // 2 - 3
-        pygame.draw.circle(sup, COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO),
-                           (centro, centro), radio)
+        pygame.draw.circle(sup, color, (centro, centro), radio)
         pygame.draw.circle(sup, (255, 255, 255), (centro, centro), radio, 2)
-        pygame.draw.rect(sup, (20, 20, 20),
-                         pygame.Rect(centro - 2, centro - 8, 4, 10))
-        pygame.draw.rect(sup, (20, 20, 20),
-                         pygame.Rect(centro - 2, centro + 4, 4, 4))
+        _glifo(sup, "enemigo", color)
         return sup
 
     def puerta(self, cerrada: bool, llave) -> pygame.Surface | None:

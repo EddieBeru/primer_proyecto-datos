@@ -22,6 +22,7 @@ class Client:
             cls._instance = super().__new__(cls)
             cls._instance.url_base = URL_BASE
             cls._instance.uuid = str(uuid.uuid4())
+            cls._instance._session = requests.Session()
         return cls._instance
 
     # Función generica para hacer oslicitudes a la API manejando el UUID y los errores según pide la documentación.
@@ -39,7 +40,7 @@ class Client:
         }
 
         try:
-            response = requests.request(method, url, headers=headers, json=data, timeout=10)
+            response = self._session.request(method, url, headers=headers, json=data, timeout=10)
         except requests.RequestException as e:
             raise NetworkError(f"Fallo de red: {str(e)}") from e
 
