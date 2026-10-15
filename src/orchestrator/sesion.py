@@ -122,6 +122,9 @@ class Sesion:
         ok, msg = self._intencion(texto)
         if ok:
             self._drenar()
+        else:
+            # Guía §6: todo rechazo deja foto.error (incl. comando desconocido).
+            self.fachada.error = msg
         foto = self.foto()
         if grabar:
             self._volcar_bitacora()

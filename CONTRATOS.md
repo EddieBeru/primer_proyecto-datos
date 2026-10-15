@@ -55,7 +55,7 @@ Intenciones: mover N/S/E/O, atacar, equipar, soltar, recorrer, deshacer, pausar,
 
 ## Enmienda Sesión/orquestador (2026-10-15, regla 6.3)
 
-- Nueva capa `src/game/` (Sesion + consola): coordina ciclo de vida sin decidir
+- Nueva capa `src/orchestrator/` (Sesion + consola): coordina ciclo de vida sin decidir
   reglas ni tocar HTTP/disco directo. C2 nunca ve la Sesión; C1 nunca ve C2.
 - K1: la Sesión inyecta `backend` (endpoints/offline/falso) a RoomLoader y
   convierte SalaLista→SalaViva en `ProveedorSesion` (el catálogo vive ahí).

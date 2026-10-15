@@ -15,6 +15,8 @@ def main(argv=None):
         return modo_replay(cfg)
     if cfg.bench:
         return modo_bench()
+    if cfg.vista:
+        return modo_vista(cfg)
     if cfg.jugar:
         return modo_jugar(cfg)
     return rutina(cfg)
@@ -59,6 +61,56 @@ def _nueva_sesion(cfg, log_ruta="partida.log"):
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     return Sesion(backend=backend, cache_size=cfg.cache_size, jugador=cfg.jugador,
                   log_ruta=log_ruta)
+
+
+def modo_vista(cfg):
+    """Partida gráfica Pygame vía Sesión (la vista solo habla con Sesión)."""
+    import pygame
+
+    from src.view.app import VistaApp, rutas_log_por_defecto
+    pygame.init()
+    ses = _nueva_sesion(cfg, log_ruta=None)
+    if cfg.cargar:
+        try:
+            foto = ses.cargar_en_frio(cfg.cargar)
+            print(f"Partida cargada de {cfg.cargar}.")
+        except CriptaError as e:
+            print(f"No se pudo cargar: {e}")
+            return 1
+    else:
+        try:
+            criptas = ses.backend.listar_criptas()
+        except CriptaError as e:
+            print(f"Error al listar criptas: {e}")
+            return 1
+        ids = [c.id for c in criptas.criptas]
+        if not ids:
+            print("No se encontraron criptas.")
+            return 1
+        log_ruta, _bin_ruta = rutas_log_por_defecto()
+        ses = _nueva_sesion(cfg, log_ruta=log_ruta)
+        foto = None
+    dev = os.environ.get("CRIPTA_DEV") == "1"
+    app = VistaApp(ses, dev=dev,
+                   save_path=cfg.guardar or rutas_log_por_defecto()[1])
+    if foto is not None:
+        app.foto = foto
+        app.pantalla = "juego"
+    else:
+        tarjetas = [
+            {"id": c.id, "nombre": getattr(c, "nombre", c.id),
+             "salas": getattr(c, "salas", "?"),
+             "dificultad": getattr(c, "dificultad", "?")}
+            for c in criptas.criptas
+        ]
+        app.listar_para_seleccion(tarjetas, os.path.isfile(app.save_path))
+        if len(tarjetas) == 1:
+            try:
+                app.iniciar_partida(str(tarjetas[0]["id"]), semilla=cfg.semilla)
+            except CriptaError as e:
+                print(f"Error al iniciar: {e}")
+                return 1
+    return app.ejecutar()
 
 
 def modo_jugar(cfg):

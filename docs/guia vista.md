@@ -13,7 +13,7 @@ manual operativo: clases, llamadas, datos exactos y ejemplos.
 ## 0. La regla de oro (leer primero)
 
 ```
-VISTA  →  solo habla con Sesion (src/game/sesion.py)
+VISTA  →  solo habla con Sesion (src/orchestrator/sesion.py)
            solo envía INTENCIONES (strings) y lee FOTOS (FotoEstado)
            NUNCA toca EstadoPartida, Agenda, budget, endpoints, archivos
 ```
@@ -23,7 +23,7 @@ VISTA  →  solo habla con Sesion (src/game/sesion.py)
 - La vista **no llama a C1 ni al API**: nada de `src.controller1`, `RoomLoader`,
   `CacheLRU`, `savegame` directo. Todo pasa por `Sesion`.
 - Si falta un dato en la foto, no lo derives: pide ampliación de K5.
-- Referencia viva de este contrato: `src/game/consola.py` (consola oficial).
+- Referencia viva de este contrato: `src/orchestrator/consola.py` (consola oficial).
   Si la consola puede jugar la partida completa solo con `Sesion`, tu vista
   también puede. Úsala como ejemplo de integración mínima.
 
@@ -80,7 +80,7 @@ Protocolo que todo backend cumple (por si haces uno): `info_cripta`,
 ## 3. La foto: `FotoEstado` campo por campo
 
 `ses.foto()` y cada `ses.paso()` devuelven una `FotoEstado`
-(`src/controller/fachada.py`). Es **solo lectura**: dibújala, no la mutes
+(`src/controller2/fachada.py`). Es **solo lectura**: dibújala, no la mutes
 (mutarla no cambia la partida y rompe tu próximo render).
 
 | Campo | Tipo | Contenido exacto | Úsalo para |

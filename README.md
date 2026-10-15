@@ -12,10 +12,14 @@ Motor de mazmorra dirigido por eventos. Reglas según doc oficial del profe.
 ```bash
 python -m src.main --help
 python -m src.main                       # rutina demo (lista + ficha + sala inicial)
-python -m src.main --offline paquete/    # mismo contrato desde disco, sin gastar red
+python scripts/exportar_paquete.py       # genera paquete_demo/ offline (sin red)
+python -m src.main --offline paquete_demo/    # mismo contrato desde disco, sin gastar red
 python -m src.main --semilla 7 --jugador ana
 python -m src.main --bench               # mediciones por subsistema (sin red ni vista)
 python -m src.main --jugar                # partida interactiva vía Sesión (consola)
+python -m src.main --jugar --offline paquete_demo/  # consola sin red ni presupuesto
+python -m src.main --vista                # partida gráfica Pygame vía Sesión
+python -m src.main --vista --offline paquete_demo/  # vista sin red ni presupuesto
 python -m src.main --replay partida.log --cargar partida.bin
 python -m pytest tests/ -q
 ```
@@ -31,6 +35,7 @@ python -m pytest tests/ -q
 | `--semilla N` | 0 | RNG reproducible (§2.6) |
 | `--jugador NOM` | jugador | tabla local puntajes (§2.12) |
 | `--jugar` | — | partida interactiva en consola vía Sesión |
+| `--vista` | — | partida gráfica Pygame vía Sesión (solo habla con Sesión) |
 
 ## Archivos generados
 

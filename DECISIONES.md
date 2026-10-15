@@ -61,3 +61,7 @@ Formato: qué / por qué / descartado.
     Se destapó al moverla al orquestador; se reescribió la línea con comillas de distinto tipo (mismo texto). Sin esto `--jugar` nunca habría arrancado.
 26. **Shims eliminados: solo quedan las 3 carpetas.**
     Tests y docs migrados a rutas canónicas; se borraron `adapters/`, `api/`, `controller/` y `game/`. Una sola fuente de verdad.
+27. **Vista Pygame en `src/view/` (V-1..V-10) + `tests/test_vista.py`.**
+    Solo importa `Sesion`; teclado, sprites con reemplazo, 4 capas, 7 pantallas, HUD y pausa con guardar/cargar. `--vista` en CLI y `pygame-ce` en requirements. Único test con API real: `test_api_real`, salteado salvo `CRIPTA_API_REAL=1`.
+28. **Paquete offline demo (`scripts/exportar_paquete.py` → `paquete_demo/`).**
+    Vuelca FakeProvider (6 salas, 15 fichas) al formato `OfflineBackend` (ojo: trampa usa `daño` en JSON). Permite rutina/consola/vista sin red ni presupuesto; victoria verificada con 0 realizadas.
