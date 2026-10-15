@@ -388,15 +388,16 @@ def test_enemigo_contraataca_tras_atacar(app):
 
 # ------------------------------------------------------- feedback de dano
 def test_golpe_destella_y_barra_baja(app):
-    from src.view import capas
+    from src.view import capas, paleta
     from src.view.sprites import TAM
     area = app.area_sala()
+    verde = paleta.VIDA
 
     def verdes():
         cx, cy = capas.pos_enemigo_animada(area, 0, app.tick_total)
         bx, by = cx - TAM // 2, cy - TAM // 2 - 10 + 3
         return sum(1 for px in range(bx, bx + TAM)
-                   if app.ventana.get_at((px, by))[:3] == (0, 180, 0))
+                   if app.ventana.get_at((px, by))[:3] == verde)
 
     app.dibujar()
     antes = verdes()
