@@ -7,8 +7,9 @@ no registra la tabla final (§2.12). main.py solo hacía demo. La Sesión
 coordina todo eso sin decidir reglas (C2) ni tocar HTTP/disco directo (C1).
 
 Protocolo backend (mismo que endpoints/offline): info_cripta,
-version_cripta, version_catalogo, esqueleto_completo, contenido,
-lote_catalogo_auto. Ninguno es opcional.
+version_catalogo, esqueleto_completo, contenido,
+lote_catalogo_auto. version_cripta existe en el backend pero la Sesión
+no la pide: info_cripta ya trae version (ahorra 1 solicitud).
 """
 
 from __future__ import annotations
@@ -45,6 +46,11 @@ class ProveedorSesion:
         self.catalogo: dict = {}
 
     def sala_lista(self, n: int) -> SalaViva:
+        if self.loader.cache is not None:
+            try:
+                self.loader.cache.fijar_en_uso(list(self.catalogo.keys()))
+            except Exception:
+                pass
         sl = self.loader.sala_lista(n)
         for e in sl.enemigos:
             self.catalogo[e.ficha.id] = e.ficha
@@ -55,6 +61,11 @@ class ProveedorSesion:
             self.catalogo[o.ficha.id] = o.ficha
         for t in sl.trampas:
             self.catalogo[t.ficha.id] = t.ficha
+        if self.loader.cache is not None:
+            try:
+                self.loader.cache.fijar_en_uso(list(self.catalogo.keys()))
+            except Exception:
+                pass
         sv = SalaViva.desde_esqueleto(sl.room)
         sv.enemigos = [EnemigoInstancia(e.instancia, e.ficha.id, e.vida_actual, n)
                        for e in sl.enemigos]
@@ -68,7 +79,8 @@ class Sesion:
     """Una partida de punta a punta. Ver docstring del módulo."""
 
     def __init__(self, backend=None, cache_size: int = 25, jugador: str = "jugador",
-                 log_ruta: str | None = None, puntajes_ruta: str = "puntajes.jsonl") -> None:
+                 log_ruta: str | None = None, puntajes_ruta: str = "puntajes.jsonl",
+                 cache_ruta: str | None = None) -> None:
         if backend is None:
             from src.controller1 import endpoints as backend
         self.backend = backend
@@ -76,6 +88,7 @@ class Sesion:
         self.jugador = jugador
         self.log_ruta = log_ruta
         self.puntajes_ruta = puntajes_ruta
+        self.cache_ruta = cache_ruta
         self.budget: BudgetAdapter | None = None
         self.cache: CacheLRU | None = None
         self.loader: RoomLoader | None = None
@@ -99,15 +112,16 @@ class Sesion:
             budget = BudgetAdapter(info.presupuesto_solicitudes)
         self.info = info
         self.budget = budget
-        ver_cripta = self.backend.version_cripta(cripta_id, budget)
+        # info.version ya es la versión de la cripta: pedir version_cripta
+        # aparte cuesta 1 solicitud por 43 bytes idénticos. Se omite.
         ver_cat = self.backend.version_catalogo(budget)
-        self.cache = CacheLRU(self.cache_size)
-        self.cache.invalida_si_cambia(ver_cat.version)
+        self.cache = self._abrir_cache(ver_cat.version)
         plano = self.backend.esqueleto_completo(cripta_id, budget, info=info)
         self.loader = RoomLoader(cripta_id, plano, budget, self.cache, backend=self.backend)
         self.proveedor = ProveedorSesion(self.loader)
         self.estado = EstadoPartida.nueva_partida(info, ver_cat.version, semilla=int(semilla))
         self.estado.registrar_sala(self.proveedor.sala_lista(info.sala_inicial))
+        self._guardar_cache()
         self.fachada = Fachada(self.estado, self.proveedor, self.proveedor.catalogo,
                                self._mem, semilla=int(semilla), orden_fn=vista_ordenada)
         self._sync_presupuesto()
@@ -122,6 +136,7 @@ class Sesion:
         ok, msg = self._intencion(texto)
         if ok:
             self._drenar()
+            self._guardar_cache()
         else:
             # Guía §6: todo rechazo deja foto.error (incl. comando desconocido).
             self.fachada.error = msg
@@ -133,6 +148,29 @@ class Sesion:
     def foto(self) -> FotoEstado:
         assert self.fachada is not None, "llamar iniciar() primero"
         return self.fachada.foto()
+
+    def _abrir_cache(self, version_cat: str) -> CacheLRU:
+        """Reusa fichas de partidas anteriores si la versión sigue válida."""
+        if self.cache_ruta:
+            try:
+                import os
+                if os.path.isfile(self.cache_ruta):
+                    cache = CacheLRU.cargar_disco(self.cache_ruta, self.cache_size)
+                    cache.invalida_si_cambia(version_cat)
+                    return cache
+            except Exception:
+                pass
+        cache = CacheLRU(self.cache_size)
+        cache.invalida_si_cambia(version_cat)
+        return cache
+
+    def _guardar_cache(self) -> None:
+        if not self.cache_ruta or self.cache is None:
+            return
+        try:
+            self.cache.guardar_disco(self.cache_ruta)
+        except Exception:
+            pass
 
     # -- intención + drenaje --
     def _intencion(self, texto: str) -> tuple[bool, str]:
@@ -274,6 +312,7 @@ class Sesion:
                     self.cache.guardar(fid, ficha)
             except Exception:
                 pass
+        self._guardar_cache()
 
     # -- replay --
     def reproducir(self, ruta_log: str) -> FotoEstado:

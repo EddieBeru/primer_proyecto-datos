@@ -31,6 +31,7 @@ class CLIConfig:
     cargar: str | None = None
     jugar: bool = False
     vista: bool = False
+    cripta: str | None = None
 
 
 def parse_args(argv=None):
@@ -56,8 +57,10 @@ def parse_args(argv=None):
                         help="partida interactiva en consola vía Sesión")
     parser.add_argument("--vista", action="store_true",
                         help="partida gráfica Pygame vía Sesión (solo habla con Sesión)")
+    parser.add_argument("--cripta", default=None,
+                        help="id de cripta directo (ahorra la petición de lista)")
     args = parser.parse_args(argv)
     return CLIConfig(cache_size=args.cache_size, replay=args.replay, bench=args.bench,
                      offline=args.offline, semilla=args.semilla, jugador=args.jugador,
                      guardar=args.guardar, cargar=args.cargar, jugar=args.jugar,
-                     vista=args.vista)
+                     vista=args.vista, cripta=args.cripta)

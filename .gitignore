@@ -7,3 +7,4 @@ partida.log
 partida.bin
 partida.bin.cache
 puntajes.jsonl
+cache.pkl
