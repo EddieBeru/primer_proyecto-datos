@@ -41,3 +41,14 @@ Estado hoy en `savegame.py`: `cripta_id`, `version_cripta`, `version_catalogo`, 
 ## K5: Fachada hacia la Vista (la construye C2)
 
 Intenciones: mover N/S/E/O, atacar, equipar, soltar, recorrer, deshacer, pausar, guardar, cargar, salir, elegir cripta. Foto del estado: sala (nombre, número, puertas y estado), objetos/trampas, jugador (vida, stats, efectos), enemigos (tipo, comportamiento, vida), inventario en orden + equipado, pergaminos, últimos mensajes, solicitudes restantes, estado (jugando/ganó/perdió/pausa), aviso de error. La vista nunca llama a C1 ni al API.
+
+## Enmienda doc oficial (2026-10-15, regla 6.3)
+
+- K1: toda solicitud HTTP cuenta (§5.1), incl lista y reintentos 429. Local/offline no cuenta. Reporte: realizadas/presupuesto/hits/misses.
+- K2: EstadoPartida suma semilla, azar_llamadas/azar_estado, acciones_jugador, enemigos_derrotados, puerta_salida_abierta. SalaViva.rastro:int -> ultima_visita:int|None (§2.9). Guardado v2 con índice por sala + core JSON; v1 solo compat.
+- K3: bitácora header `#cripta <id> <ver_cripta> <ver_cat> <semilla>` primera línea; replay valida y rehúsa silencioso (§4.11). Pantalla: últimos 20, buffer circular.
+- K4: sin cambios de tipos; 429 espera real sin avanzar reloj virtual.
+- K5: intenciones suman abrir/esperar/usar. Victoria = entrar salida tras abrir puerta (§2.12). Sin fórmula puntaje: tabla local (nombre, id+versión, acciones, derrotados, reloj).
+- Motor: daño `max(1, atk+randint(0,4)-def)` con Random(semilla); intervalo `max(1,costo*100//vel)` con tabla costos; reescale velocidad con seq nuevo; activación orden instancia; errante azar; rastreador vecinas abiertas <400 empate menor id; veneno 80x5; rearme 300 default; regen 200 capada; abrir(50)≠mover(100); trampas auto al entrar; fallos lleno/sin-llave sin tiempo; pergamino por intervalo con exclusión y tope 5.
+- Caché: default 25, pin en-uso no desalojable, disco persiste, valida versiones.
+- Sorts: mergesort + insertsort, `orden_auto` (n<=32 o casi-ordenado -> inserción).
