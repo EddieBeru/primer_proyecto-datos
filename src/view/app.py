@@ -69,15 +69,36 @@ class VistaApp:
         self.puede_continuar = puede_continuar
         self.pantalla = "seleccion" if criptas else "inicio"
 
-    def iniciar_partida(self, cripta_id: str, semilla: int = 0) -> "FotoEstado":
+    def _flip(self) -> None:
+        """Vuelca el frame ya (la carga se pinta ANTES del bloqueo de red)."""
+        pygame.event.pump()
+        if self.ventana is pygame.display.get_surface():
+            pygame.display.flip()
+
+    def _pintar_carga(self, detalle: str = "Preparando la cripta…") -> None:
+        """Pantalla de carga visible durante las peticiones de arranque."""
         self.pantalla = "carga"
-        self.foto = self.ses.iniciar(cripta_id, semilla=semilla)
+        pantallas.pantalla_carga(self.ventana, self.fuente, detalle)
+        self._flip()
+
+    def iniciar_partida(self, cripta_id: str, semilla: int = 0) -> "FotoEstado":
+        self._pintar_carga(f"Preparando {cripta_id}…")
+        try:
+            self.foto = self.ses.iniciar(cripta_id, semilla=semilla)
+        except Exception:
+            self.pantalla = "error"
+            raise
         self._reset_vista()
         self.pantalla = "juego"
         return self.foto
 
     def cargar_partida(self, ruta: str | None = None) -> "FotoEstado":
-        self.foto = self.ses.cargar_en_frio(ruta or self.save_path)
+        self._pintar_carga("Cargando partida…")
+        try:
+            self.foto = self.ses.cargar_en_frio(ruta or self.save_path)
+        except Exception:
+            self.pantalla = "error"
+            raise
         self._reset_vista()
         self.pantalla = "juego"
         return self.foto
@@ -108,11 +129,33 @@ class VistaApp:
             self.ref_vida[inst] = max(int(e.get("vida", 0)),
                                       self.ref_vida.get(inst, 0))
 
+    def _pintar_cargando_sala(self) -> tuple[str | None, int]:
+        """Píldora visible durante la petición de la sala destino.
+
+        `ses.paso()` puede tardar 1-2 peticiones (+ waits 429): se pinta
+        y vuelca un frame ANTES del bloqueo. Retorna el aviso previo para
+        restaurarlo después (el pill no debe perdurar).
+        """
+        previo = (self.aviso, self.aviso_ttl)
+        self.aviso, self.aviso_ttl = "Cargando sala…", 10 ** 6
+        self.dibujar()
+        self._flip()
+        return previo
+
     # -- intenciones (guía §4/§5) --
     def enviar(self, texto: str) -> tuple[bool, str, "FotoEstado"]:
         """Manda una intención y refresca. Solo camino hacia `ses.paso()`."""
         assert self.foto is not None or texto, "inicia o carga primero"
-        ok, msg, foto = self.ses.paso(texto)
+        previo = None
+        if self.foto is not None and self.pantalla == "juego" \
+                and texto.strip().upper() in ("N", "S", "E", "O") \
+                and len(texto.strip()) == 1:
+            previo = self._pintar_cargando_sala()
+        try:
+            ok, msg, foto = self.ses.paso(texto)
+        finally:
+            if previo is not None:
+                self.aviso, self.aviso_ttl = previo
         self.foto = foto
         self.ultimo_error = None if ok else msg
         if ok:
@@ -183,10 +226,13 @@ class VistaApp:
         sala_antes = self.foto.sala_id
         ok, msg, _ = self.enviar(direccion)
         if ok and self.foto is not None and self.foto.sala_id != sala_antes:
-            entra = {"N": (0.5, 0.85), "S": (0.5, 0.15),
-                     "E": (0.12, 0.5), "O": (0.88, 0.5)}
+            # Aparece en la puerta paralela (por donde entra), pegado al
+            # marco. en_puerta=True evita recruzar al instante; al alejarse
+            # del radio la bandera se limpia sola (cerca is None).
+            entra = {"N": (0.5, 0.90), "S": (0.5, 0.10),
+                     "E": (0.10, 0.5), "O": (0.90, 0.5)}
             self.pos_jugador = list(entra[direccion])
-            self.en_puerta = False
+            self.en_puerta = True
         elif not ok:
             self._avisar(msg)
             self.en_puerta = True
