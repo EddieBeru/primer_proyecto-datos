@@ -76,7 +76,7 @@ RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n",
 # ------------------------------------------------------- §12 checklist imports
 def test_solo_habla_con_sesion():
     permitidos = {"pygame", "src.view", "src.orchestrator.sesion",
-                  "__future__", "dataclasses", "os", "typing"}
+                  "__future__", "dataclasses", "os", "pathlib", "typing"}
     for ruta in sorted((REPO / "src" / "view").glob("*.py")):
         arbol = ast.parse(ruta.read_text(encoding="utf-8"))
         for nodo in arbol.body:
@@ -107,22 +107,25 @@ def test_mapa_acciones(app):
     from src.view.entrada import intencion_para_tecla
     foto = app.foto
     assert intencion_para_tecla(pygame.K_e, foto, "N") == "abrir N"
-    assert intencion_para_tecla(pygame.K_SPACE, foto, "N") == "atacar e1-1"
-    assert intencion_para_tecla(pygame.K_f, foto, "N") == "recoger antorcha-01"
+    # Espacio/F/1-8 los resuelve el App por proximidad (no son intenciones fijas)
+    assert intencion_para_tecla(pygame.K_SPACE, foto, "N") is None
+    assert intencion_para_tecla(pygame.K_f, foto, "N") is None
+    assert intencion_para_tecla(pygame.K_1, foto, "N") is None
     assert intencion_para_tecla(pygame.K_u, foto, "N") == "deshacer"
     assert intencion_para_tecla(pygame.K_TAB, foto, "N") == "@tab-inv"
     assert intencion_para_tecla(pygame.K_t, foto, "N") == "@tab-suelo"
     assert intencion_para_tecla(pygame.K_F1, foto, "N") == "@dev"
     assert intencion_para_tecla(pygame.K_g, foto, "N") == "@guardar"
     assert intencion_para_tecla(pygame.K_ESCAPE, foto, "N") == "@pausa"
-    assert intencion_para_tecla(pygame.K_1, foto, "N") == "@enemigo+0"
     assert intencion_para_tecla(pygame.K_F5, foto, "N") is None
 
 
-def test_manejar_tecla_mueve_y_gira(app):
-    assert app.manejar_tecla(pygame.K_e) in (None, "abrir E", "abrir N")
-    assert app.manejar_tecla(pygame.K_s) == "s"
-    assert app.foto.sala_id == 3 and app.facing == "s"
+def test_manejar_tecla_mueve_libre_sin_cambiar_sala(app):
+    pos0 = list(app.pos_jugador)
+    assert app.manejar_tecla(pygame.K_e) is None  # abrir N falla (no hay puerta)
+    assert app.manejar_tecla(pygame.K_s) == "@paso"
+    assert app.foto.sala_id == 1 and app.facing == "S"  # camina, no cruza
+    assert app.pos_jugador[1] > pos0[1]
 
 
 # ------------------------------------------------------- sprites y reemplazo
@@ -249,3 +252,111 @@ def test_api_real_listar_iniciar_un_paso():
     app = VistaApp(ses, ventana=pygame.Surface((960, 640)))
     app.foto = foto
     app.dibujar()
+
+
+# ------------------------------------------------------- personaje que se mueve
+def test_personaje_mira_y_da_el_paso(app):
+    from src.view import capas
+    assert app.facing == 'N' and app.anim_pasos == 0
+    app.enviar('s')
+    assert app.facing == 'S' and app.anim_pasos == 8
+    assert app.dibujar() is None  # dibujar no retorna foto (solo lee)
+    assert app.anim_pasos == 7  # la animacion decae por frame
+    for _ in range(8):
+        app.dibujar()
+    assert app.anim_pasos == 0
+    capas.dibujar_actores(app.ventana, app.area_sala(), app.foto,
+                          app.sprites, app.fuente, facing='E',
+                          desplaza=(4, 0))
+
+
+# ------------------------------------------------------- prota PNG + Rojo/Azul
+def test_jugador_png_frames():
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    sp = SpriteManager()
+    assert sp.jugador_png, 'faltan los PNG en assets/sprites/'
+    quieto_a, hop0 = sp.jugador_frame(False, 0, total=100)
+    quieto_b, hop0b = sp.jugador_frame(False, 99, total=100)
+    assert quieto_a is quieto_b and hop0 == hop0b == 0
+    parpadeo, hop_p = sp.jugador_frame(False, 0, total=5)
+    assert parpadeo is not quieto_a and hop_p == 0  # ojos cerrados, sin salto
+    f0, hop_f0 = sp.jugador_frame(True, 0, total=100)
+    f1, hop_f1 = sp.jugador_frame(True, 2, total=100)
+    assert f0 is quieto_a and f1 is not f0 and hop_f1 == -3 and hop_f0 == 0
+    espejo, _ = sp.jugador_frame(False, 0, facing='O')
+    normal, _ = sp.jugador_frame(False, 0, facing='E')
+    assert espejo.get_size() == normal.get_size()
+    assert espejo.get_at((0, 0)) == normal.get_at((normal.get_width() - 1, 0))
+
+
+def test_jugador_fallback_sin_png(tmp_path, monkeypatch):
+    import src.view.sprites as mod
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    monkeypatch.setattr(mod, 'ASSETS_DIR', tmp_path)
+    sp = SpriteManager()
+    assert not sp.jugador_png
+    img, hop = sp.jugador_frame(True, 2)
+    assert hop == 0 and img.get_at((5, 5))[:3] == (70, 130, 230)
+
+
+def test_app_anima_tick_mientras_se_mueve(app):
+    tick0 = app.tick_anim
+    app.enviar('s')
+    app.dibujar()
+    assert app.tick_anim == tick0 + 1
+    for _ in range(10):
+        app.dibujar()
+    quieto = app.tick_anim
+    app.dibujar()
+    assert app.tick_anim == quieto  # quieto: no avanza
+
+
+# ------------------------------------------------------- movimiento libre
+def _teletransportar(app, x, y):
+    from src.view import capas  # noqa
+    area = app.area_sala()
+    app.pos_jugador = [(x - area.x) / area.w, (y - area.y) / area.h]
+    app.en_puerta = False
+
+
+def test_puerta_abierta_cruza_al_llegar(app):
+    from src.view import capas
+    area = app.area_sala()
+    _teletransportar(app, *capas.rect_puerta(area, 'E').center)
+    assert app.manejar_tecla(pygame.K_d) == '@paso'
+    assert app.foto.sala_id == 2  # cruzo al pisar la puerta, no con la tecla
+    assert app.pos_jugador[0] < 0.3  # reaparece por el lado contrario
+
+
+def test_puerta_cerrada_avisa_y_no_cruza(app):
+    from src.view import capas
+    app.enviar('e')  # sala 2: puerta S cerrada con llave-hierro-01
+    area = app.area_sala()
+    _teletransportar(app, *capas.rect_puerta(area, 'S').center)
+    assert app.manejar_tecla(pygame.K_s) == '@paso'
+    assert app.foto.sala_id == 2
+    assert app.aviso and 'cerrada' in app.aviso.lower()
+
+
+def test_recoger_y_atacar_por_proximidad(app):
+    from src.view import capas
+    area = app.area_sala()
+    assert app.recoger_cercano() is None and app.aviso  # lejos: aviso local
+    assert app.atacar_cercano() is None
+    _teletransportar(app, *capas.pos_suelo(area, 0))
+    assert app.recoger_cercano() == 'recoger antorcha-01'
+    assert app.manejar_tecla(pygame.K_f) == 'recoger antorcha-01'
+    assert 'antorcha-01' in app.foto.inventario
+    _teletransportar(app, *capas.pos_enemigo(area, 0))
+    assert app.atacar_cercano() == 'atacar e1-1'
+
+
+def test_geometria_dentro_de_sala(app):
+    from src.view import capas
+    area = app.area_sala()
+    for direccion in ('N', 'S', 'E', 'O'):
+        assert area.collidepoint(capas.rect_puerta(area, direccion).center)
+    assert area.collidepoint(capas.pos_suelo(area, 0))
+    assert area.collidepoint(capas.pos_enemigo(area, 0))

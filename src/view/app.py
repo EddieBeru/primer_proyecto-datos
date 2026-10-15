@@ -13,15 +13,16 @@ from typing import TYPE_CHECKING
 import pygame
 
 from src.orchestrator.sesion import Sesion
-from src.view import entrada, pantallas
+from src.view import capas, entrada, pantallas, ui
 from src.view.sprites import SpriteManager
 
 if TYPE_CHECKING:  # solo tipos
     from src.controller2.fachada import FotoEstado
 
 FPS = 60
-AYUDA = ("WASD/flechas mover · E abrir · Espacio atacar · F recoger · "
-         "R usar · Enter equipar · Q soltar · Tab/U/T · 1-8 enemigo · "
+VELOCIDAD = 0.022  # fracción del área por frame (movimiento libre, solo vista)
+AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
+         "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
          "F1 dev · G guardar · Esc pausa")
 
 
@@ -52,6 +53,13 @@ class VistaApp:
         self.ultimo_error: str | None = None
         self.reporte: dict | None = None
         self.corriendo = True
+        self.anim_pasos = 0  # frames restantes del paso visual (solo vista)
+        self.tick_anim = 0  # reloj de la animación estilo Rojo/Azul
+        self.tick_total = 0  # reloj global (parpadeo en reposo)
+        self.pos_jugador = [0.5, 0.5]  # posición libre en la sala (solo vista)
+        self.aviso: str | None = None  # toast local (no es foto.error)
+        self.aviso_ttl = 0
+        self.en_puerta = False  # evita re-disparar la puerta cada frame
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -78,6 +86,13 @@ class VistaApp:
         self.ref_vida = {}
         self.ultimo_error = None
         self.reporte = None
+        self.anim_pasos = 0
+        self.tick_anim = 0
+        self.tick_total = 0
+        self.pos_jugador = [0.5, 0.5]
+        self.aviso = None
+        self.aviso_ttl = 0
+        self.en_puerta = False
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -97,17 +112,126 @@ class VistaApp:
         self.foto = foto
         self.ultimo_error = None if ok else msg
         if ok:
+            direccion = texto.strip().upper()
+            if direccion in ("N", "S", "E", "O"):
+                self.facing = direccion
+                self.anim_pasos = 8  # el personaje da el paso en pantalla
             self._memorizar_vida()
             if foto.estado != "jugando":
                 self.pantalla = "fin"
         return ok, msg, foto
+
+    # -- movimiento libre y proximidad (solo vista; las reglas siguen en C2) --
+    def _pos_px(self) -> tuple[float, float]:
+        area = self.area_sala()
+        return (area.x + self.pos_jugador[0] * area.w,
+                area.y + self.pos_jugador[1] * area.h)
+
+    def _avisar(self, texto: str, ttl: int = 90) -> None:
+        self.aviso, self.aviso_ttl = texto, ttl
+
+    def _paso_libre(self, direccion: str) -> str:
+        """Mueve el sprite por la sala; solo cruza al llegar a puerta abierta."""
+        vec = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
+        dx, dy = vec[direccion]
+        self.pos_jugador[0] = min(0.96, max(0.04, self.pos_jugador[0] + dx * VELOCIDAD))
+        self.pos_jugador[1] = min(0.96, max(0.04, self.pos_jugador[1] + dy * VELOCIDAD))
+        self.facing = direccion.upper()
+        self.anim_pasos = max(self.anim_pasos, 4)
+        self.tick_anim += 1
+        self._revisar_puerta()
+        return "@paso"
+
+    def _revisar_puerta(self) -> None:
+        """Al pisar puerta abierta -> mover; cerrada -> aviso (E para abrir)."""
+        if self.foto is None:
+            return
+        area = self.area_sala()
+        jx, jy = self._pos_px()
+        cerca = None
+        for direccion in ("N", "S", "E", "O"):
+            puerta = (self.foto.puertas or {}).get(direccion)
+            if puerta is None:
+                continue
+            cx, cy = capas.rect_puerta(area, direccion).center
+            if ((jx - cx) ** 2 + (jy - cy) ** 2) ** 0.5 <= capas.RADIO_PUERTA:
+                cerca = (direccion, puerta)
+                break
+        if cerca is None:
+            self.en_puerta = False
+            return
+        if self.en_puerta:
+            return
+        direccion, puerta = cerca
+        if puerta.get("cerrada"):
+            llave = puerta.get("llave")
+            self._avisar("Puerta cerrada. Pulsa E" +
+                         (f" (llave {llave})" if llave else ""))
+            self.en_puerta = True
+            return
+        sala_antes = self.foto.sala_id
+        ok, msg, _ = self.enviar(direccion)
+        if ok and self.foto is not None and self.foto.sala_id != sala_antes:
+            entra = {"N": (0.5, 0.85), "S": (0.5, 0.15),
+                     "E": (0.12, 0.5), "O": (0.88, 0.5)}
+            self.pos_jugador = list(entra[direccion])
+            self.en_puerta = False
+        elif not ok:
+            self._avisar(msg)
+            self.en_puerta = True
+
+    def _cercano(self, puntos: list[tuple[float, float, str]],
+                 radio: int, que: str) -> str | None:
+        """Id del punto más cercano en radio, o aviso local y None."""
+        if self.foto is None:
+            return None
+        jx, jy = self._pos_px()
+        mejor, mejor_d = None, float("inf")
+        for x, y, ident in puntos:
+            d = ((jx - x) ** 2 + (jy - y) ** 2) ** 0.5
+            if d < mejor_d:
+                mejor, mejor_d = ident, d
+        if mejor is None or mejor_d > radio:
+            self._avisar(f"Acércate {'al enemigo' if que == 'enemigo' else 'al objeto'}")
+            return None
+        return mejor
+
+    def atacar_cercano(self) -> str | None:
+        """Instancia enemiga a rango, o None con aviso (instancia, no tipo)."""
+        area = self.area_sala()
+        vivos = [e for e in (self.foto.enemigos or []) if e.get("vida", 0) > 0]
+        puntos = [(c[0], c[1], e["instancia"])
+                  for e, c in ((e, capas.pos_enemigo(area, i)) for i, e in enumerate(vivos))]
+        objetivo = self._cercano(puntos, capas.RADIO_ENEMIGO, "enemigo")
+        return f"atacar {objetivo}" if objetivo else None
+
+    def recoger_cercano(self) -> str | None:
+        """Id del suelo a rango, o None con aviso."""
+        area = self.area_sala()
+        suelo = list(self.foto.objetos_suelo or [])
+        puntos = [(c[0], c[1], item)
+                  for item, c in ((o, capas.pos_suelo(area, i)) for i, o in enumerate(suelo))]
+        objetivo = self._cercano(puntos, capas.RADIO_OBJETO, "objeto")
+        return f"recoger {objetivo}" if objetivo else None
 
     def manejar_tecla(self, key: int) -> str | None:
         """Tecla -> acción local o intención. Retorna lo ejecutado."""
         if self.pantalla == "juego" and self.foto is not None:
             direccion = entrada.mover_para_tecla(key)
             if direccion is not None:
-                self.facing = direccion
+                return self._paso_libre(direccion)
+            if key == pygame.K_SPACE:
+                accion = self.atacar_cercano()
+                if accion is None:
+                    return None
+                ok, _, _ = self.enviar(accion)
+                return accion if ok else None
+            if key == pygame.K_f:
+                accion = self.recoger_cercano()
+                if accion is None:
+                    return None
+                ok, _, _ = self.enviar(accion)
+                return accion if ok else None
             accion = entrada.intencion_para_tecla(
                 key, self.foto, self.facing,
                 self.sel_enemigo, self.sel_suelo, self.sel_inv)
@@ -139,10 +263,6 @@ class VistaApp:
             self.dev = not self.dev
         elif accion == "@guardar":
             self.guardar()
-        elif accion.startswith("@enemigo+"):
-            total = max(len([e for e in (self.foto.enemigos or [])
-                             if e.get("vida", 0) > 0]), 1)
-            self.sel_enemigo = int(accion.split("+")[1]) % total
         return accion
 
     def _tecla_pausa(self, key: int) -> str | None:
@@ -224,10 +344,24 @@ class VistaApp:
         elif self.pantalla == "version":
             pantallas.pantalla_version(self.ventana, self.fuente, self.ultimo_error or "")
         elif self.foto is not None:
+            vec = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "O": (-1, 0)}
+            dx, dy = vec.get(self.facing, (0, 0))
+            desplaza = (dx * self.anim_pasos * 2, dy * self.anim_pasos * 2)
+            moviendo = self.anim_pasos > 0
+            if moviendo:
+                self.anim_pasos -= 1
+                self.tick_anim += 1
+            self.tick_total += 1
             pantallas.pantalla_juego(self.ventana, self.fuente, self.foto,
                                      self.sprites, self.area_sala(),
                                      self.sel_enemigo, self.sel_suelo, self.sel_inv,
-                                     self.ref_vida, self.dev)
+                                     self.ref_vida, self.dev,
+                                     self.facing, desplaza,
+                                     (moviendo, self.tick_anim, self.tick_total),
+                                     self._pos_px())
+            if self.aviso and self.aviso_ttl > 0:
+                ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
+                self.aviso_ttl -= 1
         pygame.display.flip() if self.ventana is pygame.display.get_surface() else None
 
     def ejecutar(self) -> int:
@@ -242,6 +376,15 @@ class VistaApp:
                     except Exception as e:  # nunca crashear la ventana
                         self.ultimo_error = str(e)
                         self.pantalla = "error"
+            if self.pantalla == "juego" and self.foto is not None:
+                try:
+                    held = pygame.key.get_pressed()
+                    for tecla, direccion in entrada.MOVER.items():
+                        if held[tecla]:
+                            self._paso_libre(direccion)
+                except Exception as e:
+                    self.ultimo_error = str(e)
+                    self.pantalla = "error"
             try:
                 self.dibujar()
             except Exception as e:

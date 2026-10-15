@@ -65,7 +65,10 @@ def pantalla_carga(sup: pygame.Surface, fuente: pygame.Font,
 def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    sprites: SpriteManager, area_sala: pygame.Rect,
                    sel_enemigo: int = 0, sel_suelo: int = 0, sel_inv: int = 0,
-                   ref_vida: dict | None = None, dev: bool = False) -> None:
+                   ref_vida: dict | None = None, dev: bool = False,
+                   facing: str = "N", desplaza: tuple[int, int] = (0, 0),
+                   paso_jugador: tuple[bool, int, int] = (False, 0, 0),
+                   pos_jugador: tuple[float, float] | None = None) -> None:
     """1.4 Sala + actores + HUD. Toda la lectura sale de la foto."""
     sup.fill(FONDO)
     titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
@@ -74,7 +77,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     capas.dibujar_fondo(sup, area_sala, foto, sprites)
     capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo)
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
-                          sel_enemigo, ref_vida)
+                          sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
+                          pos_jugador)
     barra_x = area_sala.right + 12
     ui.dibujar_barra_vida(sup, barra_x, 40, 180, foto)
     y = ui.dibujar_stats(sup, fuente, barra_x, 62, foto, dev)

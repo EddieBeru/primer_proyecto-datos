@@ -1,3 +1,7 @@
 __pycache__/
 .md
 paquete_demo/
+partida.log
+partida.bin
+partida.bin.cache
+puntajes.jsonl
