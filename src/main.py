@@ -1,12 +1,12 @@
 import os
 import sys
 
-from src.adapters.cli import parse_args
-from src.adapters.lru_cache import CacheLRU
-from src.adapters.room_loader import RoomLoader
-from src.adapters.session import iniciar_cripta, listar_criptas
+from src.controller1.cli import parse_args
+from src.controller1.lru_cache import CacheLRU
+from src.controller1.room_loader import RoomLoader
+from src.controller1.session import iniciar_cripta, listar_criptas
 from src.models.errors import CriptaError, PresupuestoAgotadoError, RateLimitedError
-import src.api.endpoints as endpoints
+import src.controller1.endpoints as endpoints
 
 
 def main(argv=None):
@@ -21,7 +21,7 @@ def main(argv=None):
 
 
 def modo_bench():
-    from src.adapters.bench import correr_todo
+    from src.orchestrator.bench import correr_todo
     res = correr_todo()
     print("bench por subsistema (sin red, sin vista):")
     for k in sorted(res):
@@ -32,8 +32,8 @@ def modo_bench():
 
 def modo_replay(cfg):
     """--replay vía Sesión: valida header, reconstruye (red/offline) y re-ejecuta."""
-    from src.controller.bitacora import BitacoraIncompatibleError
-    from src.game.sesion import Sesion
+    from src.controller2.bitacora import BitacoraIncompatibleError
+    from src.orchestrator.sesion import Sesion
     if not os.path.isfile(cfg.replay):
         print(f"Bitácora inexistente: {cfg.replay}")
         return 1
@@ -51,10 +51,10 @@ def modo_replay(cfg):
 
 
 def _nueva_sesion(cfg, log_ruta="partida.log"):
-    from src.game.sesion import Sesion
+    from src.orchestrator.sesion import Sesion
     backend = endpoints
     if cfg.offline:
-        from src.adapters.offline import OfflineBackend
+        from src.controller1.offline import OfflineBackend
         backend = OfflineBackend(cfg.offline)
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     return Sesion(backend=backend, cache_size=cfg.cache_size, jugador=cfg.jugador,
@@ -63,7 +63,7 @@ def _nueva_sesion(cfg, log_ruta="partida.log"):
 
 def modo_jugar(cfg):
     """Partida interactiva en consola vía Sesión (la Vista hará lo mismo)."""
-    from src.game.consola import bucle, renderizar
+    from src.orchestrator.consola import bucle, renderizar
     ses = _nueva_sesion(cfg)
     try:
         if cfg.cargar:
@@ -99,7 +99,7 @@ def modo_jugar(cfg):
 def rutina(cfg):
     backend = endpoints
     if cfg.offline:
-        from src.adapters.offline import OfflineBackend
+        from src.controller1.offline import OfflineBackend
         backend = OfflineBackend(cfg.offline)
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     print("Listando criptas:")
@@ -124,7 +124,7 @@ def rutina(cfg):
             info, budget = iniciar_cripta(primera_cripta_id)
         else:
             info = backend.info_cripta(primera_cripta_id)
-            from src.adapters.budget import BudgetAdapter
+            from src.controller1.budget import BudgetAdapter
             budget = BudgetAdapter(info.presupuesto_solicitudes)
     except RateLimitedError as e:
         print(f"Servidor ocupado. Reintentar en {e.reintentar_en}s.")

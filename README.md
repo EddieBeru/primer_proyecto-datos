@@ -43,3 +43,17 @@ python -m pytest tests/ -q
 
 `abrir N/S/E/O`, `N/S/E/O` mover, `atacar <inst>`, `esperar`, `recoger/usar/equipar/soltar`,
 `deshacer` (1 pergamino, intervalo completo), `avanzar` (siguiente evento), `foto`.
+
+## Mapa de carpetas (separación vista–controlador)
+
+| Capa | Carpeta canónica | Contenido |
+|---|---|---|
+| Controller 1: datos, red y persistencia | `src/controller1/` | `fake_provider`, `client`, `endpoints`, `session`, `offline`, `budget`, `room_loader`, `lru_cache`, `lista_doble`, `tabla_hash`, `mergesort`, `orden`, `savegame`, `gamelog`, `puntajes`, `cli` |
+| Controller 2: motor del juego | `src/controller2/` | `modelo`, `agenda`, `reloj`, `azar`, `movimiento`, `inventario`, `combate`, `efectos`, `enemigos`, `deshacer`, `victoria`, `bitacora` (formato K3), `fachada` (K5) |
+| Orchestrator (tercer controlador) | `src/orchestrator/` + `src/main.py` | `sesion` (ciclo de vida + drenaje §2.3), `consola` (puente §7.2, solo habla con Sesión), `bench` (mide C1+C2), `main` (entry point) |
+| Compartido (contratos, sin dueño) | `src/models/` | formas del API (`dungeons`, `rooms`, `roomContents`, `catalog`, `objects`, `types`) + `errors` (K4) |
+| Vista futura | `src/view/` | vacía hasta cumplir “Controlador en raya” (§7.3); Pygame solo leerá `FotoEstado` y enviará intenciones |
+
+Compatibilidad: las rutas anteriores (`src.adapters.*`, `src.api.*`, `src.controller.*`, `src.game.*`) siguen funcionando como shims que reexportan las carpetas nuevas; los tests las usan como prueba de no-ruptura.
+
+Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` vía Sesión); C1 nunca importa `controller2` (bitácora trata líneas como opacas); solo el orquestador ve ambos.

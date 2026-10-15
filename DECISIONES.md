@@ -51,3 +51,11 @@ Formato: qué / por qué / descartado.
 20. **Caché 25 + pin en-uso + disco.** Doc §4.4. Descartado: LRU puro sin pin.
 21. **Guardado v2 con índice por sala + comparativa JSON.** Doc §4.10. Descartado: secuencial completo.
 22. **Dos sorts + auto (n<=32 o casi-ordenado -> inserción).** Doc §4.9. Descartado: solo mergesort.
+23. **3 carpetas físicas `controller1` / `controller2` / `orchestrator` con shims.**
+    `adapters`+`api`→`controller1`, `controller`→`controller2`, `game`→`orchestrator` (`main` queda como entry point); `models` sigue compartido. Las 35 rutas viejas quedan como alias (`sys.modules`, mismo objeto): `monkeypatch` y `pytest.raises` siguen viendo una sola clase y los 140 tests no se tocaron.
+    Descartado: renombrar sin shims (rompía 47 imports) y `import *` en shims (duplicaba módulos).
+24. **Cero acoples cruzados con inyección, sin cambiar comportamiento.**
+    `gamelog.iniciar` formatea `#cripta …` local (C1 trata líneas como opacas, K3); `Fachada` recibe `orden_fn` y la Sesión le inyecta `vista_ordenada` de C1 (§4.1/§5.1); `bench` vive en el orquestador que sí puede ver ambos.
+    Descartado: imports lazy cruzados (`controller`→`adapters` y viceversa).
+25. **`consola.py` tenía `SyntaxError` (f-string con `\"` anidados): nadie la importaba.**
+    Se destapó al moverla al orquestador; se reescribió la línea con comillas de distinto tipo (mismo texto). Sin esto `--jugar` nunca habría arrancado.
