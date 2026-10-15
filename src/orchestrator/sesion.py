@@ -181,6 +181,14 @@ class Sesion:
             if prox is None:
                 break
             if prox.tipo == "turno" and (prox.datos or {}).get("kind") == "jugador":
+                # El marcador se consume al llegar (avanza el reloj y sincroniza).
+                # Sin esto tapona la agenda y los turnos enemigos lentos jamás
+                # llegan (§2.3: drenar HASTA el turno del jugador, no ANTES).
+                try:
+                    self.fachada.avanzar()
+                except Exception as e:  # §3.1: reportar con contexto, no caer
+                    self.fachada.error = f"evento falló: {e}"
+                    break
                 break
             try:
                 self.fachada.avanzar()

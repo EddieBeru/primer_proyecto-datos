@@ -166,7 +166,17 @@ class SpriteManager:
         return self._jugador
 
     def enemigo(self, comportamiento: str) -> pygame.Surface:
-        return _mosaico(COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO))
+        """Enemigo inconfundible: círculo del color + anillo blanco + "!"."""
+        sup = _mosaico(COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO))
+        centro, radio = TAM // 2, TAM // 2 - 3
+        pygame.draw.circle(sup, COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO),
+                           (centro, centro), radio)
+        pygame.draw.circle(sup, (255, 255, 255), (centro, centro), radio, 2)
+        pygame.draw.rect(sup, (20, 20, 20),
+                         pygame.Rect(centro - 2, centro - 8, 4, 10))
+        pygame.draw.rect(sup, (20, 20, 20),
+                         pygame.Rect(centro - 2, centro + 4, 4, 4))
+        return sup
 
     def puerta(self, cerrada: bool, llave) -> pygame.Surface | None:
         """Puerta por estado. `None` solo si el llamante pide muro (sin salida)."""

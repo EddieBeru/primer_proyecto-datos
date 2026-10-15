@@ -53,14 +53,20 @@ from src.controller2.efectos import (
     usar_pocion,
 )
 from src.controller2.enemigos import (
+    OLEADA_CADA,
+    OLEADA_MAX,
     RASTRO_MAX_ANTIGUEDAD,
     activar_sala,
     comportamiento_de,
     decidir_destino,
     decaer_rastro,
+    ejecutar_oleada,
     mover_enemigo,
+    programar_oleada,
+    tabla_oleada,
     turno_enemigo,
     velocidad_de,
+    vivos_oleada,
 )
 from src.controller2.deshacer import PilaDeshacer, aplicar_inversa, deshacer_una
 from src.controller2.victoria import (
@@ -87,6 +93,8 @@ from src.controller2.fachada import Fachada, FotoEstado
 __all__ = [
     "BASE_TURNO",
     "COSTOS",
+    "OLEADA_CADA",
+    "OLEADA_MAX",
     "RASTRO_MAX_ANTIGUEDAD",
     "REARME_TRAMPA_DEFAULT",
     "REGENERACION_PERIODO",
@@ -133,6 +141,7 @@ __all__ = [
     "deshacer_una",
     "ejecutar_cierre",
     "ejecutar_fin_efecto",
+    "ejecutar_oleada",
     "ejecutar_rearme",
     "ejecutar_regeneracion",
     "ejecutar_veneno",
@@ -151,12 +160,15 @@ __all__ = [
     "parsear",
     "parsear_header",
     "pisar_trampa",
+    "programar_oleada",
     "puntajes_a_dicts",
     "reescalar",
     "reproducir",
+    "tabla_oleada",
     "turno_enemigo",
     "usar_antidoto",
     "usar_antorcha",
     "usar_pocion",
     "velocidad_de",
+    "vivos_oleada",
 ]

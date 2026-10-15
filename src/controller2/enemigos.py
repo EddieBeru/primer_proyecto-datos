@@ -9,11 +9,14 @@ Costo mover/atacar/esperar = 100 siempre.
 from __future__ import annotations
 
 from src.controller2.agenda import Agenda
-from src.controller2.modelo import EstadoPartida
+from src.controller2.modelo import EnemigoInstancia, EstadoPartida
 from src.controller2.reloj import RelojVirtual
 
 COMPORTAMIENTOS = ("guardián", "errante", "rastreador")
 RASTRO_MAX_ANTIGUEDAD = 400
+OLEADA_CADA = 3000  # una aparición cada N unidades virtuales (default)
+OLEADA_MAX = 4  # tope de aparecidos vivos a la vez
+PREFIJO_OLEADA = "oleada-"
 
 
 def comportamiento_de(catalogo: dict | None, tipo_id: str) -> str:
@@ -131,6 +134,51 @@ def mover_enemigo(estado: EstadoPartida, instancia_id: str, destino: int) -> boo
 def decaer_rastro(estado: EstadoPartida, cantidad: int = 1) -> None:
     """Compat: ya no se usa (rastro es timestamp). Solo para tests viejos."""
     return None
+
+
+def tabla_oleada(catalogo: dict | None) -> list[str]:
+    """Tipos spawnables: errantes si hay (se mueven random), si no cualquiera."""
+    fichas = [fid for fid, f in (catalogo or {}).items()
+              if getattr(f, "clase", "") == "enemigo"]
+    errantes = [fid for fid in fichas
+                if comportamiento_de(catalogo, fid) == "errante"]
+    return errantes or fichas
+
+
+def vivos_oleada(estado: EstadoPartida) -> int:
+    """Aparecidos vivos (tope anti-inundación)."""
+    return sum(1 for s in estado.salas.values() for e in s.enemigos
+               if e.vivo and e.instancia.startswith(PREFIJO_OLEADA))
+
+
+def programar_oleada(agenda: Agenda, reloj: RelojVirtual,
+                     cada: int = OLEADA_CADA):
+    """Agenda la próxima aparición. Datos mínimos (serializable K2)."""
+    return agenda.programar(reloj.ahora + int(cada), "oleada", {"cada": int(cada)})
+
+
+def ejecutar_oleada(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
+                    catalogo: dict | None, azar=None,
+                    seq: int = 0) -> tuple[str | None, int | None]:
+    """Aparece un errante en la sala actual. Determinista (azar+seq).
+
+    Retorna (instancia, seq_turno) o (None, None) si toca saltar (tope,
+    sin pool o sala desconocida). Quien llama reprograma la siguiente.
+    """
+    pool = tabla_oleada(catalogo)
+    sala = estado.salas.get(estado.sala_actual)
+    if not pool or sala is None or vivos_oleada(estado) >= OLEADA_MAX:
+        return None, None
+    tipo = pool[azar.randint(0, len(pool) - 1)] if azar is not None else pool[0]
+    ficha = (catalogo or {}).get(tipo)
+    vida = int(getattr(ficha, "vida_max", 10) or 10)
+    inst = f"{PREFIJO_OLEADA}{int(seq)}"
+    enemigo = EnemigoInstancia(inst, tipo, vida, sala.id, activa=True)
+    sala.enemigos.append(enemigo)
+    ev = reloj.programar_turno(agenda, inst, velocidad_de(catalogo, tipo),
+                               {"kind": "enemigo", "tipo": tipo}, costo=100)
+    enemigo.tiempo_siguiente = ev.t
+    return inst, ev.seq
 
 
 def turno_enemigo(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,

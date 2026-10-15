@@ -21,7 +21,9 @@ from src.controller2.efectos import (
     usar_antorcha,
     usar_pocion,
 )
-from src.controller2.enemigos import activar_sala, comportamiento_de, turno_enemigo
+from src.controller2.enemigos import (OLEADA_CADA, activar_sala,
+                                        comportamiento_de, ejecutar_oleada,
+                                        programar_oleada, turno_enemigo)
 from src.controller2.inventario import Inventario, InventarioLlenoError
 from src.controller2.modelo import EstadoPartida
 from src.controller2.movimiento import abrir_puerta, ejecutar_cierre, intentar_mover
@@ -53,11 +55,13 @@ class Fachada:
     """Ventanilla del Controlador. Dibuja con foto(), juega con intenciones."""
 
     def __init__(self, estado: EstadoPartida, proveedor, catalogo: dict | None = None,
-                 bitacora=None, semilla: int | None = None, orden_fn=None) -> None:
+                 bitacora=None, semilla: int | None = None, orden_fn=None,
+                 oleada_cada: int | None = None) -> None:
         self.estado = estado
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
         self.orden_fn = orden_fn  # sorts de C1 inyectados por la Sesión (§4.1/§5.1)
+        self.oleada_cada = OLEADA_CADA if oleada_cada is None else int(oleada_cada)
         self.bitacora = bitacora or BitacoraMemoria()
         self.agenda = Agenda.desde_lista(estado.agenda or [])
         self.reloj = RelojVirtual(ahora=estado.reloj)
@@ -89,6 +93,15 @@ class Fachada:
                 activar_sala(estado, self.agenda, self.reloj.ahora,
                              estado.sala_actual, self.catalogo)
                 self._programar_turno_jugador(COSTOS["mover"], inicial=True)
+                self._asegurar_oleada()
+        except Exception:
+            pass
+
+    def _asegurar_oleada(self) -> None:
+        """Una oleada programada siempre (sin duplicar; vive en agenda K2)."""
+        try:
+            if not any(e.tipo == "oleada" for e in self.agenda):
+                programar_oleada(self.agenda, self.reloj, self.oleada_cada)
         except Exception:
             pass
 
@@ -393,7 +406,18 @@ class Fachada:
         if ev is None:
             return "agenda vacía"
         d = ev.datos or {}
-        if ev.tipo == "cierre_puerta":
+        if ev.tipo == "oleada":
+            inst, turno_seq = ejecutar_oleada(self.estado, self.agenda, self.reloj,
+                                              self.catalogo, self.azar, ev.seq)
+            if inst is not None:
+                self.pila.apilar({"op": "aparece",
+                                   "datos": {"instancia": inst,
+                                             "sala": self.estado.sala_actual},
+                                   "eventos": [turno_seq] if turno_seq is not None else []})
+                self._anotar("efecto", "oleada", inst)
+            programar_oleada(self.agenda, self.reloj,
+                             int(d.get("cada", self.oleada_cada)))
+        elif ev.tipo == "cierre_puerta":
             sala = self.estado.salas.get(d.get("sala"))
             antes = sala.salidas[d["direccion"]].cerrada if sala and d.get("direccion") in (sala.salidas if sala else {}) else None
             ejecutar_cierre(self.estado, d.get("sala"), d.get("direccion"))
@@ -498,6 +522,7 @@ class Fachada:
                 self.azar.llamadas = int(getattr(self.estado, "azar_llamadas", 0))
             except Exception:
                 pass
+        self._asegurar_oleada()
 
     # -- foto K5 (lo unico que la Vista lee) --
     def foto(self) -> FotoEstado:

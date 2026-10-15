@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # solo tipos
     from src.controller2.fachada import FotoEstado
 
 FPS = 60
-VELOCIDAD = 0.022  # fracción del área por frame (movimiento libre, solo vista)
+VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
          "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
          "F1 dev · G guardar · Esc pausa")
@@ -60,6 +60,8 @@ class VistaApp:
         self.aviso: str | None = None  # toast local (no es foto.error)
         self.aviso_ttl = 0
         self.en_puerta = False  # evita re-disparar la puerta cada frame
+        self.golpe: str | None = None  # instancia con destello de impacto
+        self.golpe_ttl = 0
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -93,6 +95,8 @@ class VistaApp:
         self.aviso = None
         self.aviso_ttl = 0
         self.en_puerta = False
+        self.golpe = None
+        self.golpe_ttl = 0
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -116,6 +120,9 @@ class VistaApp:
             if direccion in ("N", "S", "E", "O"):
                 self.facing = direccion
                 self.anim_pasos = 8  # el personaje da el paso en pantalla
+            partes = texto.strip().split()
+            if len(partes) == 2 and partes[0].lower() == "atacar":
+                self.golpe, self.golpe_ttl = partes[1], 12  # destello de impacto
             self._memorizar_vida()
             if foto.estado != "jugando":
                 self.pantalla = "fin"
@@ -131,7 +138,11 @@ class VistaApp:
         self.aviso, self.aviso_ttl = texto, ttl
 
     def _paso_libre(self, direccion: str) -> str:
-        """Mueve el sprite por la sala; solo cruza al llegar a puerta abierta."""
+        """Mueve el sprite por la sala; solo cruza al llegar a puerta abierta.
+
+        Caminar es gratis (no consume tiempo ni vida): los enemigos y efectos
+        actúan tras tus intenciones (atacar, recoger, abrir, usar, esperar…).
+        """
         vec = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
         dx, dy = vec[direccion]
         self.pos_jugador[0] = min(0.96, max(0.04, self.pos_jugador[0] + dx * VELOCIDAD))
@@ -201,7 +212,8 @@ class VistaApp:
         area = self.area_sala()
         vivos = [e for e in (self.foto.enemigos or []) if e.get("vida", 0) > 0]
         puntos = [(c[0], c[1], e["instancia"])
-                  for e, c in ((e, capas.pos_enemigo(area, i)) for i, e in enumerate(vivos))]
+                  for e, c in ((e, capas.pos_enemigo_animada(area, i, self.tick_total))
+                               for i, e in enumerate(vivos))]
         objetivo = self._cercano(puntos, capas.RADIO_ENEMIGO, "enemigo")
         return f"atacar {objetivo}" if objetivo else None
 
@@ -352,13 +364,25 @@ class VistaApp:
                 self.anim_pasos -= 1
                 self.tick_anim += 1
             self.tick_total += 1
+            jx, jy = self._pos_px()
+            area = self.area_sala()
+            alcance = frozenset(
+                e["instancia"] for i, e in enumerate(
+                    [x for x in (self.foto.enemigos or []) if x.get("vida", 0) > 0])
+                if ((jx - capas.pos_enemigo_animada(area, i, self.tick_total)[0]) ** 2
+                    + (jy - capas.pos_enemigo_animada(area, i, self.tick_total)[1]) ** 2) ** 0.5
+                <= capas.RADIO_ENEMIGO)
             pantallas.pantalla_juego(self.ventana, self.fuente, self.foto,
                                      self.sprites, self.area_sala(),
                                      self.sel_enemigo, self.sel_suelo, self.sel_inv,
                                      self.ref_vida, self.dev,
                                      self.facing, desplaza,
                                      (moviendo, self.tick_anim, self.tick_total),
-                                     self._pos_px())
+                                     self._pos_px(), self.golpe, alcance)
+            if self.golpe_ttl > 0:
+                self.golpe_ttl -= 1
+                if self.golpe_ttl == 0:
+                    self.golpe = None
             if self.aviso and self.aviso_ttl > 0:
                 ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
                 self.aviso_ttl -= 1

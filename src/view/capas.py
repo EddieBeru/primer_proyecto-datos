@@ -23,7 +23,7 @@ POS_PUERTA = {"N": (0.5, 0.0), "S": (0.5, 1.0), "E": (1.0, 0.5), "O": (0.0, 0.5)
 
 RADIO_PUERTA = 40  # px para cruzar/recibir aviso
 RADIO_OBJETO = 56  # px para recoger del suelo
-RADIO_ENEMIGO = 64  # px para atacar
+RADIO_ENEMIGO = 80  # px para atacar (generoso: el aviso solo si lejos)
 
 
 def rect_puerta(area: pygame.Rect, direccion: str) -> pygame.Rect:
@@ -46,6 +46,18 @@ def pos_enemigo(area: pygame.Rect, i: int) -> tuple[int, int]:
     x = area.x + 20 + (i % 4) * (TAM + 14)
     y = area.y + area.h // 2 - TAM // 2
     return x + TAM // 2, y + TAM // 2
+
+
+def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int]:
+    """Slot + patrullaje visual (solo vista): deriva senoidal ±8px por slot.
+
+    Los guardianes no abandonan su sitio por diseño (C2-8); esto solo les da
+    vida visible. Misma función para dibujar y para proximidad.
+    """
+    import math
+    cx, cy = pos_enemigo(area, i)
+    fase = total / 18.0 + i * 1.7
+    return cx + round(8 * math.sin(fase)), cy + round(6 * math.cos(fase * 0.8))
 
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
@@ -91,7 +103,9 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     sel_enemigo: int = 0, ref_vida: dict | None = None,
                     facing: str = "N", desplaza: tuple[int, int] = (0, 0),
                     paso_jugador: tuple[bool, int, int] = (False, 0, 0),
-                    pos_jugador: tuple[float, float] | None = None) -> None:
+                    pos_jugador: tuple[float, float] | None = None,
+                    golpe: str | None = None,
+                    alcance: frozenset = frozenset()) -> None:
     """Capa 3: jugador + enemigos con barra de vida y color por comportamiento.
 
     `facing` dibuja hacia dónde mira el personaje; `desplaza` es un offset
@@ -111,14 +125,18 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     sup.blit(img_jugador, (jx, jy))
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
     for i, enemigo in enumerate(vivos):
-        cx, cy = pos_enemigo(area, i)
+        cx, cy = pos_enemigo_animada(area, i, total)
         x, y = cx - TAM // 2, cy - TAM // 2
         sup.blit(sprites.enemigo(str(enemigo.get("comportamiento", ""))), (x, y))
         vida = int(enemigo.get("vida", 0))
         _barra(sup, x, y - 10, TAM, 6, vida, max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
-        etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')}",
+        etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
                                   True, (230, 230, 230))
         sup.blit(etiqueta, (x, y + TAM + 2))
+        if enemigo.get("instancia") == golpe:
+            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 3)
+        if enemigo.get("instancia") in alcance:
+            pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 2)
         if i == sel_enemigo % max(len(vivos), 1):
             pygame.draw.rect(sup, (255, 255, 0), pygame.Rect(x, y, TAM, TAM), 2)
 

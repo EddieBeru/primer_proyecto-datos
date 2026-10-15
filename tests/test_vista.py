@@ -360,3 +360,79 @@ def test_geometria_dentro_de_sala(app):
         assert area.collidepoint(capas.rect_puerta(area, direccion).center)
     assert area.collidepoint(capas.pos_suelo(area, 0))
     assert area.collidepoint(capas.pos_enemigo(area, 0))
+
+
+# ------------------------------------------------------- pelean de vuelta + ritmo
+def test_velocidad_manejable():
+    from src.view import app as mod
+    assert mod.VELOCIDAD * 60 < 0.6  # menos de media sala por segundo
+
+
+def test_caminar_no_cuesta_vida_ni_tiempo(app):
+    vida0 = app.foto.jugador["vida"]
+    reloj0 = app.ses.estado.reloj
+    for _ in range(48):
+        app._paso_libre("n")
+    assert app.foto.sala_id == 1  # sin puerta N: camina sin cruzar
+    assert app.foto.jugador["vida"] == vida0
+    assert app.ses.estado.reloj == reloj0
+
+
+def test_enemigo_contraataca_tras_atacar(app):
+    vida0 = app.foto.jugador["vida"]
+    for _ in range(3):  # 3 golpes no matan (7-11 dano vs 40 vida) y drenan
+        ok, _, _ = app.enviar("atacar e1-1")
+        assert ok
+    assert app.foto.jugador["vida"] < vida0  # el guardian devolvio el golpe
+
+
+# ------------------------------------------------------- feedback de dano
+def test_golpe_destella_y_barra_baja(app):
+    from src.view import capas
+    from src.view.sprites import TAM
+    area = app.area_sala()
+
+    def verdes():
+        cx, cy = capas.pos_enemigo_animada(area, 0, app.tick_total)
+        bx, by = cx - TAM // 2, cy - TAM // 2 - 10 + 3
+        return sum(1 for px in range(bx, bx + TAM)
+                   if app.ventana.get_at((px, by))[:3] == (0, 180, 0))
+
+    app.dibujar()
+    antes = verdes()
+    assert antes == TAM  # vida llena: barra completa
+    for _ in range(3):
+        ok, _, _ = app.enviar('atacar e1-1')
+        assert ok
+        app.dibujar()
+    assert app.golpe == 'e1-1' and app.golpe_ttl > 0  # destello activo
+    assert verdes() < antes  # la barra si baja
+    for _ in range(12):
+        app.dibujar()
+    assert app.golpe is None  # el destello expira
+
+
+# ------------------------------------------------------- enemigos inconfundibles
+def test_enemigos_circulares_con_insignia():
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    sp = SpriteManager()
+    for comp in ('guardián', 'errante', 'rastreador'):
+        img = sp.enemigo(comp)
+        cols = {img.get_at((x, y))[:3] for x in range(0, 36, 3)
+                for y in range(0, 36, 3)}
+        assert (255, 255, 255) in cols  # anillo + insignia blancos
+
+
+# ------------------------------------------------------- patrullaje visible
+def test_patrullaje_y_alcance(app):
+    from src.view import capas
+    area = app.area_sala()
+    a = capas.pos_enemigo_animada(area, 0, 0)
+    assert a == capas.pos_enemigo_animada(area, 0, 0)  # determinista
+    b = capas.pos_enemigo_animada(area, 0, 30)
+    assert a != b  # patrulla visible en sala
+    assert abs(a[0] - b[0]) <= 16 and abs(a[1] - b[1]) <= 12
+    _teletransportar(app, *capas.pos_enemigo(area, 0))
+    assert app.atacar_cercano() == 'atacar e1-1'  # la deriva no rompe alcance
+    app.dibujar()  # alcance dibujado, sin crash

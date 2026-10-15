@@ -188,6 +188,14 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
                     e.vida_actual = d.get("vida_antes", e.vida_actual)
                     return True
         return False
+    if op == "aparece":
+        inst = d.get("instancia")
+        for sala in estado.salas.values():
+            sala.enemigos = [e for e in sala.enemigos if e.instancia != inst]
+        agenda.cancelar_donde(lambda ev: (ev.datos or {}).get("actor") == inst)
+        for seq in (d.get("eventos") or []):
+            agenda.cancelar_por_seq(seq)
+        return True
     if op == "mover_enemigo":
         origen, destino = d.get("origen"), d.get("destino")
         for sala in estado.salas.values():

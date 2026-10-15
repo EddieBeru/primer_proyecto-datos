@@ -819,3 +819,149 @@ def test_fachada_atacar_y_botín_fake():
             break
     assert "pocion-roja-01" in fac.foto().objetos_suelo
     assert vidas[0] < 40
+
+
+# ------------------------------------------------------------- revisita sin respawn
+def test_reentrar_no_duplica_objetos():
+    fac, _ = fachada_fake()  # sala 1: antorcha-01 en el suelo
+    assert fac.recoger('antorcha-01')[0]
+    assert 'antorcha-01' not in fac.foto().objetos_suelo
+    assert fac.mover('E')[0] and fac.mover('O')[0]  # 1->2->1
+    assert fac.foto().sala_id == 1
+    assert 'antorcha-01' not in fac.foto().objetos_suelo
+    assert 'antorcha-01' in fac.estado.jugador.inventario
+
+
+def test_reentrar_no_revive_enemigos_ni_rearma():
+    fac, prov = fachada_fake()
+    sala1 = fac.estado.salas[1]
+    for _ in range(30):  # mata a e1-1 (vida 40)
+        fac.atacar('e1-1')
+        if not sala1.enemigos[0].vivo:
+            break
+    assert not sala1.enemigos[0].vivo
+    trampa = sala1.trampas[0].instancia
+    fac.pisar_trampa(trampa)
+    assert not fac.estado.salas[1].trampas[0].armada
+    assert fac.mover('E')[0] and fac.mover('O')[0]
+    de_vuelta = fac.estado.salas[1]
+    assert not de_vuelta.enemigos[0].vivo
+    assert not de_vuelta.trampas[0].armada
+
+
+def test_revisita_no_pide_al_proveedor():
+    from src.controller2 import intentar_mover
+    from src.controller2 import Agenda, RelojVirtual
+    llamadas = []
+
+    class Contador:
+        def sala_lista(self, n):
+            llamadas.append(n)
+            return ProveedorVivo().sala_lista(n)
+
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), 'fake-v1')
+    est.registrar_sala(prov.sala_lista(1))
+    ag, rj = Agenda(), RelojVirtual()
+    assert intentar_mover(est, 'E', Contador(), ag, rj).ok  # 1->2 pide
+    assert intentar_mover(est, 'O', Contador(), ag, rj).ok  # 2->1 viva: no pide
+    assert intentar_mover(est, 'E', Contador(), ag, rj).ok  # 1->2 viva: no pide
+    assert llamadas == [2]
+
+
+# ------------------------------------------------------------- oleadas C2-8
+def _fachada_oleada(cada=100, semilla=9):
+    from src.controller2 import Fachada
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), 'fake-v1')
+    est.registrar_sala(prov.sala_lista(1))
+    return Fachada(est, prov, dict(prov.catalogo), semilla=semilla,
+                   oleada_cada=cada), prov
+
+
+def _avanzar_hasta(fac, cond, tope=25):
+    for _ in range(tope):
+        if cond():
+            return True
+        fac.avanzar()
+    return cond()
+
+
+def _oleadas_vivas(fac):
+    return [e for s in fac.estado.salas.values() for e in s.enemigos
+            if e.instancia.startswith('oleada-') and e.vivo]
+
+
+def test_oleada_aparece_errante_y_ataca():
+    fac, _ = _fachada_oleada()
+    assert _avanzar_hasta(fac, lambda: len(_oleadas_vivas(fac)) > 0)
+    esp = _oleadas_vivas(fac)[0]
+    assert esp.activa and esp.sala_actual == 1  # aparece donde estas
+    assert esp.tipo_id == 'murcielago-errante-01'  # pool errante del catalogo
+    vida = fac.estado.jugador.vida_actual
+    assert _avanzar_hasta(fac, lambda: fac.estado.jugador.vida_actual < vida)
+    assert fac.estado.salas[1].enemigos  # sigue ahi tras atacar
+
+
+def test_oleada_respeta_tope_y_reprograma():
+    from src.controller2 import EnemigoInstancia
+    fac, _ = _fachada_oleada()
+    sala1 = fac.estado.salas[1]
+    for i in range(4):
+        sala1.enemigos.append(EnemigoInstancia(f'oleada-x{i}', 'murcielago-errante-01', 20, 1))
+    assert _avanzar_hasta(fac, lambda: not any(e.tipo == 'oleada' and e.t <= fac.reloj.ahora for e in fac.agenda))
+    assert len(_oleadas_vivas(fac)) == 4  # tope: no aparece el quinto
+    assert any(e.tipo == 'oleada' for e in fac.agenda)  # pero se reprograma
+
+
+def test_oleada_deshacer_la_retira():
+    fac, _ = _fachada_oleada()
+    assert _avanzar_hasta(fac, lambda: len(_oleadas_vivas(fac)) > 0)
+    inst = _oleadas_vivas(fac)[0].instancia
+    fac.estado.jugador.inventario.append('pergamino-01')
+    ok, _ = fac.deshacer()
+    assert ok
+    assert inst not in [e.instancia for s in fac.estado.salas.values() for e in s.enemigos]
+    assert not any((e.datos or {}).get('actor') == inst for e in fac.agenda)
+
+
+def test_oleada_determinista_misma_semilla():
+    fa, _ = _fachada_oleada()
+    fb, _ = _fachada_oleada()
+    for _ in range(8):
+        fa.avanzar()
+        fb.avanzar()
+    a = sorted((e.instancia, e.tipo_id) for e in _oleadas_vivas(fa))
+    b = sorted((e.instancia, e.tipo_id) for e in _oleadas_vivas(fb))
+    assert a and a == b
+
+
+def test_oleada_sobrevive_guardado():
+    fac, _ = _fachada_oleada()
+    assert _avanzar_hasta(fac, lambda: len(_oleadas_vivas(fac)) > 0)
+    from src.controller2 import Fachada
+    data = fac.guardar()
+    prov = ProveedorVivo()
+    fac2 = Fachada(EstadoPartida.desde_dict(data), prov, dict(prov.catalogo))
+    assert len([e for s in fac2.estado.salas.values() for e in s.enemigos
+                if e.instancia.startswith('oleada-')]) == len(_oleadas_vivas(fac))
+
+
+def test_errante_se_mueve_random():
+    from src.controller2 import turno_enemigo, Agenda, RelojVirtual
+    from src.controller2.azar import Azar
+    est = estado_chico()
+    for n, salidas in ((1, {'E': {'sala': 2}}),
+                       (2, {'O': {'sala': 1}, 'E': {'sala': 3}}),
+                       (3, {'O': {'sala': 2}})):
+        est.registrar_sala(sala_simple(n, salidas))
+    est.sala_actual = 1
+    est.salas[2].enemigos = [EnemigoInstancia('e1', 'murcielago-errante-01', 20, 2)]
+    cat = {'murcielago-errante-01': ProveedorVivo().catalogo['murcielago-errante-01']}
+    ag, rj, azar = Agenda(), RelojVirtual(), Azar(7)
+    posiciones = []
+    for _ in range(10):
+        turno_enemigo(est, ag, rj, 'e1', cat, azar=azar)
+        posiciones.append(next(e.sala_actual for s in est.salas.values()
+                               for e in s.enemigos if e.instancia == 'e1'))
+    assert len(set(posiciones)) > 1  # vago entre salas, no quieto

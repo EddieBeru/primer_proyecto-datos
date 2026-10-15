@@ -82,10 +82,13 @@ def intentar_mover(
             return ResultadoMovimiento(False, "Está trabada.")
         return ResultadoMovimiento(False, f"Puerta cerrada. Ábrela con {salida.llave}.")
     try:
-        destino = proveedor.sala_lista(salida.destino)
-    except Exception as e:  # proveedor informa 404/sin red/presupuesto (K4)
-        return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
-    estado.registrar_sala(destino)
+        destino = estado.salas[salida.destino]
+    except KeyError:
+        try:
+            destino = proveedor.sala_lista(salida.destino)
+        except Exception as e:  # proveedor informa 404/sin red/presupuesto (K4)
+            return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
+        estado.registrar_sala(destino)
     destino.visitada = True
     estado.sala_actual = destino.id
     # §2.9: destino recibe tiempo actual; activa dormidos §2.4.
