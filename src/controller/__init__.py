@@ -1,4 +1,3 @@
-
 from src.controller.modelo import (
     DEFAULTS,
     EnemigoInstancia,
@@ -9,10 +8,20 @@ from src.controller.modelo import (
     TrampaInstancia,
 )
 from src.controller.agenda import Agenda, Evento
-from src.controller.reloj import BASE_TURNO, RelojVirtual, intervalo_por_velocidad
+from src.controller.azar import Azar
+from src.controller.reloj import (
+    BASE_TURNO,
+    COSTOS,
+    RelojVirtual,
+    intervalo,
+    intervalo_por_velocidad,
+    reescalar,
+)
 from src.controller.movimiento import (
     ProveedorSalas,
+    ResultadoApertura,
     ResultadoMovimiento,
+    abrir_puerta,
     ejecutar_cierre,
     intentar_mover,
 )
@@ -26,17 +35,26 @@ from src.controller.combate import (
     calcular_dano,
 )
 from src.controller.efectos import (
+    REARME_TRAMPA_DEFAULT,
+    REGENERACION_PERIODO,
+    VENENO_DURACION,
+    VENENO_PERIODO,
     ResultadoEfecto,
+    aplicar_cambio_velocidad,
     ejecutar_fin_efecto,
     ejecutar_rearme,
+    ejecutar_regeneracion,
     ejecutar_veneno,
     envenenar,
+    envenenar_legacy,
     pisar_trampa,
     usar_antidoto,
     usar_antorcha,
     usar_pocion,
 )
 from src.controller.enemigos import (
+    RASTRO_MAX_ANTIGUEDAD,
+    activar_sala,
     comportamiento_de,
     decidir_destino,
     decaer_rastro,
@@ -46,21 +64,41 @@ from src.controller.enemigos import (
 )
 from src.controller.deshacer import PilaDeshacer, aplicar_inversa, deshacer_una
 from src.controller.victoria import (
+    EntradaPuntaje,
     actualizar_estado,
     calcular_puntaje,
+    entrada_desde_estado,
     hay_derrota,
     hay_victoria,
     ordenar_puntajes,
+    puntajes_a_dicts,
 )
-from src.controller.bitacora import BitacoraMemoria, formatear, parsear, reproducir
+from src.controller.bitacora import (
+    BitacoraIncompatibleError,
+    BitacoraMemoria,
+    formatear,
+    formatear_header,
+    parsear,
+    parsear_header,
+    reproducir,
+)
 from src.controller.fachada import Fachada, FotoEstado
 
 __all__ = [
     "BASE_TURNO",
+    "COSTOS",
+    "RASTRO_MAX_ANTIGUEDAD",
+    "REARME_TRAMPA_DEFAULT",
+    "REGENERACION_PERIODO",
+    "VENENO_DURACION",
+    "VENENO_PERIODO",
+    "Azar",
+    "BitacoraIncompatibleError",
     "BitacoraMemoria",
     "DEFAULTS",
     "Agenda",
     "EnemigoInstancia",
+    "EntradaPuntaje",
     "EstadoPartida",
     "Evento",
     "Fachada",
@@ -71,13 +109,17 @@ __all__ = [
     "PilaDeshacer",
     "ProveedorSalas",
     "RelojVirtual",
+    "ResultadoApertura",
     "ResultadoAtaque",
     "ResultadoEfecto",
     "ResultadoMovimiento",
     "SalidaViva",
     "SalaViva",
     "TrampaInstancia",
+    "abrir_puerta",
+    "activar_sala",
     "actualizar_estado",
+    "aplicar_cambio_velocidad",
     "aplicar_inversa",
     "ataque_enemigo",
     "ataque_jugador",
@@ -92,17 +134,25 @@ __all__ = [
     "ejecutar_cierre",
     "ejecutar_fin_efecto",
     "ejecutar_rearme",
+    "ejecutar_regeneracion",
     "ejecutar_veneno",
     "envenenar",
+    "envenenar_legacy",
+    "entrada_desde_estado",
     "formatear",
+    "formatear_header",
     "hay_derrota",
     "hay_victoria",
     "intentar_mover",
+    "intervalo",
     "intervalo_por_velocidad",
     "mover_enemigo",
     "ordenar_puntajes",
     "parsear",
+    "parsear_header",
     "pisar_trampa",
+    "puntajes_a_dicts",
+    "reescalar",
     "reproducir",
     "turno_enemigo",
     "usar_antidoto",

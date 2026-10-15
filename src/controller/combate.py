@@ -4,9 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
-def calcular_dano(ataque_total: int, defensa_total: int) -> int:
-    # TODO(profe pregunta 5): reemplazar por la formula real del enunciado; solo cambiar aqui.
-    return max(1, int(ataque_total) - int(defensa_total))
+def calcular_dano(ataque_total: int, defensa_total: int, azar=None) -> int:
+    """§2.6: max(1, atk + randint(0,4) - defensa). Sin azar -> 0 extra (tests)."""
+    extra = 0
+    if azar is not None:
+        extra = int(azar.randint(0, 4))
+        try:
+            from src.controller.modelo import EstadoPartida  # noqa: F401
+        except Exception:
+            pass
+    return max(1, int(ataque_total) + int(extra) - int(defensa_total))
 
 
 def bonus_arma(catalogo: dict, arma_id: str | None) -> int:
@@ -41,12 +48,10 @@ def ataque_jugador(
     defensa_enemigo: int,
     suelta: list[str] | None,
     catalogo: dict | None = None,
+    azar=None,
+    agenda=None,
 ) -> ResultadoAtaque:
     """El jugador pega al enemigo de la sala actual. Lo mata si vida llega a 0."""
-    # TODO(C1-7): `suelta` ya viene precargada en la sala lista; si apunta a id nunca visto, C1 lo pide en lote.
-    # TODO(C2-2): al morir, cancelar sus turnos pendientes en la agenda para que no actue muerto.
-    # TODO(C2-9): guardar vida anterior + botin puesto en suelo como accion inversa.
-    # TODO(C2-11): anotar ataque/muerte/botin a bitacora (K3).
     if not estado.jugador.vivo:
         return ResultadoAtaque(0, 0, False, [], "El jugador está muerto.")
     sala = estado.salas.get(estado.sala_actual)
@@ -58,12 +63,28 @@ def ataque_jugador(
     if not objetivo.vivo:
         return ResultadoAtaque(0, 0, False, [], "Ya estaba muerto.")
     atk = estado.jugador.ataque_total(bonus_arma(catalogo or {}, estado.jugador.arma_equipada))
-    dano = calcular_dano(atk, defensa_enemigo)
+    dano = calcular_dano(atk, defensa_enemigo, azar)
+    if azar is not None:
+        try:
+            estado.azar_llamadas = int(getattr(estado, "azar_llamadas", 0)) + 1
+        except Exception:
+            pass
     objetivo.recibir_dano(dano)
     botin: list[str] = []
     if not objetivo.vivo:
         botin = list(suelta or [])
         sala.objetos_suelo.extend(botin)
+        try:
+            estado.enemigos_derrotados = int(getattr(estado, "enemigos_derrotados", 0)) + 1
+        except Exception:
+            pass
+        if agenda is not None:
+            try:
+                agenda.cancelar_donde(
+                    lambda e: e.tipo == "turno" and (e.datos or {}).get("actor") == instancia_id
+                )
+            except Exception:
+                pass
     return ResultadoAtaque(dano, objetivo.vida_actual, not objetivo.vivo, botin)
 
 
@@ -72,10 +93,9 @@ def ataque_enemigo(
     instancia_id: str,
     ataque_enemigo: int,
     catalogo: dict | None = None,
+    azar=None,
 ) -> ResultadoAtaque:
     """Un enemigo vivo pega al jugador. Marca derrota si vida llega a 0."""
-    # TODO(C2-10): la derrota aqui es parcial; fin-de-juego define puntaje y pantalla (C2-12).
-    # TODO(C2-9): guardar vida anterior del jugador como inversa (deshacer tras combate).
     sala = estado.salas.get(estado.sala_actual)
     if sala is None:
         return ResultadoAtaque(0, estado.jugador.vida_actual, False, [], "Sala desconocida.")
@@ -85,7 +105,12 @@ def ataque_enemigo(
     defensa = estado.jugador.defensa_total(
         bonus_armadura(catalogo or {}, estado.jugador.armadura_equipada)
     )
-    dano = calcular_dano(ataque_enemigo, defensa)
+    dano = calcular_dano(ataque_enemigo, defensa, azar)
+    if azar is not None:
+        try:
+            estado.azar_llamadas = int(getattr(estado, "azar_llamadas", 0)) + 1
+        except Exception:
+            pass
     estado.jugador.recibir_dano(dano)
     murio = not estado.jugador.vivo
     if murio:

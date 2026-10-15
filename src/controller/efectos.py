@@ -1,7 +1,7 @@
-"""Efectos con el paso del tiempo: trampas, veneno, pociones, antidoto, antorcha.
+"""Efectos con el paso del tiempo (§2.10 doc oficial).
 
-Todo efecto que dura se programa en la agenda; su fin tambien.
-El antidoto cancela el veneno pendiente (criterio de terminado C2-7).
+Veneno: daño cada 80, dura 400 salvo antídoto. Trampa: rearme 300 default.
+Regeneración: cada 200 sin pasar vida_max. Cambio velocidad reescala turno.
 """
 
 from __future__ import annotations
@@ -21,6 +21,12 @@ class ResultadoEfecto:
     eventos: list[int] = field(default_factory=list)
 
 
+VENENO_PERIODO = 80
+VENENO_DURACION = 400
+REARME_TRAMPA_DEFAULT = 300
+REGENERACION_PERIODO = 200
+
+
 def _ficha(catalogo: dict | None, tipo_id: str):
     return (catalogo or {}).get(tipo_id)
 
@@ -36,9 +42,7 @@ def _consumir(estado: EstadoPartida, item_id: str) -> bool:
 
 def pisar_trampa(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                  instancia_id: str, catalogo: dict | None = None) -> tuple[ResultadoEfecto, dict | None]:
-    """Pisa una trampa de la sala actual. Desarma; si trae rearme lo programa."""
-    # TODO(profe pregunta 3): confirmar que trampa sin `rearme` es de un solo uso.
-    # TODO(C1-7): dano/rearme vienen de la ficha del catalogo (cache C1-6).
+    """Activa trampa armada. Desarma y programa rearme (300 default §2.10)."""
     sala = estado.salas.get(estado.sala_actual)
     if sala is None:
         return ResultadoEfecto(False, "Sala desconocida."), None
@@ -50,13 +54,13 @@ def pisar_trampa(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
     ficha = _ficha(catalogo, trampa.tipo_id)
     dano = int(getattr(ficha, "dano", 0) or 0)
     rearme = getattr(ficha, "rearme", None)
+    rearme = int(rearme) if rearme is not None else REARME_TRAMPA_DEFAULT
     vida_antes = estado.jugador.vida_actual
     estado.jugador.recibir_dano(dano)
     trampa.armada = False
     eventos: list[int] = []
-    if rearme is not None:
-        ev = agenda.programar(reloj.ahora + int(rearme), "rearme_trampa", {"instancia": trampa.instancia})
-        eventos.append(ev.seq)
+    ev = agenda.programar(reloj.ahora + rearme, "rearme_trampa", {"instancia": trampa.instancia})
+    eventos.append(ev.seq)
     if not estado.jugador.vivo:
         estado.estado = "derrota"
     inversa = {"op": "trampa", "datos": {"instancia": trampa.instancia,
@@ -74,14 +78,24 @@ def ejecutar_rearme(estado: EstadoPartida, instancia_id: str) -> bool:
 
 
 def envenenar(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
-              ticks: int, dano_por_tick: int) -> list[int]:
-    """Veneno como eventos repetidos (1 por tick). Guarda fuente para el fin."""
-    # TODO(C2-9): guardar seqs para que el deshacer cancele lo que creo.
+              dano_por_tick: int) -> list[int]:
+    """§2.10: pulsos cada 80 durante 400 (5 pulsos) salvo antídoto."""
     seqs = []
-    for i in range(1, max(0, ticks) + 1):
+    for i in range(1, VENENO_DURACION // VENENO_PERIODO + 1):
+        ev = agenda.programar(reloj.ahora + i * VENENO_PERIODO, "veneno", {"dano": dano_por_tick})
+        seqs.append(ev.seq)
+    estado.jugador.efectos["veneno"] = estado.jugador.efectos.get("veneno", 0) + VENENO_DURACION
+    return seqs
+
+
+def envenenar_legacy(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
+                     ticks: int, dano_por_tick: int) -> list[int]:
+    """Compat tests viejos: ticks genéricos de 1 unidad."""
+    seqs = []
+    for i in range(1, max(0, int(ticks)) + 1):
         ev = agenda.programar(reloj.ahora + i, "veneno", {"dano": dano_por_tick})
         seqs.append(ev.seq)
-    estado.jugador.efectos["veneno"] = estado.jugador.efectos.get("veneno", 0) + max(0, ticks)
+    estado.jugador.efectos["veneno"] = estado.jugador.efectos.get("veneno", 0) + max(0, int(ticks))
     return seqs
 
 
@@ -90,12 +104,35 @@ def ejecutar_veneno(estado: EstadoPartida, dano: int) -> bool:
     estado.jugador.recibir_dano(dano)
     if not estado.jugador.vivo:
         estado.estado = "derrota"
-    rest = estado.jugador.efectos.get("veneno", 0) - 1
+    rest = estado.jugador.efectos.get("veneno", 0)
+    paso = VENENO_PERIODO if rest >= VENENO_PERIODO else 1
+    rest = rest - paso
     if rest <= 0:
         estado.jugador.efectos.pop("veneno", None)
         return False
     estado.jugador.efectos["veneno"] = rest
     return True
+
+
+def ejecutar_regeneracion(estado: EstadoPartida, instancia_id: str, cantidad: int,
+                          vida_max: int | None = None) -> bool:
+    """§2.10: recupera sin superar vida_max."""
+    for sala in estado.salas.values():
+        for e in sala.enemigos:
+            if e.instancia == instancia_id and e.vivo:
+                e.vida_actual = e.vida_actual + max(0, int(cantidad))
+                if vida_max is not None:
+                    e.vida_actual = min(int(vida_max), e.vida_actual)
+                return True
+    return False
+
+
+def aplicar_cambio_velocidad(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
+                             v_anterior: int, v_nueva: int, actor: str = "jugador") -> None:
+    """§2.3: reescala próxima acción programada del actor (seq nuevo)."""
+    seqs = [ev.seq for ev in agenda if (ev.datos or {}).get("actor") == actor]
+    for seq in seqs:
+        reloj.reprogramar_por_velocidad(agenda, seq, v_anterior, v_nueva)
 
 
 def usar_pocion(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,

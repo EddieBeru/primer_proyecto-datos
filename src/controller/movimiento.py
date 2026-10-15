@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,15 +7,10 @@ from src.controller.modelo import EstadoPartida, SalaViva
 from src.controller.agenda import Agenda, Evento
 from src.controller.reloj import RelojVirtual
 
-RASTRO_FRESCO = 10
-# TODO(profe pregunta 7 + C2-8): confirmar valor/duracion del rastro y agregar su decaimiento con agenda.
-
 
 class ProveedorSalas(Protocol):
     """Contrato K1 minimo que C2 necesita de C1 (falso o real)."""
 
-    # TODO(C1-1): usar primero el proveedor falso para no bloquear el motor.
-    # TODO(C1-7): cambiar al real cuando entregue "sala lista" (Flujo C); C2 no cambia.
     def sala_lista(self, n: int) -> SalaViva: ...
 
 
@@ -29,6 +23,45 @@ class ResultadoMovimiento:
     evento_cierre_seq: int | None = None
 
 
+@dataclass
+class ResultadoApertura:
+    ok: bool
+    mensaje: str
+    evento_cierre_seq: int | None = None
+
+
+def abrir_puerta(
+    estado: EstadoPartida, direccion: str, agenda: Agenda, reloj: RelojVirtual
+) -> ResultadoApertura:
+    """§2.5: abrir es acción costo 50, distinta de atravesar. Llave no consume."""
+    try:
+        actual = estado.salas[estado.sala_actual]
+    except KeyError:
+        return ResultadoApertura(False, "Sala actual desconocida.")
+    salida = actual.salidas.get(direccion)
+    if salida is None:
+        return ResultadoApertura(False, "No hay camino por ahí.")
+    if not salida.cerrada:
+        return ResultadoApertura(True, "Ya estaba abierta.")
+    if salida.llave is None:
+        return ResultadoApertura(False, "Está trabada.")
+    if not estado.jugador.tiene_llave(salida.llave):
+        return ResultadoApertura(False, f"Necesitas la llave {salida.llave}.")
+    salida.cerrada = False
+    # §2.12: marca si se abrió la puerta que da acceso a la salida.
+    if salida.destino == estado.sala_salida:
+        estado.puerta_salida_abierta = True
+    evento_seq: int | None = None
+    if salida.cierre_automatico is not None:
+        ev: Evento = agenda.programar(
+            reloj.ahora + int(salida.cierre_automatico),
+            "cierre_puerta",
+            {"sala": actual.id, "direccion": direccion},
+        )
+        evento_seq = ev.seq
+    return ResultadoApertura(True, "", evento_seq)
+
+
 def intentar_mover(
     estado: EstadoPartida,
     direccion: str,
@@ -36,11 +69,7 @@ def intentar_mover(
     agenda: Agenda,
     reloj: RelojVirtual,
 ) -> ResultadoMovimiento:
-    """Flujo E completo. No lanza por sala inexistente: la pide al proveedor."""
-    # TODO(C1-3): descontar presupuesto por cada sala pedida; si se agota, decidir (Parte 4).
-    # TODO(K4 con C1-2): mapear 429/404/500/sin-red del proveedor a mensaje amable (pantalla 1.6).
-    # TODO(C2-9): guardar la inversa (cerrar puerta + volver a sala origen + seq de cierre) en la pila.
-    # TODO(C2-11/C1-9): anotar apertura/cruce a bitacora (K3) para --replay.
+    """§2.5: moverse costo 100, exige puerta abierta. Pide contenido antes."""
     try:
         actual = estado.salas[estado.sala_actual]
     except KeyError:
@@ -49,37 +78,24 @@ def intentar_mover(
     if salida is None:
         return ResultadoMovimiento(False, "No hay camino por ahí.")
     if salida.cerrada:
-        # TODO(profe pregunta 2): si Key.abre discrepa de salida.llave, definir cual manda.
         if salida.llave is None:
             return ResultadoMovimiento(False, "Está trabada.")
-        if not estado.jugador.tiene_llave(salida.llave):
-            return ResultadoMovimiento(False, f"Necesitas la llave {salida.llave}.")
-        salida.cerrada = False
-        abrio = True
-    else:
-        abrio = False
-    evento_seq: int | None = None
-    if abrio and salida.cierre_automatico is not None:
-        ev: Evento = agenda.programar(
-            reloj.ahora + salida.cierre_automatico,
-            "cierre_puerta",
-            {"sala": actual.id, "direccion": direccion},
-        )
-        evento_seq = ev.seq
-    origen = estado.sala_actual
+        return ResultadoMovimiento(False, f"Puerta cerrada. Ábrela con {salida.llave}.")
     try:
         destino = proveedor.sala_lista(salida.destino)
     except Exception as e:  # proveedor informa 404/sin red/presupuesto (K4)
-        if abrio:  # revierte apertura para no dejar estado a medias
-            salida.cerrada = True
-            if evento_seq is not None:
-                agenda.cancelar_por_seq(evento_seq)
         return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
     estado.registrar_sala(destino)
     destino.visitada = True
-    estado.salas[origen].rastro = RASTRO_FRESCO
     estado.sala_actual = destino.id
-    return ResultadoMovimiento(True, "", destino.id, abrio, evento_seq)
+    # §2.9: destino recibe tiempo actual; activa dormidos §2.4.
+    destino.ultima_visita = reloj.ahora
+    try:
+        from src.controller.enemigos import activar_sala
+        activar_sala(estado, agenda, reloj.ahora, destino.id, None)
+    except Exception:
+        pass
+    return ResultadoMovimiento(True, "", destino.id, False, None)
 
 
 def ejecutar_cierre(estado: EstadoPartida, sala_id: int, direccion: str) -> bool:

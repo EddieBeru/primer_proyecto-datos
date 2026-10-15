@@ -166,20 +166,20 @@ class SalidaViva:
 
 @dataclass
 class EnemigoInstancia:
-    """UN enemigo concreto: instancia + tipo + vida propia."""
+    """UN enemigo concreto: instancia + tipo + vida propia (§2.2/§2.4)."""
 
     instancia: str
     tipo_id: str
     vida_actual: int
     sala_actual: int
+    activa: bool = False
+    tiempo_siguiente: int = 0
 
     @classmethod
     def desde_colocacion(
         cls, col: EnemyPlacement, sala: int, vida_max_tipo: int
     ) -> "EnemigoInstancia":
-        """``vida`` vacia -> vida_max del tipo (DEFAULTS pendiente profe)."""
-        # TODO(profe pregunta 3): confirmar que vida vacia = vida_max del tipo.
-        # TODO(C1-7): `vida_max_tipo` viene de la ficha del catalogo (cache LRU C1-6).
+        """``vida`` vacia -> vida_max del tipo (§2.2 doc oficial)."""
         vida = col.vida if col.vida is not None else vida_max_tipo
         return cls(instancia=col.instancia, tipo_id=col.tipo, vida_actual=vida, sala_actual=sala)
 
@@ -221,7 +221,7 @@ class SalaViva:
     * ``salidas``: estado vivo de puertas (lo que la Vista dibuja).
     * ``enemigos`` / ``trampas``: instancias con estado propio.
     * ``objetos_suelo``: ids de catalogo simples, sin instancia.
-    * ``rastro``: intensidad del paso del jugador (C2-8 rastreador).
+    * ``ultima_visita``: instante reloj última visita (§2.9). None = sin rastro.
     """
 
     id: int
@@ -231,9 +231,8 @@ class SalaViva:
     objetos_suelo: list[str] = field(default_factory=list)
     trampas: list[TrampaInstancia] = field(default_factory=list)
     visitada: bool = False
-    rastro: int = DEFAULTS["rastro"]
-    # TODO(C1-7): esta es la "sala lista" que arma C1 (Flujo C: contenido + catalogo).
-    # TODO(C2-8): `rastro` lo consume el rastreador; falta decaimiento con agenda.
+    ultima_visita: int | None = None
+    # Compat lectura: versiones viejas traían rastro:int. Se migra en desde_dict.
 
     @classmethod
     def desde_esqueleto(cls, sala: Room) -> "SalaViva":
@@ -298,11 +297,16 @@ class EstadoPartida:
     agenda: list[dict[str, Any]] = field(default_factory=list)
     pila_deshacer: list[dict[str, Any]] = field(default_factory=list)
     estado: EstadoJuego = "jugando"
-    # TODO(C2-10): `estado` y puntaje los decide fin-de-juego; pendiente formula de puntaje (profe pregunta 9).
-    # TODO(C2-11/C1-9): cada cambio aqui debe anotarse a bitacora (K3) para --replay.
+    # §2.6/§4.11 doc oficial: semilla RNG + contadores para tabla puntajes.
+    semilla: int = 0
+    azar_llamadas: int = 0
+    azar_estado: Any = None
+    acciones_jugador: int = 0
+    enemigos_derrotados: int = 0
+    puerta_salida_abierta: bool = False
 
     @classmethod
-    def nueva_partida(cls, ficha: DungeonGeneral, version_catalogo: str) -> "EstadoPartida":
+    def nueva_partida(cls, ficha: DungeonGeneral, version_catalogo: str, semilla: int = 0) -> "EstadoPartida":
         """Estado inicial (Flujo B): jugador lleno, reloj 0, sin salas aun."""
         return cls(
             cripta_id=ficha.id,
@@ -320,6 +324,7 @@ class EstadoPartida:
             agenda=[],
             pila_deshacer=[],
             estado="jugando",
+            semilla=int(semilla),
         )
 
     def registrar_sala(self, sala: SalaViva) -> None:
@@ -337,13 +342,28 @@ class EstadoPartida:
     @classmethod
     def desde_dict(cls, data: dict[str, Any]) -> "EstadoPartida":
         d = dict(data)
+        d.setdefault("semilla", 0)
+        d.setdefault("azar_llamadas", 0)
+        d.setdefault("acciones_jugador", 0)
+        d.setdefault("enemigos_derrotados", 0)
+        d.setdefault("puerta_salida_abierta", False)
         d["jugador"] = JugadorVivo(**d["jugador"])
         salas = {}
         for sid, s in (d.get("salas") or {}).items():
             s = dict(s)
+            # Compat: rastro (intensidad vieja) -> ultima_visita (timestamp nuevo).
+            if "ultima_visita" not in s:
+                s["ultima_visita"] = None
+            s.pop("rastro", None)
             s["salidas"] = {k: SalidaViva(**v) for k, v in (s.get("salidas") or {}).items()}
+            for e in (s.get("enemigos") or []):
+                e.setdefault("activa", False)
+                e.setdefault("tiempo_siguiente", 0)
             s["enemigos"] = [EnemigoInstancia(**e) for e in (s.get("enemigos") or [])]
             s["trampas"] = [TrampaInstancia(**t) for t in (s.get("trampas") or [])]
             salas[int(sid)] = SalaViva(**s)
         d["salas"] = salas
+        # Filtra claves desconocidas de versiones viejas.
+        validas = {f.name for f in cls.__dataclass_fields__.values()}
+        d = {k: v for k, v in d.items() if k in validas}
         return cls(**d)

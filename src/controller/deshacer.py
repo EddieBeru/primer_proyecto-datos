@@ -81,9 +81,12 @@ def _quitar_del_suelo(estado, item_id: str) -> None:
         sala.objetos_suelo.remove(item_id)
 
 
+def _es_pergamino(item_id: str) -> bool:
+    return "pergamino" in str(item_id) or "retroceso" in str(item_id)
+
+
 def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
-    """Revierte UNA accion y cancela sus eventos. Devuelve True si pudo."""
-    # TODO(C2-4..C2-8): cada accion nueva debe agregar aqui su `op` con su inversa.
+    """Revierte UNA entrada y cancela sus eventos. §2.11: pergaminos excluidos."""
     for seq in (inversa.get("eventos") or []):
         agenda.cancelar_por_seq(seq)
     op = inversa.get("op")
@@ -95,32 +98,49 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
             if s and d.get("direccion") in s.salidas:
                 s.salidas[d["direccion"]].cerrada = True
         return True
+    if op == "abrir":
+        s = estado.salas.get(d.get("sala"))
+        if s and d.get("direccion") in s.salidas:
+            s.salidas[d["direccion"]].cerrada = True
+            if s.salidas[d["direccion"]].destino == estado.sala_salida:
+                estado.puerta_salida_abierta = False
+        return True
     if op == "dano_enemigo":
         for sala in estado.salas.values():
             for e in sala.enemigos:
                 if e.instancia == d["instancia"]:
                     e.vida_actual = d["vida_antes"]
                     for b in (d.get("botin") or []):
+                        if _es_pergamino(b):
+                            continue
                         _quitar_del_suelo(estado, b)
                     return True
         return False
-    if op == "dano_jugador":
+    if op in ("dano_jugador", "veneno_tick"):
         estado.jugador.vida_actual = d["vida_antes"]
         if estado.jugador.vivo and estado.estado == "derrota":
             estado.estado = "jugando"
         return True
     if op == "recoger":
+        if _es_pergamino(d["item"]):
+            return True  # §2.11: pergaminos fuera de reversión.
         if d["item"] in estado.jugador.inventario:
             estado.jugador.inventario.remove(d["item"])
-        estado.salas[d["sala"]].objetos_suelo.insert(d.get("pos_suelo", 0), d["item"])
+        if d.get("sala") in estado.salas:
+            estado.salas[d["sala"]].objetos_suelo.insert(d.get("pos_suelo", 0), d["item"])
         return True
     if op == "soltar":
-        if d["item"] in estado.salas[d["sala"]].objetos_suelo:
+        if _es_pergamino(d["item"]):
+            return True
+        if d.get("sala") in estado.salas and d["item"] in estado.salas[d["sala"]].objetos_suelo:
             estado.salas[d["sala"]].objetos_suelo.remove(d["item"])
         estado.jugador.inventario.insert(d.get("pos_inv", 0), d["item"])
         return True
     if op == "equipar":
         estado.jugador.inventario = list(d["orden_antes"])
+        if "arma_antes" in d:
+            estado.jugador.arma_equipada = d["arma_antes"]
+            estado.jugador.armadura_equipada = d["armadura_antes"]
         return True
     if op == "trampa":
         for sala in estado.salas.values():
@@ -132,7 +152,8 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
             estado.estado = "jugando"
         return True
     if op in ("pocion", "antidoto", "antorcha"):
-        estado.jugador.inventario.append(d["item"])
+        if not _es_pergamino(d["item"]) and d["item"] not in estado.jugador.inventario:
+            estado.jugador.inventario.append(d["item"])
         if "vida_antes" in d:
             estado.jugador.vida_actual = d["vida_antes"]
         if "veloz_antes" in d:
@@ -143,12 +164,51 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
         if op == "antidoto" and d.get("veneno_antes"):
             estado.jugador.efectos["veneno"] = d["veneno_antes"]
         return True
+    if op == "cierre":
+        s = estado.salas.get(d.get("sala"))
+        if s and d.get("direccion") in s.salidas and d.get("cerrada_antes") is not None:
+            s.salidas[d["direccion"]].cerrada = bool(d["cerrada_antes"])
+        return True
+    if op == "rearme":
+        for sala in estado.salas.values():
+            for t in sala.trampas:
+                if t.instancia == d.get("instancia"):
+                    t.armada = False
+        return True
+    if op == "fin_efecto":
+        if d.get("valor_antes") is not None:
+            estado.jugador.efectos[d["efecto"]] = d["valor_antes"]
+        else:
+            estado.jugador.efectos.pop(d.get("efecto", ""), None)
+        return True
+    if op == "regeneracion":
+        for sala in estado.salas.values():
+            for e in sala.enemigos:
+                if e.instancia == d.get("instancia"):
+                    e.vida_actual = d.get("vida_antes", e.vida_actual)
+                    return True
+        return False
+    if op == "mover_enemigo":
+        origen, destino = d.get("origen"), d.get("destino")
+        for sala in estado.salas.values():
+            for e in sala.enemigos:
+                if e.instancia == d.get("instancia"):
+                    sala.enemigos = [x for x in sala.enemigos if x.instancia != d["instancia"]]
+                    e.sala_actual = origen
+                    if origen in estado.salas:
+                        estado.salas[origen].enemigos.append(e)
+                    return True
+        return False
     return False
 
 
+# Ops de acción del jugador: deshacer sigue hasta revertir una de estas (§2.11 intervalo).
+_OPS_JUGADOR = {"mover", "abrir", "dano_enemigo", "recoger", "soltar", "equipar",
+                "trampa", "pocion", "antidoto", "antorcha"}
+
+
 def deshacer_una(estado, agenda, pila: PilaDeshacer, catalogo: dict | None = None) -> tuple[bool, str]:
-    """Deshace 1 accion si hay pila y hay pergamino. Consume 1 pergamino."""
-    # TODO(C2-11): anotar el deshacer a bitacora (K3) como hecho propio.
+    """Usa 1 pergamino: revierte última acción jugador + todo su intervalo posterior."""
     if pila.vacia:
         return False, "Nada que deshacer."
     pergamino = None
@@ -158,14 +218,19 @@ def deshacer_una(estado, agenda, pila: PilaDeshacer, catalogo: dict | None = Non
             pergamino = item
             break
     if pergamino is None and "pergamino" not in estado.jugador.inventario:
-        # sin catalogo a mano: acepta cualquier id que contenga la palabra
         cand = [i for i in estado.jugador.inventario if "pergamino" in i or "retroceso" in i]
         pergamino = cand[0] if cand else None
     if pergamino is None:
         return False, "Sin pergaminos."
-    inversa = pila.desapilar()
-    if inversa is None:
-        return False, "Nada que deshacer."
     estado.jugador.inventario.remove(pergamino)
-    ok = aplicar_inversa(estado, agenda, inversa)
-    return ok, "" if ok else "No se pudo revertir."
+    # §2.11: el consumo queda fuera de la reversión (no se restaura).
+    ok_any = False
+    while not pila.vacia:
+        inversa = pila.desapilar()
+        if inversa is None:
+            break
+        ok = aplicar_inversa(estado, agenda, inversa)
+        ok_any = ok_any or ok
+        if (inversa.get("op") in _OPS_JUGADOR):
+            break
+    return ok_any, "" if ok_any else "No se pudo revertir."

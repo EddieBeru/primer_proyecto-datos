@@ -22,6 +22,13 @@ class Bitacora:
         except OSError as e:
             raise BitacoraError(f"no se pudo anotar: {e}") from e
 
+    def iniciar(self, cripta_id, version_cripta, version_catalogo, semilla):
+        """Escribe el header #cripta (§4.11). Solo si el archivo está vacío/nuevo."""
+        from src.controller.bitacora import formatear_header
+        if os.path.isfile(self.ruta) and os.path.getsize(self.ruta) > 0:
+            return
+        self.anotar(formatear_header(cripta_id, version_cripta, version_catalogo, semilla))
+
     def leer(self):
         """Retorna líneas en orden. Sin archivo → []. Corrupta → BitacoraError."""
         if not os.path.isfile(self.ruta):

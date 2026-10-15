@@ -1,31 +1,37 @@
-"""Fachada hacia la Vista (K5): unica puerta entre Vista y Controlador.
-
-La Vista solo envia INTENCIONES (mover, atacar, equipar, ...) y recibe una
-FOTO del estado para dibujar. Nunca toca EstadoPartida, Agenda ni C1 directo.
-La consola de pruebas (7.2) usa solo esta clase, igual que hara Pygame.
-"""
+"""Fachada hacia la Vista (K5): unica puerta entre Vista y Controlador. §2/§10 doc oficial."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from src.controller.agenda import Agenda
+from src.controller.azar import Azar
 from src.controller.bitacora import BitacoraMemoria, formatear
 from src.controller.combate import ataque_enemigo, ataque_jugador
 from src.controller.deshacer import PilaDeshacer, deshacer_una
-from src.controller.efectos import (pisar_trampa, usar_antidoto, usar_antorcha, usar_pocion,
-                                    ejecutar_fin_efecto, ejecutar_rearme, ejecutar_veneno)
-from src.controller.enemigos import comportamiento_de, turno_enemigo
+from src.controller.efectos import (
+    REGENERACION_PERIODO,
+    aplicar_cambio_velocidad,
+    ejecutar_fin_efecto,
+    ejecutar_rearme,
+    ejecutar_regeneracion,
+    ejecutar_veneno,
+    pisar_trampa,
+    usar_antidoto,
+    usar_antorcha,
+    usar_pocion,
+)
+from src.controller.enemigos import activar_sala, comportamiento_de, turno_enemigo
 from src.controller.inventario import Inventario, InventarioLlenoError
 from src.controller.modelo import EstadoPartida
-from src.controller.movimiento import ejecutar_cierre, intentar_mover
-from src.controller.reloj import RelojVirtual
+from src.controller.movimiento import abrir_puerta, ejecutar_cierre, intentar_mover
+from src.controller.reloj import COSTOS, RelojVirtual, intervalo
 from src.controller.victoria import actualizar_estado
 
 
 @dataclass
 class FotoEstado:
-    """Lo que la Vista dibuja (K5, seccion 8.2). Solo lectura."""
+    """Lo que la Vista dibuja (§10.2: sala, salidas, enemigos, suelo, vida, efectos, 20 msgs)."""
     sala_id: int
     sala_nombre: str
     puertas: dict = field(default_factory=dict)
@@ -47,7 +53,7 @@ class Fachada:
     """Ventanilla del Controlador. Dibuja con foto(), juega con intenciones."""
 
     def __init__(self, estado: EstadoPartida, proveedor, catalogo: dict | None = None,
-                 bitacora=None) -> None:
+                 bitacora=None, semilla: int | None = None) -> None:
         self.estado = estado
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
@@ -55,17 +61,46 @@ class Fachada:
         self.agenda = Agenda.desde_lista(estado.agenda or [])
         self.reloj = RelojVirtual(ahora=estado.reloj)
         self.pila = PilaDeshacer.desde_lista(estado.pila_deshacer or [])
+        seed = int(semilla) if semilla is not None else int(getattr(estado, "semilla", 0))
+        self.estado.semilla = seed
+        self.azar = Azar(seed)
+        # Restaura estado RNG si existe (guardado).
+        ae = getattr(estado, "azar_estado", None)
+        if ae is not None:
+            try:
+                import random as _rm
+                st = ae
+                if isinstance(st, list):
+                    st = (st[0], tuple(st[1]), st[2] if len(st) < 4 else st[3] if len(st) > 3 else None)
+                self.azar._rng.setstate(st)  # type: ignore[arg-type]
+                self.azar.llamadas = int(getattr(estado, "azar_llamadas", 0))
+            except Exception:
+                pass
         self.mensajes: list[str] = []
         self.error: str | None = None
         self.en_pausa = False
-        # TODO(C1-3): el presupuesto real lo descuenta C1 por cada peticion; aqui solo se expone.
-        # TODO(C1-8): guardar()/cargar() hoy es dict; C1 lo pasara a bytes con struct.
+        # Activa sala inicial §2.4 (rastro 0 + enemigos activos orden instancia).
+        try:
+            if estado.sala_actual in estado.salas:
+                s0 = estado.salas[estado.sala_actual]
+                if s0.ultima_visita is None:
+                    s0.ultima_visita = 0
+                activar_sala(estado, self.agenda, self.reloj.ahora,
+                             estado.sala_actual, self.catalogo)
+                self._programar_turno_jugador(COSTOS["mover"], inicial=True)
+        except Exception:
+            pass
 
     # -- internos --
     def _sync(self) -> None:
         self.estado.agenda = self.agenda.a_lista()
         self.estado.reloj = self.reloj.ahora
         self.estado.pila_deshacer = self.pila.a_lista()
+        try:
+            self.estado.azar_llamadas = self.azar.llamadas
+            self.estado.azar_estado = self.azar._rng.getstate()
+        except Exception:
+            pass
 
     def _anotar(self, tipo: str, actor: str, detalle: str = "") -> None:
         try:
@@ -76,9 +111,10 @@ class Fachada:
             self.bitacora.anotar(linea)
         except Exception:
             pass
-        # TODO(C1-9): C1-9 escribe esto a archivo (solo agregar); aqui queda en memoria.
         self.mensajes.append(linea)
-        self.mensajes = self.mensajes[-50:]
+        # §4.8: memoria constante, últimos 20 (sin desplazar físicamente: slice).
+        if len(self.mensajes) > 20:
+            self.mensajes = self.mensajes[-20:]
 
     def _fail(self, mensaje: str) -> tuple[bool, str]:
         self.error = mensaje
@@ -88,6 +124,8 @@ class Fachada:
         self.error = None
         if mensaje:
             self.mensajes.append(mensaje)
+            if len(self.mensajes) > 20:
+                self.mensajes = self.mensajes[-20:]
         self._sync()
         actualizar_estado(self.estado)
         return True, mensaje
@@ -99,23 +137,73 @@ class Fachada:
                     return e.tipo_id
         return None
 
-    # -- intenciones de movimiento y puertas (C2-4) --
+    def _tras_accion(self, costo_key: str) -> None:
+        """Común tras acción exitosa que consume tiempo: rastro + turno + contador."""
+        try:
+            self.estado.acciones_jugador = int(getattr(self.estado, "acciones_jugador", 0)) + 1
+        except Exception:
+            pass
+        sala = self.estado.salas.get(self.estado.sala_actual)
+        if sala is not None:
+            sala.ultima_visita = self.reloj.ahora
+        self._programar_turno_jugador(COSTOS[costo_key])
+
+    def _programar_turno_jugador(self, costo: int, inicial: bool = False) -> None:
+        try:
+            vel = int(self.estado.jugador.velocidad)
+        except Exception:
+            vel = 100
+        self.reloj.programar_turno(self.agenda, "jugador", vel,
+                                    {"kind": "jugador", "costo": int(costo)}, costo=int(costo))
+
+    def _disparar_trampas_sala(self) -> None:
+        """§2.10: al entrar, trampas armadas se activan antes del siguiente evento."""
+        sala = self.estado.salas.get(self.estado.sala_actual)
+        if sala is None:
+            return
+        for t in list(sala.trampas):
+            if not t.armada:
+                continue
+            res, inversa = pisar_trampa(self.estado, self.agenda, self.reloj,
+                                        t.instancia, self.catalogo)
+            if res.ok:
+                if inversa:
+                    self.pila.apilar(inversa)
+                self._anotar("efecto", "trampa", t.instancia)
+
+    # -- puertas y movimiento §2.5 (abrir costo 50, mover costo 100) --
+    def abrir(self, direccion: str) -> tuple[bool, str]:
+        res = abrir_puerta(self.estado, direccion, self.agenda, self.reloj)
+        if not res.ok:
+            # Ya abierta cuenta como éxito sin tiempo (Apéndice B: sin llave rechaza sin tiempo).
+            if res.mensaje == "Ya estaba abierta.":
+                return self._ok(res.mensaje)
+            return self._fail(res.mensaje)
+        self.pila.apilar({"op": "abrir", "datos": {"sala": self.estado.sala_actual,
+                          "direccion": direccion}, "eventos":
+                          [res.evento_cierre_seq] if res.evento_cierre_seq is not None else []})
+        self._anotar("abrir", "jugador", direccion)
+        self._tras_accion("abrir")
+        return self._ok()
+
     def mover(self, direccion: str) -> tuple[bool, str]:
-        """Mover N/S/E/O. Programa cierre automatico si abre con llave."""
-        # TODO(C2-9): la inversa se apila aqui (origen + puerta + seq de cierre).
         origen = self.estado.sala_actual
         res = intentar_mover(self.estado, direccion, self.proveedor, self.agenda, self.reloj)
         if not res.ok:
             return self._fail(res.mensaje)
-        if res.abrio_puerta:
-            self._anotar("abrir", "jugador", direccion)
-        self.pila.apilar({"op": "mover", "datos": {"origen": origen, "abrio": res.abrio_puerta,
-                          "sala_puerta": origen, "direccion": direccion},
-                          "eventos": [res.evento_cierre_seq] if res.evento_cierre_seq is not None else []})
+        self.pila.apilar({"op": "mover", "datos": {"origen": origen, "abrio": False,
+                          "sala_puerta": origen, "direccion": direccion}, "eventos": []})
         self._anotar("mover", "jugador", direccion)
+        self._disparar_trampas_sala()
+        self._tras_accion("mover")
         return self._ok()
 
-    # -- combate (C2-6) --
+    def esperar(self) -> tuple[bool, str]:
+        self._anotar("mover", "jugador", "esperar")
+        self._tras_accion("mover")
+        return self._ok()
+
+    # -- combate (C2-6 §2.6) --
     def atacar(self, instancia_id: str) -> tuple[bool, str]:
         tipo = self._tipo_de(instancia_id)
         ficha = self.catalogo.get(tipo) if tipo else None
@@ -125,7 +213,8 @@ class Fachada:
         sala = self.estado.salas.get(self.estado.sala_actual)
         objetivo = next((e for e in (sala.enemigos if sala else []) if e.instancia == instancia_id), None)
         vida_antes = objetivo.vida_actual if objetivo else 0
-        res = ataque_jugador(self.estado, instancia_id, atk_e, def_e, suelta, self.catalogo)
+        res = ataque_jugador(self.estado, instancia_id, atk_e, def_e, suelta,
+                             self.catalogo, azar=self.azar, agenda=self.agenda)
         if res.dano == 0 and res.mensaje:
             return self._fail(res.mensaje)
         self.pila.apilar({"op": "dano_enemigo", "datos": {"instancia": instancia_id,
@@ -133,22 +222,22 @@ class Fachada:
         self._anotar("atacar", "jugador", instancia_id)
         if res.mato:
             self._anotar("muerte", instancia_id, "jugador")
+        self._tras_accion("atacar")
         return self._ok(f"Daño {res.dano}.")
 
     def ataque_enemigo(self, instancia_id: str) -> tuple[bool, str]:
-        """Turno de ataque de un enemigo (lo llama la agenda o la consola)."""
         tipo = self._tipo_de(instancia_id)
         ficha = self.catalogo.get(tipo) if tipo else None
         atk = int(getattr(ficha, "ataque", 0) or 0)
         vida_antes = self.estado.jugador.vida_actual
-        res = ataque_enemigo(self.estado, instancia_id, atk, self.catalogo)
+        res = ataque_enemigo(self.estado, instancia_id, atk, self.catalogo, azar=self.azar)
         if res.dano == 0 and res.mensaje:
             return self._fail(res.mensaje)
         self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes}, "eventos": []})
         self._anotar("dano", instancia_id, str(res.dano))
         return self._ok()
 
-    # -- inventario (C2-5) --
+    # -- inventario (C2-5 §2.7; Apéndice B: lleno rechaza sin tiempo) --
     def recoger(self, item_id: str) -> tuple[bool, str]:
         sala = self.estado.salas.get(self.estado.sala_actual)
         if sala is None or item_id not in sala.objetos_suelo:
@@ -164,6 +253,7 @@ class Fachada:
         self.pila.apilar({"op": "recoger", "datos": {"item": item_id,
                           "sala": sala.id, "pos_suelo": pos}, "eventos": []})
         self._anotar("recoger", "jugador", item_id)
+        self._tras_accion("recoger")
         return self._ok()
 
     def soltar(self, pos_o_id) -> tuple[bool, str]:
@@ -178,16 +268,21 @@ class Fachada:
         except (IndexError, KeyError, ValueError):
             return self._fail("Nada en esa posición.")
         sala = self.estado.salas.get(self.estado.sala_actual)
+        if sala is None:
+            return self._fail("Sala desconocida.")
         sala.objetos_suelo.append(item)
         self.estado.jugador.inventario = inv.a_lista()
         self.pila.apilar({"op": "soltar", "datos": {"item": item,
                           "sala": sala.id, "pos_inv": min(pos, len(self.estado.jugador.inventario))},
                           "eventos": []})
         self._anotar("soltar", "jugador", item)
+        self._tras_accion("soltar")
         return self._ok()
 
     def equipar(self, pos: int) -> tuple[bool, str]:
         orden_antes = list(self.estado.jugador.inventario)
+        arma_antes = self.estado.jugador.arma_equipada
+        armadura_antes = self.estado.jugador.armadura_equipada
         inv = Inventario.desde_jugador(orden_antes, self.estado.inventario_max)
         try:
             item = inv.equipar(int(pos))
@@ -199,11 +294,34 @@ class Fachada:
             self.estado.jugador.arma_equipada = item
         elif getattr(ficha, "clase", "") == "armadura":
             self.estado.jugador.armadura_equipada = item
-        self.pila.apilar({"op": "equipar", "datos": {"orden_antes": orden_antes}, "eventos": []})
+        self.pila.apilar({"op": "equipar", "datos": {"orden_antes": orden_antes,
+                          "arma_antes": arma_antes, "armadura_antes": armadura_antes},
+                          "eventos": []})
         self._anotar("equipar", "jugador", item)
+        self._tras_accion("equipar")
         return self._ok()
 
-    # -- efectos (C2-7) --
+    def vista_ordenada(self, criterio: str = "nombre") -> list:
+        """Vista ordenada sin mutar orden real (§4.5). Requiere sorts F9."""
+        try:
+            from src.adapters.orden import vista_ordenada as _vo
+            return _vo(list(self.estado.jugador.inventario), self.catalogo, criterio)
+        except Exception:
+            return list(self.estado.jugador.inventario)
+
+    # -- objetos: usar genérico costo 50 §2.3 --
+    def usar(self, item_id: str) -> tuple[bool, str]:
+        ficha = self.catalogo.get(item_id)
+        clase = getattr(ficha, "clase", "") if ficha is not None else ""
+        if clase == "pocion" or (ficha is None and "pocion" in item_id):
+            return self.usar_pocion(item_id)
+        if clase == "antidoto" or (ficha is None and "antidoto" in item_id):
+            return self.usar_antidoto(item_id)
+        if clase == "antorcha" or (ficha is None and "antorcha" in item_id):
+            return self.usar_antorcha(item_id)
+        return self._fail("No se puede usar así.")
+
+    # -- efectos (C2-7 §2.10) --
     def pisar_trampa(self, instancia_id: str) -> tuple[bool, str]:
         res, inversa = pisar_trampa(self.estado, self.agenda, self.reloj, instancia_id, self.catalogo)
         if not res.ok:
@@ -214,12 +332,22 @@ class Fachada:
         return self._ok(f"Trampa: {res.dano} de daño.")
 
     def usar_pocion(self, pocion_id: str) -> tuple[bool, str]:
+        v_antes = int(self.estado.jugador.velocidad)
         res, inversa = usar_pocion(self.estado, self.agenda, self.reloj, pocion_id, self.catalogo)
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
             self.pila.apilar(inversa)
+        ficha = self.catalogo.get(pocion_id)
+        mod = int(getattr(ficha, "modificador_velocidad", 0) or 0) if ficha else 0
+        if mod:
+            try:
+                aplicar_cambio_velocidad(self.estado, self.agenda, self.reloj,
+                                         v_antes, v_antes + mod, "jugador")
+            except Exception:
+                pass
         self._anotar("efecto", "jugador", f"pocion:{pocion_id}")
+        self._tras_accion("usar")
         return self._ok()
 
     def usar_antidoto(self, antidoto_id: str) -> tuple[bool, str]:
@@ -229,6 +357,7 @@ class Fachada:
         if inversa:
             self.pila.apilar(inversa)
         self._anotar("efecto", "jugador", f"antidoto:{antidoto_id}")
+        self._tras_accion("usar")
         return self._ok(res.mensaje)
 
     def usar_antorcha(self, antorcha_id: str) -> tuple[bool, str]:
@@ -238,36 +367,105 @@ class Fachada:
         if inversa:
             self.pila.apilar(inversa)
         self._anotar("efecto", "jugador", f"antorcha:{antorcha_id}")
+        self._tras_accion("usar")
         return self._ok()
 
     # -- enemigos (C2-8) y reloj (C2-3) --
     def turno_enemigo(self, instancia_id: str) -> tuple[bool, str]:
-        msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id, self.catalogo)
+        origen = next((e.sala_actual for s in self.estado.salas.values()
+                       for e in s.enemigos if e.instancia == instancia_id), None)
+        msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id,
+                             self.catalogo, azar=self.azar)
+        destino = next((e.sala_actual for s in self.estado.salas.values()
+                        for e in s.enemigos if e.instancia == instancia_id), None)
+        if origen is not None and destino is not None and origen != destino:
+            self.pila.apilar({"op": "mover_enemigo", "datos": {"instancia": instancia_id,
+                              "origen": origen, "destino": destino}, "eventos": []})
         self._anotar("mover", instancia_id, msg)
         self._sync()
         return True, msg
 
     def avanzar(self) -> str:
-        """Ejecuta el proximo evento de la agenda (cierre, veneno, rearme, fin, turno)."""
+        """Ejecuta el proximo evento (cierre, veneno, rearme, fin, turno, regen)."""
         ev = self.reloj.avanzar(self.agenda)
         if ev is None:
             return "agenda vacía"
         d = ev.datos or {}
         if ev.tipo == "cierre_puerta":
+            sala = self.estado.salas.get(d.get("sala"))
+            antes = sala.salidas[d["direccion"]].cerrada if sala and d.get("direccion") in (sala.salidas if sala else {}) else None
             ejecutar_cierre(self.estado, d.get("sala"), d.get("direccion"))
+            self.pila.apilar({"op": "cierre", "datos": {"sala": d.get("sala"),
+                             "direccion": d.get("direccion"), "cerrada_antes": antes},
+                             "eventos": []})
         elif ev.tipo == "rearme_trampa":
             ejecutar_rearme(self.estado, d.get("instancia"))
+            self.pila.apilar({"op": "rearme", "datos": {"instancia": d.get("instancia")},
+                             "eventos": []})
         elif ev.tipo == "veneno":
+            vida_antes = self.estado.jugador.vida_actual
             ejecutar_veneno(self.estado, int(d.get("dano", 1)))
+            self.pila.apilar({"op": "veneno_tick", "datos": {"vida_antes": vida_antes,
+                             "dano": int(d.get("dano", 1))}, "eventos": []})
         elif ev.tipo == "fin_efecto":
-            ejecutar_fin_efecto(self.estado, d.get("efecto", ""))
+            nombre = d.get("efecto", "")
+            tenia = self.estado.jugador.efectos.get(nombre)
+            ejecutar_fin_efecto(self.estado, nombre)
+            self.pila.apilar({"op": "fin_efecto", "datos": {"efecto": nombre,
+                             "valor_antes": tenia}, "eventos": []})
+            if nombre == "veloz":
+                try:
+                    ficha_v = self.estado.jugador.velocidad
+                    aplicar_cambio_velocidad(self.estado, self.agenda, self.reloj,
+                                             ficha_v + 4, ficha_v, "jugador")
+                except Exception:
+                    pass
+        elif ev.tipo == "regeneracion":
+            inst = d.get("instancia")
+            antes = next((e.vida_actual for s in self.estado.salas.values()
+                          for e in s.enemigos if e.instancia == inst), None)
+            tipo = next((e.tipo_id for s in self.estado.salas.values()
+                         for e in s.enemigos if e.instancia == inst), None)
+            vmax = None
+            if tipo and tipo in self.catalogo:
+                vmax = int(getattr(self.catalogo[tipo], "vida_max", 0) or 0) or None
+            ejecutar_regeneracion(self.estado, inst, int(d.get("cantidad", 1)), vmax)
+            self.pila.apilar({"op": "regeneracion", "datos": {"instancia": inst,
+                             "vida_antes": antes}, "eventos": []})
+            # Reprograma siguiente pulso si sigue vivo.
+            vivo = any(e.instancia == inst and e.vivo for s in self.estado.salas.values() for e in s.enemigos)
+            if vivo:
+                self.agenda.programar(self.reloj.ahora + REGENERACION_PERIODO,
+                                      "regeneracion", dict(d))
         elif ev.tipo == "turno" and (d.get("kind") == "enemigo" or d.get("actor", "").startswith("e")):
-            self.turno_enemigo(d.get("actor"))
+            actor = d.get("actor")
+            sala_a, obj = None, None
+            for s in self.estado.salas.values():
+                for e in s.enemigos:
+                    if e.instancia == actor:
+                        sala_a, obj = s, e
+                        break
+            if obj is None or not obj.vivo:
+                self._sync()
+                return ev.tipo
+            if sala_a is not None and sala_a.id == self.estado.sala_actual:
+                vida_antes = self.estado.jugador.vida_actual
+                self.ataque_enemigo(actor)
+                # ataque_enemigo ya apiló dano_jugador; quita doble conteo de turno:
+                self._sync()
+                actualizar_estado(self.estado)
+                # Reprograma siguiente turno enemigo.
+                from src.controller.enemigos import velocidad_de
+                self.reloj.programar_turno(self.agenda, actor,
+                                            velocidad_de(self.catalogo, obj.tipo_id),
+                                            {"kind": "enemigo", "tipo": obj.tipo_id}, costo=100)
+                return ev.tipo
+            self.turno_enemigo(actor)
         self._sync()
         actualizar_estado(self.estado)
         return ev.tipo
 
-    # -- deshacer (C2-9), pausa, guardar --
+    # -- deshacer §2.11 (intervalo: una llamada revierte hasta acción jugador) --
     def deshacer(self) -> tuple[bool, str]:
         ok, msg = deshacer_una(self.estado, self.agenda, self.pila, self.catalogo)
         if not ok:
@@ -290,6 +488,14 @@ class Fachada:
         self.agenda = Agenda.desde_lista(self.estado.agenda or [])
         self.reloj = RelojVirtual(ahora=self.estado.reloj)
         self.pila = PilaDeshacer.desde_lista(self.estado.pila_deshacer or [])
+        self.azar = Azar(int(getattr(self.estado, "semilla", 0)))
+        ae = getattr(self.estado, "azar_estado", None)
+        if ae is not None:
+            try:
+                self.azar._rng.setstate(ae)  # type: ignore[arg-type]
+                self.azar.llamadas = int(getattr(self.estado, "azar_llamadas", 0))
+            except Exception:
+                pass
 
     # -- foto K5 (lo unico que la Vista lee) --
     def foto(self) -> FotoEstado:
@@ -314,7 +520,7 @@ class Fachada:
                      "defensa": j.defensa, "velocidad": j.velocidad, "efectos": dict(j.efectos)},
             enemigos=enemigos, inventario=list(j.inventario),
             equipado=j.inventario[0] if j.inventario else None, pergaminos=pergaminos,
-            mensajes=self.mensajes[-5:], presupuesto=self.estado.presupuesto_restante,
+            mensajes=self.mensajes[-20:], presupuesto=self.estado.presupuesto_restante,
             estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa)
 
     # -- consola de pruebas 7.2: solo usa la fachada --
@@ -329,12 +535,21 @@ class Fachada:
             if c in ("n", "s", "e", "o") and len(p) == 1:
                 ok, msg = self.mover(c.upper())
                 salidas.append(f"mover {c}: {'ok' if ok else msg}")
+            elif c == "abrir" and len(p) == 2:
+                ok, msg = self.abrir(p[1].upper())
+                salidas.append(f"abrir: {'ok' if ok else msg}")
+            elif c == "esperar":
+                ok, msg = self.esperar()
+                salidas.append(f"esperar: {'ok' if ok else msg}")
             elif c == "atacar" and len(p) == 2:
                 ok, msg = self.atacar(p[1])
                 salidas.append(f"atacar: {msg or 'ok'}")
             elif c == "recoger" and len(p) == 2:
                 ok, msg = self.recoger(p[1])
                 salidas.append(f"recoger: {'ok' if ok else msg}")
+            elif c == "usar" and len(p) == 2:
+                ok, msg = self.usar(p[1])
+                salidas.append(f"usar: {'ok' if ok else msg}")
             elif c == "soltar" and len(p) == 2:
                 ok, msg = self.soltar(int(p[1]) if p[1].isdigit() else p[1])
                 salidas.append(f"soltar: {'ok' if ok else msg}")

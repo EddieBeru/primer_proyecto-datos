@@ -6,18 +6,40 @@ from dataclasses import dataclass
 from src.controller.agenda import Agenda, Evento
 
 BASE_TURNO = 100
-# TODO(profe pregunta 6): reemplazar por la formula real de tiempo-entre-turnos del enunciado.
-# TODO(C2-8): guardian/errante/rastreador reutilizan este intervalo para sus turnos.
+
+# Costos base por acción (§2.3 doc oficial).
+COSTOS: dict[str, int] = {
+    "mover": 100,
+    "atacar": 100,
+    "esperar": 100,
+    "usar": 50,
+    "equipar": 50,
+    "recoger": 25,
+    "soltar": 25,
+    "abrir": 50,
+}
 
 
 def intervalo_por_velocidad(velocidad: int, base: int = BASE_TURNO) -> int:
-    """Ticks entre dos turnos de una criatura. velocidad debe ser > 0."""
-    # TODO(profe pregunta 6): si velocidad 0 o negativa tiene sentido en el enunciado, ajustar validacion.
+    """Compatibilidad: costo 100 implícito. Preferir ``intervalo``."""
+    return intervalo(100, velocidad)
+
+
+def intervalo(costo: int, velocidad: int) -> int:
+    """§2.3: max(1, costo*100 // velocidad)."""
     if velocidad <= 0:
         raise ValueError("velocidad debe ser > 0")
-    if base <= 0:
-        raise ValueError("base debe ser > 0")
-    return max(1, base // velocidad)
+    if costo <= 0:
+        raise ValueError("costo debe ser > 0")
+    return max(1, int(costo) * 100 // int(velocidad))
+
+
+def reescalar(t_actual: int, t_siguiente: int, v_anterior: int, v_nueva: int) -> int:
+    """§2.3 cambio de velocidad: conserva progreso, asigna seq nuevo fuera."""
+    if v_anterior <= 0 or v_nueva <= 0:
+        raise ValueError("velocidades deben ser > 0")
+    restante = max(0, int(t_siguiente) - int(t_actual))
+    return int(t_actual) + max(1, restante * int(v_anterior) // int(v_nueva))
 
 
 @dataclass
@@ -31,17 +53,33 @@ class RelojVirtual:
         if self.ahora < 0:
             raise ValueError("ahora no puede ser negativo")
 
-    def intervalo(self, velocidad: int) -> int:
-        return intervalo_por_velocidad(velocidad, self.base)
+    def intervalo(self, velocidad: int, costo: int = 100) -> int:
+        return intervalo(costo, velocidad)
 
     def programar_turno(
-        self, agenda: Agenda, actor: str, velocidad: int, datos_extra: dict | None = None
+        self, agenda: Agenda, actor: str, velocidad: int, datos_extra: dict | None = None,
+        costo: int = 100,
     ) -> Evento:
         """Agenda el proximo turno de ``actor`` (jugador o instancia)."""
-        datos = {"actor": actor}
+        datos = {"actor": actor, "costo": int(costo)}
         if datos_extra:
             datos.update(datos_extra)
-        return agenda.programar(self.ahora + self.intervalo(velocidad), "turno", datos)
+        return agenda.programar(self.ahora + intervalo(costo, velocidad), "turno", datos)
+
+    def reprogramar_por_velocidad(
+        self, agenda: Agenda, seq: int, v_anterior: int, v_nueva: int
+    ) -> Evento | None:
+        """Cancela evento seq y lo reprograma con tiempo reescalado (seq nuevo)."""
+        viejo = None
+        for ev in agenda:
+            if ev.seq == seq:
+                viejo = ev
+                break
+        if viejo is None:
+            return None
+        agenda.cancelar_por_seq(seq)
+        nuevo_t = reescalar(self.ahora, viejo.t, v_anterior, v_nueva)
+        return agenda.programar(nuevo_t, viejo.tipo, dict(viejo.datos))
 
     def avanzar(self, agenda: Agenda) -> Evento | None:
         """Salta al siguiente evento y lo devuelve. None si agenda vacia."""

@@ -264,6 +264,7 @@ def test_mover_sin_salida():
 
 
 def test_puerta_llave_sin_y_con():
+    from src.controller.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -273,11 +274,15 @@ def test_puerta_llave_sin_y_con():
     r = intentar_mover(est, "S", prov, ag, rj)  # 2->4 cerrada llave-hierro-01
     assert not r.ok and "llave-hierro-01" in r.mensaje
     est.jugador.inventario.append("llave-hierro-01")
+    # §2.5: abrir (costo 50) y mover (costo 100) son acciones distintas.
+    a = abrir_puerta(est, "S", ag, rj)
+    assert a.ok
     r = intentar_mover(est, "S", prov, ag, rj)
-    assert r.ok and r.abrio_puerta and est.sala_actual == 4
+    assert r.ok and not r.abrio_puerta and est.sala_actual == 4
 
 
 def test_recorre_cripta_fake_6_salas():
+    from src.controller.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -288,21 +293,30 @@ def test_recorre_cripta_fake_6_salas():
         assert r.ok, (direccion, r.mensaje)
         return r
 
+    def abrir(direccion):
+        a = abrir_puerta(est, direccion, ag, rj)
+        assert a.ok, (direccion, a.mensaje)
+        return a
+
     mover("E")  # 1->2
     mover("O")  # 2->1
     mover("S")  # 1->3
     est.jugador.inventario.append("llave-hierro-01")  # recoger (se prueba aparte)
     mover("E")  # 3->4
-    assert mover("N").abrio_puerta  # 4->2 abre con llave
-    assert mover("S").abrio_puerta  # 2->4 abre la otra puerta
+    abrir("N")  # 4->2 abre con llave
+    assert mover("N").sala == 2
+    abrir("S")  # 2->4 abre la otra puerta
+    assert mover("S").sala == 4
     mover("S")  # 4->6
     mover("O")  # 6->5
     est.jugador.inventario.append("llave-salida-01")  # recoger (se prueba aparte)
-    assert mover("E").abrio_puerta  # 5->6 abre salida
+    abrir("E")  # 5->6 abre salida
+    assert mover("E").sala == 6
     assert len(est.salas_visitadas) == 6
 
 
 def test_ruta_con_llaves_abre_dos_puertas():
+    from src.controller.movimiento import abrir_puerta
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
     est.registrar_sala(prov.sala_lista(1))
@@ -310,13 +324,15 @@ def test_ruta_con_llaves_abre_dos_puertas():
     assert intentar_mover(est, "S", prov, ag, rj).ok  # 1->3
     est.jugador.inventario.append("llave-hierro-01")
     assert intentar_mover(est, "E", prov, ag, rj).ok  # 3->4
-    r = intentar_mover(est, "N", prov, ag, rj)  # 4->2 abre
-    assert r.ok and r.abrio_puerta
-    r = intentar_mover(est, "S", prov, ag, rj)  # 2->4 abre (otra puerta)
-    assert r.ok and r.abrio_puerta
+    assert abrir_puerta(est, "N", ag, rj).ok  # 4->2 abre
+    assert intentar_mover(est, "N", prov, ag, rj).ok
+    assert abrir_puerta(est, "S", ag, rj).ok  # 2->4 abre (otra puerta)
+    assert intentar_mover(est, "S", prov, ag, rj).ok
 
 
 def test_cierre_automatico_se_programa_y_ejecuta():
+    from src.controller.movimiento import abrir_puerta
+
     class Prov:
         def sala_lista(self, n):
             return sala_simple(n, {"O": {"sala": 1}} if n == 2 else {})
@@ -327,8 +343,10 @@ def test_cierre_automatico_se_programa_y_ejecuta():
     est.registrar_sala(s1)
     est.jugador.inventario.append("k")
     ag, rj = Agenda(), RelojVirtual()
+    a = abrir_puerta(est, "E", ag, rj)
+    assert a.ok and a.evento_cierre_seq is not None
     r = intentar_mover(est, "E", Prov(), ag, rj)
-    assert r.ok and r.evento_cierre_seq is not None
+    assert r.ok
     assert ag.ver_proximo().tipo == "cierre_puerta"
     rj.avanzar(ag)
     assert ejecutar_cierre(est, 1, "E") and s1.salidas["E"].cerrada
@@ -474,15 +492,27 @@ def test_trampa_desarmada_no_dana():
 
 
 def test_veneno_ticks_y_antidoto_cancela():
+    from src.controller.efectos import envenenar_legacy
     est = estado_chico()
     est.registrar_sala(sala_simple())
     ag, rj = Agenda(), RelojVirtual()
-    envenenar(est, ag, rj, 3, 2)
+    envenenar_legacy(est, ag, rj, 3, 2)
     assert est.jugador.efectos["veneno"] == 3
     est.jugador.inventario.append("ant-x")
     res, _ = usar_antidoto(est, ag, "ant-x")
     assert "veneno" not in est.jugador.efectos
     assert all(e.tipo != "veneno" for e in ag) and res.ok
+
+
+def test_veneno_oficial_80_400():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    ag, rj = Agenda(), RelojVirtual()
+    seqs = envenenar(est, ag, rj, 2)
+    assert len(seqs) == 5  # 400/80
+    assert est.jugador.efectos["veneno"] == 400
+    tiempos = sorted(e.t for e in ag)
+    assert tiempos == [80, 160, 240, 320, 400]
 
 
 def test_pocion_veloz_dura_y_termina():
@@ -538,8 +568,10 @@ def test_errante_determinista():
 def test_rastreador_va_al_rastro():
     est, cat = _mundo_ia()
     est.salas[2].enemigos = [EnemigoInstancia("r1", "r", 10, 2)]
-    est.salas[3].rastro = 9
-    assert decidir_destino(est, "r1", cat, 0) == 3
+    est.salas[3].ultima_visita = 390  # fresco: ahora 400 - 390 < 400
+    assert decidir_destino(est, "r1", cat, 400) == 3
+    est.salas[3].ultima_visita = 0  # rancio: 400 - 0 >= 400
+    assert decidir_destino(est, "r1", cat, 400) is None
 
 
 def test_mover_enemigo_cambia_sala():
@@ -551,12 +583,13 @@ def test_mover_enemigo_cambia_sala():
 
 def test_turno_reprograma_y_decae_rastro():
     est, cat = _mundo_ia()
-    est.salas[1].rastro = 5
+    est.salas[1].ultima_visita = 0
     est.salas[2].enemigos = [EnemigoInstancia("e1", "e", 10, 2)]
     ag, rj = Agenda(), RelojVirtual()
     turno_enemigo(est, ag, rj, "e1", cat)
     assert any(e.tipo == "turno" for e in ag)
-    assert est.salas[1].rastro == 4
+    # §2.9: rastro es timestamp, no decae por turno.
+    assert est.salas[1].ultima_visita == 0
 
 
 # ------------------------------------------------------------- C2-9 deshacer
@@ -643,6 +676,9 @@ def test_victoria_derrota_y_sin_llave():
     est.sala_actual = 3
     assert not hay_victoria(est) and actualizar_estado(est) == "jugando"
     est.jugador.inventario.append("llave-sal")
+    # §2.12: tener la llave no basta; hay que haber abierto la puerta de salida.
+    assert not hay_victoria(est)
+    est.puerta_salida_abierta = True
     assert hay_victoria(est) and actualizar_estado(est) == "victoria"
     est.jugador.vida_actual = 0
     assert hay_derrota(est) and actualizar_estado(est) == "derrota"
@@ -712,8 +748,10 @@ def test_replay_termina_igual():
 
 def test_consola_solo_fachada_llega_a_victoria():
     fac, _ = fachada_fake()
-    salidas = fac.consola(["s", "recoger llave-hierro-01", "e", "n", "s", "s",
-                           "o", "recoger llave-salida-01", "e", "foto"])
+    # §2.5: abrir y mover separados; victoria exige puerta salida abierta.
+    salidas = fac.consola(["s", "recoger llave-hierro-01", "e", "abrir N", "n",
+                           "abrir S", "s", "s", "o", "recoger llave-salida-01",
+                           "abrir E", "e", "foto"])
     assert fac.estado.estado == "victoria", salidas
     assert len(fac.estado.salas_visitadas) == 6
 
@@ -765,6 +803,7 @@ def test_fachada_avanzar_ejecuta_cierre():
             return sala_simple(n)
 
     fac = Fachada(est, Prov2(), {})
+    assert fac.abrir("E")[0]
     assert fac.mover("E")[0]
     assert fac.avanzar() == "cierre_puerta"
     assert s1.salidas["E"].cerrada

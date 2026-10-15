@@ -13,11 +13,12 @@ from src.models.errors import NotFoundError, UnexpectedResponseError
 
 
 class RoomLoader:
-    def __init__(self, cripta_id, plano, budget=None, cache=None):
+    def __init__(self, cripta_id, plano, budget=None, cache=None, backend=None):
         self.cripta_id = cripta_id
         self.plano = plano
         self.budget = budget
         self.cache = cache
+        self.backend = backend or endpoints
         self._contenido = {}
         self._fichas = {}  # solo si no hay caché (con caché, ella es el almacén)
 
@@ -71,16 +72,25 @@ class RoomLoader:
             if s.sala in self.plano and s.sala not in self._contenido
         )
         lote = [n] + vecinas[:9]
-        resp = endpoints.contenido(self.cripta_id, lote, self.budget)
+        resp = self.backend.contenido(self.cripta_id, lote, self.budget)
         for entry in resp.contenido:
             self._contenido[entry.sala] = entry
 
     def _asegurar_fichas(self, ids):
         unicos = list(dict.fromkeys(ids))
         faltantes = [i for i in unicos if not self._tiene(i)]
+        if self.budget is not None:
+            try:
+                for i in unicos:
+                    if i in faltantes:
+                        self.budget.miss()
+                    else:
+                        self.budget.hit()
+            except Exception:
+                pass
         if not faltantes:
             return
-        traidas = endpoints.lote_catalogo_auto(faltantes, self.budget)
+        traidas = self.backend.lote_catalogo_auto(faltantes, self.budget)
         for fid, ficha in traidas.items():
             self._guardar_ficha(fid, ficha)
 

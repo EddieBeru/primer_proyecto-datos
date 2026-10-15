@@ -1,14 +1,8 @@
-"""Sesión de cripta: crea el BudgetAdapter y lo deja listo para los requests.
+"""Sesión de cripta (§5.1 doc oficial).
 
-Flujo:
-  1. listar_criptas() va SIN budget (pantalla de selección, pre-contador).
-  2. iniciar_cripta(id) pide la ficha cruda con reintento 429, crea el
-     BudgetAdapter con presupuesto_solicitudes y descuenta los intentos
-     usados en ese bootstrap. Retorna (ficha, budget).
-  3. Todo request posterior recibe ese budget como arg.
-
-Regla segura: cada intento HTTP cuesta 1, incluidos reintentos y
-consultas de versión.
+Toda solicitud HTTP cuenta, incluyendo lista de criptas. Como el presupuesto
+solo se conoce tras la ficha, la lista previa se descuenta retroactivamente
+al crear el budget en iniciar_cripta (+1 por listar + intentos bootstrap).
 """
 
 import time
@@ -20,10 +14,16 @@ from src.models.dungeons import DungeonGeneral
 from src.models.errors import RateLimitedError
 
 
+def listar_criptas(budget=None):
+    """Lista criptas. Si hay budget, cuenta como solicitud (§5.1)."""
+    return endpoints.listar_criptas(budget)
+
+
 def iniciar_cripta(
     cripta_id: str,
     max_intentos: int = 3,
     esperar_fn: Callable[[float], None] = time.sleep,
+    contar_lista: bool = True,
 ) -> tuple[DungeonGeneral, BudgetAdapter]:
     intentos = 0
     ultimo: RateLimitedError | None = None
@@ -43,4 +43,9 @@ def iniciar_cripta(
     budget = BudgetAdapter(presupuesto=ficha.presupuesto_solicitudes)
     for _ in range(intentos):
         budget.gastar()
+    if contar_lista:
+        try:
+            budget.gastar()  # la lista previa de esta partida también cuenta
+        except Exception:
+            pass
     return ficha, budget
