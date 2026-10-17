@@ -281,19 +281,22 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
     for i, enemigo in enumerate(vivos):
         cx, cy = pos_enemigo_animada(area, i, total)
-        x, y = cx - TAM // 2, cy - TAM // 2
-        sup.blit(sprites.enemigo(str(enemigo.get("comportamiento", ""))), (x, y))
+        img = sprites.enemigo(str(enemigo.get("comportamiento", "")))
+        sup.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
         vida = int(enemigo.get("vida", 0))
-        _barra(sup, x, y - 10, TAM, 6, vida, max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
+        bx, by = cx - TAM // 2, cy - TAM // 2  # casilla del enemigo
+        _barra(sup, bx, cy - img.get_height() // 2 - 10, TAM, 6, vida,
+               max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
         etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
                                   True, paleta.TEXTO)
-        sup.blit(etiqueta, (x, y + TAM + 2))
+        sup.blit(etiqueta, (cx - etiqueta.get_width() // 2,
+                            cy + img.get_height() // 2 + 2))
         if enemigo.get("instancia") == golpe:
-            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 3)
+            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(bx - 2, by - 2, TAM + 4, TAM + 4), 3)
         if enemigo.get("instancia") in alcance:
-            pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(x - 2, y - 2, TAM + 4, TAM + 4), 2)
+            pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(bx - 2, by - 2, TAM + 4, TAM + 4), 2)
         if i == sel_enemigo % max(len(vivos), 1):
-            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, TAM, TAM), 2)
+            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(bx, by, TAM, TAM), 2)
 
 
 def _barra(sup: pygame.Surface, x: int, y: int, w: int, h: int,

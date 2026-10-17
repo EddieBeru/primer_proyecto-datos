@@ -439,15 +439,32 @@ def test_golpe_destella_y_barra_baja(app):
 
 
 # ------------------------------------------------------- enemigos inconfundibles
-def test_enemigos_circulares_con_insignia():
-    from src.view.sprites import SpriteManager
+def test_enemigos_procedurales_sin_png_con_anillo(tmp_path, monkeypatch):
+    import src.view.sprites as mod
     pygame.init()
-    sp = SpriteManager()
+    monkeypatch.setattr(mod, 'ASSETS_DIR', tmp_path)  # sin arte: fallback
+    sp = mod.SpriteManager()
     for comp in ('guardián', 'errante', 'rastreador'):
         img = sp.enemigo(comp)
         cols = {img.get_at((x, y))[:3] for x in range(0, 36, 3)
                 for y in range(0, 36, 3)}
         assert (255, 255, 255) in cols  # anillo + insignia blancos
+
+
+def test_arte_png_sin_fondo_para_items_y_errante():
+    from src.view.sprites import SpriteManager, TAM, ENEMIGO_ESCALA
+    pygame.init()
+    sp = SpriteManager()
+    errante = sp.enemigo('errante')  # x3: arte grande, lienzo cuadrado
+    assert errante.get_size() == (TAM * ENEMIGO_ESCALA, TAM * ENEMIGO_ESCALA)
+    lado = TAM * ENEMIGO_ESCALA - 1
+    assert errante.get_at((0, 0))[3] == 0
+    assert errante.get_at((lado, lado))[3] == 0
+    for item_id in ('llave-hierro-01', 'llave-salida-01', 'antorcha-01',
+                    'pergamino-01', 'pinchos-01', 'veneno-01'):
+        img = sp.sprite(item_id)
+        assert img.get_size() == (TAM, TAM)
+        assert img.get_at((0, 0))[3] == 0  # PNG transparente, sin fondo
 
 
 # ------------------------------------------------------- patrullaje visible

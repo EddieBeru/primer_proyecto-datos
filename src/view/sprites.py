@@ -1,7 +1,7 @@
 """Gestor de sprites (Parte 1 §4/§6 + guía §8): dibujante único por id.
 
-PNGs en `assets/sprites/` (prota + pociones por efecto); lo que falte se
-dibuja procedural y el id desconocido usa el reemplazo magenta. Se carga
+PNGs en `assets/sprites/` (prota, pociones, ítems y errante); lo que falte
+se dibuja procedural y el id desconocido usa el reemplazo magenta. Se carga
 una vez y se reutiliza. 9 clases + 3 comportamientos + puertas.
 """
 
@@ -38,6 +38,17 @@ ESPADA_PNG = "espada.png"
 # Rotación por facing (grados antihorarios; el arte base apunta arriba).
 # N/S sin rotación: el personaje no rota al mirar arriba/abajo.
 ANGULO_ESPADA = {"N": -45, "E": -45, "S": -45, "O": 45}
+
+# Arte por clase para ítems sin `<id>.png` exacto (ese sigue teniendo
+# prioridad). Cualquier id futuro de la clase usa el mismo PNG.
+LLAVE_PNG = "llave.png"
+PERGAMINO_PNG = "pergamino.png"
+ANTORCHA_PNG = "antorcha.png"
+TRAMPA_PNG = "trampa.png"
+
+# Enemigos con arte propio por comportamiento (el resto sigue círculo).
+ENEMIGO_PNG = {"errante": "enemigo-errante.png"}
+ENEMIGO_ESCALA = 3  # el arte del errante se dibuja 3x el mosaico base
 
 # Subcadenas del id que identifican cada efecto (reutilizable: vale para
 # cualquier `pocion-*-NN` futuro sin tocar el gestor).
@@ -109,7 +120,7 @@ def png_para_id(item_id: str) -> str | None:
 
     Prioridad: `assets/sprites/<id>.png` exacto (override sin código),
     luego alias por efecto de poción (vale para `pocion-*-NN` futuros)
-    y alias por clase de armadura.
+    y alias por clase (llave, pergamino, antorcha, trampa, armadura, arma).
     """
     if (ASSETS_DIR / f"{item_id}.png").is_file():
         return f"{item_id}.png"
@@ -119,9 +130,18 @@ def png_para_id(item_id: str) -> str | None:
             return POCION_VELOCIDAD_PNG
         if any(k in bajo for k in _CLAVES_POCION_SALUD):
             return POCION_SALUD_PNG
-    if clase_de_id(item_id) == "armadura":
+    clase = clase_de_id(item_id)
+    if clase == "llave":
+        return LLAVE_PNG
+    if clase == "pergamino_retroceso":
+        return PERGAMINO_PNG
+    if clase == "antorcha":
+        return ANTORCHA_PNG
+    if clase == "trampa":
+        return TRAMPA_PNG
+    if clase == "armadura":
         return ESCUDO_PNG
-    if clase_de_id(item_id) == "arma":
+    if clase == "arma":
         return ESPADA_PNG
     return None
 
@@ -196,7 +216,7 @@ class SpriteManager:
     def __init__(self, suavizado: bool = False) -> None:
         self.suavizado = suavizado
         self._cache: dict[str, pygame.Surface] = {}
-        self._png_cache: dict[str, pygame.Surface] = {}
+        self._png_cache: dict[tuple[str, int], pygame.Surface] = {}
         self._reemplazo = _mosaico(REEMPLAZO)
         self._jugador = _mosaico(JUGADOR)
         self._jugador_frames: list[pygame.Surface] = self._cargar_jugador()
@@ -227,10 +247,12 @@ class SpriteManager:
             frames.append(pygame.transform.scale(img, (ancho, alto)))
         return frames
 
-    def _cargar_png(self, nombre: str) -> pygame.Surface | None:
-        """PNG encajado en TAM x TAM sin deformar; `None` si falta o falla."""
-        if nombre in self._png_cache:
-            return self._png_cache[nombre]
+    def _cargar_png(self, nombre: str,
+                    tam: int = TAM) -> pygame.Surface | None:
+        """PNG encajado en tam x tam sin deformar; `None` si falta o falla."""
+        clave = (nombre, tam)
+        if clave in self._png_cache:
+            return self._png_cache[clave]
         ruta = ASSETS_DIR / nombre
         if not ruta.is_file():
             return None
@@ -245,18 +267,18 @@ class SpriteManager:
         lado = max(img.get_width(), img.get_height())
         if lado <= 0:
             return None
-        if (img.get_width(), img.get_height()) != (TAM, TAM):
+        if (img.get_width(), img.get_height()) != (tam, tam):
             escalar = pygame.transform.smoothscale if self.suavizado \
                 else pygame.transform.scale
             try:
-                img = escalar(img, (max(1, img.get_width() * TAM // lado),
-                                    max(1, img.get_height() * TAM // lado)))
+                img = escalar(img, (max(1, img.get_width() * tam // lado),
+                                    max(1, img.get_height() * tam // lado)))
             except pygame.error:
                 return None
-        mosaico = pygame.Surface((TAM, TAM), pygame.SRCALPHA)
-        mosaico.blit(img, ((TAM - img.get_width()) // 2,
-                           (TAM - img.get_height()) // 2))
-        self._png_cache[nombre] = mosaico
+        mosaico = pygame.Surface((tam, tam), pygame.SRCALPHA)
+        mosaico.blit(img, ((tam - img.get_width()) // 2,
+                           (tam - img.get_height()) // 2))
+        self._png_cache[clave] = mosaico
         return mosaico
 
     @property
@@ -333,7 +355,16 @@ class SpriteManager:
         return self._jugador
 
     def enemigo(self, comportamiento: str) -> pygame.Surface:
-        """Enemigo inconfundible: círculo del color + anillo blanco + ojos."""
+        """Enemigo por comportamiento: PNG si hay arte, si no círculo + anillo.
+
+        El arte PNG sale a `TAM * ENEMIGO_ESCALA` (lienzo cuadrado, escala
+        proporcional); el fallback procedural sigue en el mosaico TAM.
+        """
+        nombre = ENEMIGO_PNG.get(comportamiento)
+        if nombre is not None:
+            img = self._cargar_png(nombre, tam=TAM * ENEMIGO_ESCALA)
+            if img is not None:
+                return img
         color = COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO)
         sup = _mosaico(color)
         centro, radio = TAM // 2, TAM // 2 - 3
