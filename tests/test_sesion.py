@@ -70,6 +70,70 @@ def test_paso_mueve_y_no_crashea_en_invalido(tmp_path):
     assert not ok and foto.estado == "jugando"
 
 
+def test_vecinas_precargadas_dormidas_sin_visitar(tmp_path):
+    """Mejoras 2026-10: al iniciar, la sala 1 arma sus vecinas (2 y 3)."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=5)
+    assert sorted(ses.estado.salas) == [1, 2, 3]  # existen en el modelo…
+    assert ses.estado.salas_visitadas == [1]      # …pero no cuentan visita
+    assert not any(e.activa for e in ses.estado.salas[2].enemigos)
+    assert not any(e.activa for e in ses.estado.salas[3].enemigos)
+
+
+def test_al_entrar_a_vecina_se_precargan_sus_vecinas(tmp_path):
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=5)
+    ok, _, foto = ses.paso("s")  # sala 3, que ya estaba dormida
+    assert ok and foto.sala_id == 3
+    assert sorted(ses.estado.salas) == [1, 2, 3, 4, 5]  # vecinas de 3
+    assert ses.estado.salas_visitadas == [1, 3]          # sin inflar el puntaje
+    assert not any(e.activa for e in ses.estado.salas[5].enemigos)
+
+
+def test_dormidos_despiertan_al_entrar_con_velocidad_real(tmp_path):
+    """Mejoras 2026-10: la activación usa la ficha (antes velocidad 5 fija)."""
+    from src.controller2.reloj import intervalo
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=5)
+    dormido = ses.estado.salas[2].enemigos[0]
+    assert not dormido.activa and 2 not in ses.estado.salas_visitadas
+    ok, _ = ses.fachada.mover("E")  # sin drenar: se ve el evento recién creado
+    assert ok and dormido.activa
+    vel = ses.proveedor.catalogo["murcielago-errante-01"].velocidad
+    assert vel == 12
+    ev = next(e for e in ses.fachada.agenda
+              if e.tipo == "turno" and (e.datos or {}).get("actor") == "e2-1")
+    assert ev.t == intervalo(100, vel)  # 833 con la ficha, no 2000 con vel 5
+
+
+def test_errante_cruza_desde_sala_vecina(tmp_path):
+    """Mejoras 2026-10: el murciélago despierto pasea por el mapa cargado."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=5)
+    ses.paso("e")  # 1->2: despierta al murciélago errante (e2-1)
+    ses.paso("o")  # vuelve a 1; 2 ya no tiene al jugador
+    for _ in range(4):
+        ses.paso("esperar")
+    murcielago = next((e for s in ses.estado.salas.values()
+                       for e in s.enemigos if e.instancia == "e2-1"), None)
+    assert murcielago is not None and murcielago.activa
+    assert murcielago.sala_actual == 1  # única salida abierta de la armería
+
+
+def test_rastreadora_sigue_el_rastro_entre_salas(tmp_path):
+    """Mejoras 2026-10: la sombra persigue la sala con el rastro más reciente."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=5)
+    ses.paso("s")  # 1->3: despierta la sombra rastreadora (e3-1)
+    ses.paso("n")  # vuelve a 1: el rastro queda en la entrada
+    for _ in range(4):
+        ses.paso("esperar")
+    sombra = next((e for s in ses.estado.salas.values()
+                   for e in s.enemigos if e.instancia == "e3-1"), None)
+    assert sombra is not None and sombra.activa
+    assert sombra.sala_actual == 1
+
+
 def test_victoria_completa_y_finalizar(tmp_path):
     ses = nueva_sesion(tmp_path)
     ses.iniciar(CRIPTA_ID)

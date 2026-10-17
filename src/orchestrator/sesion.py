@@ -41,11 +41,20 @@ class ProveedorSesion:
     el motor nunca vea fichas sin resolver ni cachés.
     """
 
-    def __init__(self, loader: RoomLoader) -> None:
+    def __init__(self, loader: RoomLoader, registrador=None) -> None:
         self.loader = loader
         self.catalogo: dict = {}
+        # Mejoras 2026-10: callback para guardar vecinas dormidas en el estado
+        # (enemigos por todo el mapa sin pedir contenido extra).
+        self.registrador = registrador
+        self._armadas: set[int] = set()
 
     def sala_lista(self, n: int) -> SalaViva:
+        sv = self._armar(n)
+        self._precargar_vecinas(n)
+        return sv
+
+    def _armar(self, n: int) -> SalaViva:
         if self.loader.cache is not None:
             try:
                 self.loader.cache.fijar_en_uso(list(self.catalogo.keys()))
@@ -72,7 +81,46 @@ class ProveedorSesion:
         sv.objetos_suelo = [o.ficha.id for o in sl.objetos]
         sv.trampas = [TrampaInstancia(t.instancia, t.ficha.id, n, t.armada)
                       for t in sl.trampas]
+        self._armadas.add(n)
         return sv
+
+    def _precargar_vecinas(self, n: int) -> None:
+        """Arma las vecinas del plano y las entrega al registrador.
+
+        Mejoras 2026-10: el contenido de las vecinas suele venir en el mismo
+        lote de 10 de `sala_lista`; si a alguna le falta contenido, `_armar`
+        pide su lote (misma solicitud que se habría hecho al entrar). Se
+        arman como salas *dormidas* (§2.4: incorporar contenido no activa
+        enemigos). Si algo falla, la precarga se omite en silencio.
+        """
+        if self.registrador is None:
+            return
+        try:
+            room = self.loader.plano.get(n)
+            if room is None:
+                return
+            vecinas = sorted({
+                s.sala for s in room.salidas.values()
+                if s.sala != n and s.sala in self.loader.plano
+                and s.sala not in self._armadas
+            })
+            if not vecinas:
+                return
+            self.loader.asegurar_salas(vecinas)
+            listas = []
+            for v in vecinas:
+                try:
+                    listas.append(self._armar(v))
+                except Exception:
+                    continue
+            if listas:
+                self.registrador(listas)
+        except Exception:
+            pass
+
+    def precargar_vecinas(self, n: int) -> None:
+        """Gancho de la Sesión al entrar a una sala (ver `_precargar_vecinas`)."""
+        self._precargar_vecinas(n)
 
 
 class Sesion:
@@ -118,7 +166,7 @@ class Sesion:
         self.cache = self._abrir_cache(ver_cat.version)
         plano = self.backend.esqueleto_completo(cripta_id, budget, info=info)
         self.loader = RoomLoader(cripta_id, plano, budget, self.cache, backend=self.backend)
-        self.proveedor = ProveedorSesion(self.loader)
+        self.proveedor = ProveedorSesion(self.loader, registrador=self._registrar_vecinas)
         self.estado = EstadoPartida.nueva_partida(info, ver_cat.version, semilla=int(semilla))
         self.estado.registrar_sala(self.proveedor.sala_lista(info.sala_inicial))
         self._guardar_cache()
@@ -130,13 +178,34 @@ class Sesion:
         self._volcar_bitacora()
         return self.foto()
 
+    def _registrar_vecinas(self, salas: list[SalaViva]) -> None:
+        """Mejoras 2026-10: guarda vecinas dormidas sin marcarlas visitadas.
+
+        Distinto de `EstadoPartida.registrar_sala`: la vecina está en el
+        modelo (para que errantes/rastreadores la puedan cruzar) pero la
+        partida aún no la visitó, así que no entra en `salas_visitadas`
+        (puntaje §2.12) ni se activan sus enemigos (§2.4).
+        """
+        if self.estado is None:
+            return
+        for s in salas:
+            if s.id not in self.estado.salas:
+                self.estado.salas[s.id] = s
+
     def paso(self, texto: str, grabar: bool = True) -> tuple[bool, str, FotoEstado]:
         """Una intención del jugador + drenaje §2.3. Nunca crashea (error amable)."""
         assert self.fachada is not None, "llamar iniciar() primero"
+        sala_antes = self.fachada.estado.sala_actual
         ok, msg = self._intencion(texto)
         if ok:
             self._drenar()
             self._guardar_cache()
+            # Mejoras 2026-10: al cambiar de sala se precargan sus vecinas.
+            # Si la sala entró como vecina dormida, `sala_lista` no se llamó
+            # para ella y sus propias vecinas aún faltaban.
+            sala_ahora = self.fachada.estado.sala_actual
+            if sala_ahora != sala_antes:
+                self.proveedor.precargar_vecinas(sala_ahora)
         else:
             # Guía §6: todo rechazo deja foto.error (incl. comando desconocido).
             self.fachada.error = msg
@@ -186,6 +255,9 @@ class Sesion:
             return f.abrir(p[1].upper())
         if c == "esperar":
             return f.esperar()
+        if c == "pisar" and len(p) == 2:
+            # Mejoras 2026-10: la vista dispara la trampa al pasar por encima.
+            return f.pisar_trampa(p[1])
         if c == "atacar" and len(p) == 2:
             return f.atacar(p[1])
         if c == "recoger" and len(p) == 2:
@@ -204,7 +276,7 @@ class Sesion:
             return f.equipar(pos)
         if c == "deshacer":
             return f.deshacer()
-        return False, f"¿{texto.strip()}? (ayuda: n/s/e/o, abrir, atacar, esperar, recoger, usar, soltar, equipar, deshacer)"
+        return False, f"¿{texto.strip()}? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)"
 
     def _drenar(self) -> None:
         """§2.3: ejecuta eventos pendientes hasta el próximo turno del jugador o fin."""

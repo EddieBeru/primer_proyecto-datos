@@ -86,7 +86,7 @@ Como láminas transparentes apiladas, de abajo hacia arriba:
 | `llave` | Abre una puerta | `abre` (id de sala, texto o vacío) | Inventario / suelo |
 | `antorcha` | Da luz un tiempo | `duracion` | Inventario / suelo |
 | `pergamino_retroceso` | Deshace acciones | Solo lo básico | Inventario / suelo |
-| `trampa` | Hace daño al pisarla | `daño`, `rearme` (puede venir vacío) | Capa estática |
+| `trampa` | Hace daño al pisarla | `daño`, `rearme` (puede venir vacío); opcionales `veneno` y `quemadura`/`fuego` (daño por pulso, ver anexo de la guía) | Capa estática |
 
 Todos los objetos (menos la trampa) comparten `id`, `nombre`, `peso` y `valor`. La trampa no tiene peso ni valor porque no se carga.
 
@@ -141,8 +141,8 @@ Solo muestra y avisa lo que el jugador quiere hacer.
 
 | Mitad | Qué contiene | Cómo se pide | Tamaño del lote |
 |---|---|---|---|
-| **Esqueleto** | `id`, `nombre`, `salidas` (el mapa) | Por **páginas** (endpoint 4) | Hasta 50 salas por página |
-| **Contenido** | `enemigos`, `objetos`, `trampas` | Por **lista de ids** (endpoint 5) | De 1 a 10 salas por petición |
+| **Esqueleto** | `id`, `nombre`, `salidas` (el mapa) y, si la sala está a oscuras, `oscura`/`oscuridad` | Por **páginas** (endpoint 4) | Hasta 50 salas por página |
+| **Contenido** | `enemigos`, `objetos`, `trampas` (y puede declarar también `oscura`/`oscuridad`) | Por **lista de ids** (endpoint 5) | De 1 a 10 salas por petición |
 
 El esqueleto es el **plano** del edificio; el contenido es **lo que hay dentro de cada cuarto**.
 

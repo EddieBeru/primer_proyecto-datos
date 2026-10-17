@@ -66,6 +66,53 @@ def test_pide_vecinas_en_un_lote_y_reutiliza(monkeypatch):
     assert len(llamadas["contenido"]) == 1
 
 
+def test_contenido_marca_sala_oscura(monkeypatch):
+    """Mejoras 2026-10: `oscuridad` del contenido pasa al plano de la sala."""
+    contenido = dict(CONTENIDO)
+    contenido[3] = RoomContentEntry.from_dict(
+        {"sala": 3, "enemigos": [], "objetos": [], "trampas": [], "oscuridad": True})
+
+    def fake_contenido(cripta_id, salas, budget=None):
+        return ContenidoResponse(contenido=[contenido[s] for s in salas])
+
+    monkeypatch.setattr(endpoints, "contenido", fake_contenido)
+    monkeypatch.setattr(endpoints, "lote_catalogo_auto",
+                        lambda ids, budget=None: {i: FICHAS[i] for i in ids})
+    loader = RoomLoader("c1", PLANO)
+    assert loader.sala_lista(1).room.oscura is False
+    assert loader.sala_lista(3).room.oscura is True
+
+
+def test_asegurar_salas_batea_fichas_de_vecinas(monkeypatch):
+    """Mejoras 2026-10: la precarga de vecinas resuelve fichas en lote."""
+    llamadas = {}
+    plano = {1: Room(id=1, nombre="A", salidas={"E": Exit(sala=2)}),
+             2: Room(id=2, nombre="B", salidas={"O": Exit(sala=1)})}
+    contenido = {
+        1: RoomContentEntry(sala=1, objetos=[], trampas=[]),
+        2: RoomContentEntry.from_dict(
+            {"sala": 2, "enemigos": [{"instancia": "e2", "tipo": "goblin"}],
+             "objetos": [], "trampas": []}),
+    }
+
+    def fake_contenido(cripta_id, salas, budget=None):
+        return ContenidoResponse(contenido=[contenido[s] for s in salas])
+
+    def fake_lote(ids, budget=None):
+        llamadas.setdefault("lotes", []).append(list(ids))
+        return {i: FICHAS[i] for i in ids}
+
+    monkeypatch.setattr(endpoints, "contenido", fake_contenido)
+    monkeypatch.setattr(endpoints, "lote_catalogo_auto", fake_lote)
+    loader = RoomLoader("c1", plano)
+    loader.sala_lista(1)  # el lote de contenido ya trae la 2 (vacía de fichas)
+    assert llamadas.get("lotes", []) == []
+    loader.asegurar_salas([2])
+    assert ["goblin"] in llamadas["lotes"]  # fichas de la vecina en lote
+    loader.asegurar_salas([99])  # sala desconocida: no falla ni pide nada
+    assert ["goblin"] in llamadas["lotes"]
+
+
 def test_suelta_se_precarga(monkeypatch):
     llamadas = {}
     _mockear(monkeypatch, llamadas)

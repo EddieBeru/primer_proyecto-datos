@@ -23,6 +23,8 @@ class Room:
     nombre: str
     # claves permitidas: "N", "S", "E", "O"
     salidas: dict[Literal["N", "S", "E", "O"], Exit] = field(default_factory=dict)
+    # Sala a oscuras (mejoras 2026-10): la API puede traer "oscura"/"oscuridad".
+    oscura: bool = False
 
     @classmethod
     def from_dict(cls, data: dict) -> "Room":
@@ -34,6 +36,7 @@ class Room:
             id=data["id"],
             nombre=data["nombre"],
             salidas=salidas,
+            oscura=bool(data.get("oscura", data.get("oscuridad", False))),
         )
 
 @dataclass

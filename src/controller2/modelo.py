@@ -232,6 +232,8 @@ class SalaViva:
     trampas: list[TrampaInstancia] = field(default_factory=list)
     visitada: bool = False
     ultima_visita: int | None = None
+    # Mejoras 2026-10: sala a oscuras (la ilumina una antorcha encendida).
+    oscura: bool = False
     # Compat lectura: versiones viejas traían rastro:int. Se migra en desde_dict.
 
     @classmethod
@@ -242,7 +244,8 @@ class SalaViva:
             for d, s in (sala.salidas or {}).items()
             if d in _DIRECCIONES_VALIDAS
         }
-        return cls(id=sala.id, nombre=sala.nombre, salidas=salidas)
+        return cls(id=sala.id, nombre=sala.nombre, salidas=salidas,
+                   oscura=bool(getattr(sala, "oscura", False)))
 
     def hidratar_contenido(
         self, contenido: RoomContentEntry, vidas_max: dict[str, int] | None = None
@@ -260,6 +263,8 @@ class SalaViva:
         ]
         self.objetos_suelo = list(contenido.objetos or [])
         self.trampas = [TrampaInstancia.desde_colocacion(t, self.id) for t in (contenido.trampas or [])]
+        # Mejoras 2026-10: la oscuridad también puede declararse en el contenido.
+        self.oscura = self.oscura or bool(getattr(contenido, "oscura", False))
 
     def enemigos_vivos(self) -> list[EnemigoInstancia]:
         return [e for e in self.enemigos if e.vivo]

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import pygame
 
 from src.orchestrator.sesion import Sesion
-from src.view import capas, entrada, pantallas, ui
+from src.view import capas, entrada, paleta, pantallas, ui
 from src.view.sprites import SpriteManager
 
 if TYPE_CHECKING:  # solo tipos
@@ -23,7 +23,7 @@ FPS = 60
 VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
          "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
-         "F1 dev · G guardar · Esc pausa")
+         "pisar trampas las dispara · F1 dev · G guardar · Esc pausa")
 
 
 class VistaApp:
@@ -63,6 +63,8 @@ class VistaApp:
         self.en_puerta = False  # evita re-disparar la puerta cada frame
         self.golpe: str | None = None  # instancia con destello de impacto
         self.golpe_ttl = 0
+        self.dano_ttl = 0  # destello rojo al perder vida (mejoras 2026-10)
+        self.trampa_pisada: str | None = None  # no repetir mientras siga encima
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -120,6 +122,8 @@ class VistaApp:
         self.en_puerta = False
         self.golpe = None
         self.golpe_ttl = 0
+        self.dano_ttl = 0
+        self.trampa_pisada = None
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -148,6 +152,11 @@ class VistaApp:
     def enviar(self, texto: str) -> tuple[bool, str, "FotoEstado"]:
         """Manda una intención y refresca. Solo camino hacia `ses.paso()`."""
         assert self.foto is not None or texto, "inicia o carga primero"
+        sala_antes = self.foto.sala_id if self.foto is not None else None
+        try:
+            vida_antes = int(self.foto.jugador.get("vida", 0)) if self.foto is not None else None
+        except Exception:
+            vida_antes = None
         previo = None
         if self.foto is not None and self.pantalla == "juego" \
                 and texto.strip().upper() in ("N", "S", "E", "O") \
@@ -168,6 +177,23 @@ class VistaApp:
             partes = texto.strip().split()
             if len(partes) == 2 and partes[0].lower() == "atacar":
                 self.golpe, self.golpe_ttl = partes[1], 12  # destello de impacto
+            # Mejoras 2026-10: feedback visible al perder vida (trampas,
+            # contraataques, veneno/quemadura…).
+            try:
+                vida_ahora = int(foto.jugador.get("vida", 0))
+            except Exception:
+                vida_ahora = None
+            if vida_antes is not None and vida_ahora is not None and vida_ahora < vida_antes:
+                self.dano_ttl = 14
+                if partes and partes[0].lower() == "pisar" and msg:
+                    self._avisar(msg)
+                else:
+                    self._avisar(f"¡{vida_antes - vida_ahora} de daño!")
+            # Mejoras 2026-10: al entrar a una sala oscura sin antorcha.
+            if sala_antes is not None and foto.sala_id != sala_antes \
+                    and getattr(foto, "sala_oscura", False) \
+                    and not capas.antorcha_encendida(foto):
+                self._avisar("Sala oscura: usa una antorcha (R)", ttl=150)
             self._memorizar_vida()
             if foto.estado != "jugando":
                 self.pantalla = "fin"
@@ -196,7 +222,39 @@ class VistaApp:
         self.anim_pasos = max(self.anim_pasos, 4)
         self.tick_anim += 1
         self._revisar_puerta()
+        self._revisar_trampas()
         return "@paso"
+
+    def _revisar_trampas(self) -> None:
+        """Pasar por encima de una trampa armada la dispara (mejoras 2026-10).
+
+        El motor ya dispara las trampas al entrar a la sala (§2.10); esto
+        cubre las que se rearman mientras caminas dentro de la sala. La
+        intención `pisar <instancia>` respeta armada/rearme/deshacer. Una
+        misma trampa no se repite mientras sigas parado encima: hay que
+        salir del radio y volver a pisarla.
+        """
+        if self.foto is None:
+            return
+        _, puntos = self._spots()
+        jx, jy = self._pos_px()
+        cerca = set()
+        for i, trampa in enumerate(self.foto.trampas or []):
+            if i >= len(puntos):
+                break
+            cx, cy = puntos[i]
+            if ((jx - cx) ** 2 + (jy - cy) ** 2) ** 0.5 <= capas.RADIO_TRAMPA:
+                cerca.add(trampa.get("instancia", ""))
+        if self.trampa_pisada not in cerca:
+            self.trampa_pisada = None
+        for i, trampa in enumerate(self.foto.trampas or []):
+            if i >= len(puntos) or not trampa.get("armada", True):
+                continue
+            inst = trampa.get("instancia", "")
+            if inst in cerca and inst != self.trampa_pisada:
+                self.trampa_pisada = inst
+                self.enviar(f"pisar {inst}")
+                break
 
     def _revisar_puerta(self) -> None:
         """Al pisar puerta abierta -> mover; cerrada -> aviso (E para abrir)."""
@@ -438,6 +496,11 @@ class VistaApp:
                                      (moviendo, self.tick_anim, self.tick_total),
                                      self._pos_px(), self.golpe, alcance,
                                      spots=self._spots())
+            if self.dano_ttl > 0:
+                # Destello rojo al perder vida (mejoras 2026-10).
+                pygame.draw.rect(self.ventana, paleta.PELIGRO,
+                                 area.inflate(6, 6), 4)
+                self.dano_ttl -= 1
             if self.golpe_ttl > 0:
                 self.golpe_ttl -= 1
                 if self.golpe_ttl == 0:

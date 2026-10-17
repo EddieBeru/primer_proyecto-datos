@@ -148,6 +148,13 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
                 if t.instancia == d["instancia"]:
                     t.armada = d.get("armada_antes", True)
         estado.jugador.vida_actual = d["vida_antes"]
+        # Mejoras 2026-10: restaurar los efectos que la trampa pudo aplicar.
+        for nombre, clave in (("veneno", "veneno_antes"), ("quemadura", "quemadura_antes")):
+            antes = d.get(clave)
+            if antes is None:
+                estado.jugador.efectos.pop(nombre, None)
+            else:
+                estado.jugador.efectos[nombre] = antes
         if estado.jugador.vivo and estado.estado == "derrota":
             estado.estado = "jugando"
         return True

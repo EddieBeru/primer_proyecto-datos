@@ -338,3 +338,33 @@ Típicos: usar `tipo` en vez de `instancia` al atacar · asumir que `mover`
 abre puertas · dibujar `presupuesto` al jugador · calcular daño/vida en la
 vista · llamar `paso()` dos veces por frame · no llamar `finalizar()` y
 perder el puntaje.
+
+---
+
+## 13. Anexo 17/10/2026: oscuridad, trampas al caminar y aviso de daño
+
+Tres ampliaciones recientes. Todo sale de la misma `FotoEstado`; la vista no
+calcula nada nuevo.
+
+**Sala oscura.** `foto.sala_oscura` (bool) indica que la sala está a oscuras
+(el campo `oscura`/`oscuridad` viene de la cripta/API). Sin luz, dibuja un
+velo negro sobre el área de sala con un halo alrededor del jugador (así el
+resto —HUD, panel de mensajes— queda legible). Con el efecto
+`foto.jugador["efectos"]["antorcha"] > 0` la sala se ve completa. Enciende la
+antorcha con `usar <id>` (la duración sale de la ficha). Al entrar, avisa
+«Sala oscura: usa una antorcha».
+
+**Trampas al caminar.** El motor ya dispara TODAS las trampas armadas al
+entrar a la sala (§2.10; siéntelo desde la foto: `trampas[i]["armada"]`).
+Dentro de la sala, cuando tu personaje pase a ≤ ~24 px del puesto de una
+trampa `armada`, manda `pisar <instancia>` (verás el puesto con el mismo
+scatter que los objetos). Respeta el resultado: si `ok` trae un mensaje con
+«Ya estaba desarmada» no pasó nada; la foto siguiente te dice si sigue
+`armada`. No repitas el disparo mientras sigas encima (espera a salir del
+radio) ni lo hagas con trampas desarmadas.
+
+**Aviso de daño.** Tras cada `paso`, si `foto.jugador["vida"]` bajó, muestra
+feedback claro (destello rojo + toast). El mensaje de `pisar` ya describe el
+daño y el efecto (veneno: pulsos cada 80 durante 400, lo corta el antídoto;
+quemadura: pulsos propios que el antídoto no cura). `deshacer` también
+devuelve la vida y los efectos.

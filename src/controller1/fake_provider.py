@@ -97,20 +97,24 @@ def _fichas_fijas() -> dict[str, Entidad]:
         ),
         "antorcha-01": Torch(
             id="antorcha-01", nombre="Antorcha",
-            peso=2, valor=10, duracion=10,
+            peso=2, valor=10, duracion=1200,
         ),
         "pergamino-01": RewindScroll(
             id="pergamino-01", nombre="Pergamino de retroceso",
             peso=1, valor=40,
         ),
-        # trampa
+        # trampas (mejoras 2026-10: daño, veneno y quemadura)
         "pinchos-01": Trap(
             id="pinchos-01", nombre="Pinchos",
             dano=10, rearme=3,
         ),
         "veneno-01": Trap(
             id="veneno-01", nombre="Dardo envenenado",
-            dano=5, rearme=None,
+            dano=5, rearme=None, veneno=2,
+        ),
+        "llamas-01": Trap(
+            id="llamas-01", nombre="Chorro de llamas",
+            dano=3, rearme=30, quemadura=3,
         ),
     }
 
@@ -147,7 +151,7 @@ def _esqueleto() -> dict[int, Room]:
             "N": Exit(sala=1),
             "E": Exit(sala=4),
             "S": Exit(sala=5),
-        }),
+        }, oscura=True),
         4: Room(id=4, nombre="Pasillo húmedo", salidas={
             "N": Exit(sala=2, cerrada=True, llave="llave-hierro-01"),
             "O": Exit(sala=3),
@@ -170,7 +174,8 @@ def _contenido() -> dict[int, RoomContentEntry]:
             sala=1,
             enemigos=[EnemyPlacement(instancia="e1-1", tipo="esqueleto-guardian-01", vida=None)],
             objetos=["antorcha-01"],
-            trampas=[TrapPlacement(instancia="t1-1", tipo="pinchos-01")],
+            trampas=[TrapPlacement(instancia="t1-1", tipo="pinchos-01"),
+                     TrapPlacement(instancia="t1-2", tipo="llamas-01")],
         ),
         2: RoomContentEntry(
             sala=2,

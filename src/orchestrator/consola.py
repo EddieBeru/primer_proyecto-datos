@@ -8,7 +8,7 @@ partida completa, la fachada tiene todo lo que la vista necesitará (§7.2).
 from __future__ import annotations
 
 AYUDA = ("comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar · "
-         "recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · "
+         "pisar <inst> · recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · "
          "deshacer · foto · guardar [ruta] · cargar <ruta> · fin · salir · ayuda")
 
 
@@ -34,6 +34,14 @@ def renderizar(foto, salida=print) -> None:
     salida(f"  suelo: {', '.join(foto.objetos_suelo) or '—'}")
     trampas = ", ".join(f"{t['instancia']}{'' if t['armada'] else '(off)'}" for t in foto.trampas)
     salida(f"  trampas: {trampas or '—'}")
+    # Mejoras 2026-10: aviso de sala oscura (la API puede marcarlas).
+    if getattr(foto, "sala_oscura", False):
+        try:
+            con_luz = int((j.get("efectos") or {}).get("antorcha", 0) or 0) > 0
+        except (TypeError, ValueError):
+            con_luz = False
+        salida("  oscuridad: " + ("iluminada por tu antorcha" if con_luz
+                                  else "a oscuras; enciende una antorcha (usar <id>)"))
     salida(f"  vida {j['vida']}/{j['vida_max']} atk {j['ataque']} def {j['defensa']} "
            f"vel {j['velocidad']} efectos {j['efectos'] or '—'}")
     salida(f"  inv: {', '.join(foto.inventario) or '—'} (pergaminos: {foto.pergaminos})")

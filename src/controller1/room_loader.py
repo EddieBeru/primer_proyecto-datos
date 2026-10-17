@@ -30,6 +30,9 @@ class RoomLoader:
         entry = self._contenido.get(n)
         if entry is None:
             raise UnexpectedResponseError(f"contenido sin sala {n}")
+        # Mejoras 2026-10: la oscuridad puede venir declarada en el contenido.
+        if getattr(entry, "oscura", False):
+            room.oscura = True
 
         fase1 = (
             [e.tipo for e in entry.enemigos]
@@ -62,6 +65,33 @@ class RoomLoader:
                 raise UnexpectedResponseError(f"tipo {t.tipo} no es trampa")
             trampas.append(TrampaLista(instancia=t.instancia, ficha=ficha))
         return SalaLista(room=room, enemigos=enemigos, objetos=objetos, trampas=trampas)
+
+    def asegurar_salas(self, ids):
+        """Asegura fichas de varias salas ya conocidas en lotes batidos.
+
+        Mejoras 2026-10 (enemigos por todo el mapa): al entrar a una sala se
+        resuelven en el mismo lote las fichas de sus vecinas, para que los
+        enemigos que caminan entre salas tengan ficha lista. No pide
+        contenido nuevo: ya vino en el lote de 10 de `_asegurar_contenido`.
+        """
+        presentes = [i for i in ids if i in self._contenido]
+        fase = []
+        for i in presentes:
+            entry = self._contenido[i]
+            fase += [e.tipo for e in entry.enemigos]
+            fase += [t.tipo for t in entry.trampas]
+            fase += list(entry.objetos)
+        self._asegurar_fichas(fase)
+        suelta = []
+        for i in presentes:
+            for e in self._contenido[i].enemigos:
+                try:
+                    ficha = self._ficha(e.tipo)
+                except UnexpectedResponseError:
+                    continue
+                if isinstance(ficha, Enemy):
+                    suelta.extend(ficha.suelta or [])
+        self._asegurar_fichas(suelta)
 
     def _asegurar_contenido(self, n):
         if n in self._contenido:

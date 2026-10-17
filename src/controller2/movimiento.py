@@ -68,6 +68,7 @@ def intentar_mover(
     proveedor: ProveedorSalas,
     agenda: Agenda,
     reloj: RelojVirtual,
+    catalogo: dict | None = None,
 ) -> ResultadoMovimiento:
     """§2.5: moverse costo 100, exige puerta abierta. Pide contenido antes."""
     try:
@@ -88,14 +89,16 @@ def intentar_mover(
             destino = proveedor.sala_lista(salida.destino)
         except Exception as e:  # proveedor informa 404/sin red/presupuesto (K4)
             return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
-        estado.registrar_sala(destino)
+    # Idempotente: registra si es nueva y marca la visita (las vecinas
+    # precargadas ya están en el modelo, pero aún no cuentan como visitadas).
+    estado.registrar_sala(destino)
     destino.visitada = True
     estado.sala_actual = destino.id
     # §2.9: destino recibe tiempo actual; activa dormidos §2.4.
     destino.ultima_visita = reloj.ahora
     try:
         from src.controller2.enemigos import activar_sala
-        activar_sala(estado, agenda, reloj.ahora, destino.id, None)
+        activar_sala(estado, agenda, reloj.ahora, destino.id, catalogo)
     except Exception:
         pass
     return ResultadoMovimiento(True, "", destino.id, False, None)

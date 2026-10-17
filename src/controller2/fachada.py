@@ -13,6 +13,7 @@ from src.controller2.efectos import (
     REGENERACION_PERIODO,
     aplicar_cambio_velocidad,
     ejecutar_fin_efecto,
+    ejecutar_quemadura,
     ejecutar_rearme,
     ejecutar_regeneracion,
     ejecutar_veneno,
@@ -51,6 +52,7 @@ class FotoEstado:
     estado: str = "jugando"
     error: str | None = None
     en_pausa: bool = False
+    sala_oscura: bool = False  # mejoras 2026-10: la vista pone el velo de oscuridad
 
 
 class Fachada:
@@ -216,7 +218,8 @@ class Fachada:
 
     def mover(self, direccion: str) -> tuple[bool, str]:
         origen = self.estado.sala_actual
-        res = intentar_mover(self.estado, direccion, self.proveedor, self.agenda, self.reloj)
+        res = intentar_mover(self.estado, direccion, self.proveedor, self.agenda,
+                             self.reloj, self.catalogo)
         if not res.ok:
             return self._fail(res.mensaje)
         self.pila.apilar({"op": "mover", "datos": {"origen": origen, "abrio": False,
@@ -355,6 +358,25 @@ class Fachada:
         return self._fail("No se puede usar así.")
 
     # -- efectos (C2-7 §2.10) --
+    def _asegurar_cierre_drenaje(self) -> None:
+        """Deja un turno del jugador pendiente si no hay ninguno.
+
+        La vista dispara trampas al pasar por encima (caminar es gratis, sin
+        `_tras_accion`). El drenaje de la Sesión corta en el turno del
+        jugador; sin marcador correría hasta MAX_DRENAJE (los turnos enemigos
+        se reprograman solos). Costo 1 = intervalo mínimo legal: el mundo
+        avanza un pelín, no se cobra una acción.
+        """
+        try:
+            tiene = any(e.tipo == "turno" and (e.datos or {}).get("kind") == "jugador"
+                        for e in self.agenda)
+            if not tiene:
+                vel = int(self.estado.jugador.velocidad)
+                self.reloj.programar_turno(self.agenda, "jugador", vel,
+                                           {"kind": "jugador", "costo": 1}, costo=1)
+        except Exception:
+            pass
+
     def pisar_trampa(self, instancia_id: str) -> tuple[bool, str]:
         res, inversa = pisar_trampa(self.estado, self.agenda, self.reloj, instancia_id, self.catalogo)
         if not res.ok:
@@ -362,7 +384,8 @@ class Fachada:
         if inversa:
             self.pila.apilar(inversa)
         self._anotar("efecto", "trampa", instancia_id)
-        return self._ok(f"Trampa: {res.dano} de daño.")
+        self._asegurar_cierre_drenaje()
+        return self._ok(res.mensaje or f"Trampa: {res.dano} de daño.")
 
     def usar_pocion(self, pocion_id: str) -> tuple[bool, str]:
         v_antes = int(self.estado.jugador.velocidad)
@@ -451,6 +474,11 @@ class Fachada:
             ejecutar_veneno(self.estado, int(d.get("dano", 1)))
             self.pila.apilar({"op": "veneno_tick", "datos": {"vida_antes": vida_antes,
                              "dano": int(d.get("dano", 1))}, "eventos": []})
+        elif ev.tipo == "quemadura":
+            vida_antes = self.estado.jugador.vida_actual
+            ejecutar_quemadura(self.estado, int(d.get("dano", 1)))
+            self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes},
+                              "eventos": []})
         elif ev.tipo == "fin_efecto":
             nombre = d.get("efecto", "")
             tenia = self.estado.jugador.efectos.get(nombre)
@@ -515,6 +543,7 @@ class Fachada:
         if not ok:
             return self._fail(msg)
         self._anotar("deshacer", "jugador", "")
+        self._asegurar_cierre_drenaje()
         return self._ok("Deshecho.")
 
     def pausar(self) -> None:
@@ -572,7 +601,8 @@ class Fachada:
             armadura_equipada=j.armadura_equipada,
             arma_equipada=j.arma_equipada, pergaminos=pergaminos,
             mensajes=self.mensajes[-20:], presupuesto=self.estado.presupuesto_restante,
-            estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa)
+            estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa,
+            sala_oscura=bool(getattr(sala, "oscura", False)))
 
     # -- consola de pruebas 7.2: solo usa la fachada --
     def consola(self, comandos: list[str]) -> list[str]:
@@ -592,6 +622,9 @@ class Fachada:
             elif c == "esperar":
                 ok, msg = self.esperar()
                 salidas.append(f"esperar: {'ok' if ok else msg}")
+            elif c == "pisar" and len(p) == 2:
+                ok, msg = self.pisar_trampa(p[1])
+                salidas.append(f"pisar: {'ok' if ok else msg}")
             elif c == "atacar" and len(p) == 2:
                 ok, msg = self.atacar(p[1])
                 salidas.append(f"atacar: {msg or 'ok'}")

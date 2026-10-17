@@ -26,6 +26,13 @@ POS_PUERTA = {"N": (0.5, 0.0), "S": (0.5, 1.0), "E": (1.0, 0.5), "O": (0.0, 0.5)
 RADIO_PUERTA = 40  # px para cruzar/recibir aviso
 RADIO_OBJETO = 56  # px para recoger del suelo
 RADIO_ENEMIGO = 80  # px para atacar (generoso: el aviso solo si lejos)
+RADIO_TRAMPA = 24  # px para disparar una trampa al pasar por encima
+
+# Sala oscura (mejoras 2026-10): halo del jugador sin antorcha; con antorcha
+# encendida la sala entera queda a la vista.
+LUZ_SIN_ANTORCHA = 84
+LUZ_PENUMBRA = 130
+ALFA_OSCURIDAD = 232
 
 # Escudo fijo al centro vertical (si sube/baja tapa cabeza/pies);
 # solo se desplaza en horizontal según hacia dónde mira.
@@ -306,3 +313,34 @@ def _barra(sup: pygame.Surface, x: int, y: int, w: int, h: int,
     pygame.draw.rect(sup, paleta.VIDA_FONDO, pygame.Rect(x, y, w, h))
     pygame.draw.rect(sup, paleta.VIDA,
                      pygame.Rect(x, y, max(0, w * min(vida, referencia) // referencia), h))
+
+
+def antorcha_encendida(foto) -> bool:
+    """True si el efecto `antorcha` del jugador sigue activo (guía §3)."""
+    efectos = (getattr(foto, "jugador", None) or {}).get("efectos") or {}
+    try:
+        return int(efectos.get("antorcha", 0) or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def dibujar_oscuridad(sup: pygame.Surface, area: pygame.Rect, foto,
+                      pos_jugador: tuple[float, float] | None = None) -> None:
+    """Capa 3.5: velo de oscuridad sobre la sala (mejoras 2026-10).
+
+    Solo actúa en salas marcadas como `oscura` (campo opcional de la API).
+    Sin antorcha encendida queda un halo alrededor del jugador; con la
+    antorcha activa la sala se ve completa. El HUD/panel no se cubre: el
+    velo se recorta al área de la sala (la información sigue legible).
+    """
+    if not getattr(foto, "sala_oscura", False):
+        return
+    if antorcha_encendida(foto):
+        return
+    centro = pos_jugador or (area.centerx, area.centery)
+    cx, cy = int(centro[0] - area.x), int(centro[1] - area.y)
+    velo = pygame.Surface((area.w, area.h), pygame.SRCALPHA)
+    velo.fill((6, 5, 12, ALFA_OSCURIDAD))
+    pygame.draw.circle(velo, (6, 5, 12, 150), (cx, cy), LUZ_PENUMBRA)
+    pygame.draw.circle(velo, (6, 5, 12, 0), (cx, cy), LUZ_SIN_ANTORCHA)
+    sup.blit(velo, (area.x, area.y))

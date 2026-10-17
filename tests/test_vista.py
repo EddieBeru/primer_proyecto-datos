@@ -438,6 +438,69 @@ def test_golpe_destella_y_barra_baja(app):
     assert app.golpe is None  # el destello expira
 
 
+# ------------------------------------------------------- trampas al caminar
+def test_caminar_sobre_trampa_la_dispara(app):
+    """Mejoras 2026-10: pasar por encima de una trampa armada hace daño."""
+    from src.view import capas
+    area = app.area_sala()
+    _, trampas = app._spots()
+    assert len(trampas) == 2  # sala 1: t1-1 pinchos + t1-2 llamas
+    puertas = [capas.rect_puerta(area, d) for d in ("N", "S", "E", "O")]
+
+    def lejos(p):
+        return min(((p[0] - r.centerx) ** 2 + (p[1] - r.centery) ** 2) ** 0.5
+                   for r in puertas)
+
+    idx = max(range(len(trampas)), key=lambda i: lejos(trampas[i]))
+    cx, cy = trampas[idx]
+    inst = app.foto.trampas[idx]["instancia"]
+    app.pos_jugador = [(cx - area.x) / area.w, (cy - area.y) / area.h]
+    vida0 = app.foto.jugador["vida"]
+    app._paso_libre("n")
+    assert app.foto.jugador["vida"] < vida0  # el motor aplicó el daño
+    assert app.dano_ttl > 0                  # destello rojo
+    assert app.trampa_pisada == inst
+    # parado encima no se repite: hay que salir del radio y volver a pisarla
+    vida1 = app.foto.jugador["vida"]
+    for _ in range(3):
+        app._paso_libre("n")
+    assert app.foto.jugador["vida"] == vida1
+
+
+# ------------------------------------------------------- sala oscura
+def test_sala_oscura_velo_y_antorcha(app):
+    from src.view import capas
+    assert not app.foto.sala_oscura  # sala 1 está iluminada
+    app.enviar("s")                  # sala 3: "Capilla oscura"
+    assert app.foto.sala_id == 3 and app.foto.sala_oscura
+    assert not capas.antorcha_encendida(app.foto)
+    assert "oscura" in (app.aviso or "").lower()  # aviso al entrar
+    area = app.area_sala()
+    app.pos_jugador = [0.5, 0.5]
+    app.dibujar()
+    x, y = area.x + 4, area.y + 4
+    con_velo = tuple(app.ventana.get_at((x, y))[:3])
+    app.ses.estado.jugador.inventario.append("antorcha-01")
+    ok, _, _ = app.enviar("usar antorcha-01")
+    assert ok and capas.antorcha_encendida(app.foto)
+    app.dibujar()
+    sin_velo = tuple(app.ventana.get_at((x, y))[:3])
+    assert sin_velo != con_velo and sum(sin_velo) > sum(con_velo)
+
+
+def test_consola_avisa_sala_oscura(app):
+    from src.orchestrator import consola
+    app.enviar("s")  # sala 3 oscura
+    lineas = []
+    consola.renderizar(app.foto, salida=lineas.append)
+    assert any("oscuridad" in ln and "oscuras" in ln for ln in lineas)
+    app.ses.estado.jugador.inventario.append("antorcha-01")
+    app.enviar("usar antorcha-01")
+    lineas = []
+    consola.renderizar(app.foto, salida=lineas.append)
+    assert any("iluminada por tu antorcha" in ln for ln in lineas)
+
+
 # ------------------------------------------------------- enemigos inconfundibles
 def test_enemigos_procedurales_sin_png_con_anillo(tmp_path, monkeypatch):
     import src.view.sprites as mod

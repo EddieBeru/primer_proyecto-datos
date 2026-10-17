@@ -23,6 +23,8 @@ class ResultadoEfecto:
 
 VENENO_PERIODO = 80
 VENENO_DURACION = 400
+QUEMADURA_PERIODO = 80
+QUEMADURA_DURACION = 240  # 3 pulsos; el antídoto no la cura
 REARME_TRAMPA_DEFAULT = 300
 REGENERACION_PERIODO = 200
 
@@ -42,7 +44,12 @@ def _consumir(estado: EstadoPartida, item_id: str) -> bool:
 
 def pisar_trampa(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                  instancia_id: str, catalogo: dict | None = None) -> tuple[ResultadoEfecto, dict | None]:
-    """Activa trampa armada. Desarma y programa rearme (300 default §2.10)."""
+    """Activa trampa armada. Desarma y programa rearme (300 default §2.10).
+
+    Mejoras 2026-10: además del daño, la ficha puede traer ``veneno`` y/o
+    ``quemadura`` (daño por pulso). El veneno sigue §2.10 (80/400, antídoto);
+    la quemadura son 3 pulsos (80/240) que el antídoto no cura.
+    """
     sala = estado.salas.get(estado.sala_actual)
     if sala is None:
         return ResultadoEfecto(False, "Sala desconocida."), None
@@ -52,20 +59,40 @@ def pisar_trampa(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
     if not trampa.armada:
         return ResultadoEfecto(True, "Ya estaba desarmada."), None
     ficha = _ficha(catalogo, trampa.tipo_id)
+    nombre = getattr(ficha, "nombre", None) or trampa.instancia
     dano = int(getattr(ficha, "dano", 0) or 0)
+    veneno = int(getattr(ficha, "veneno", 0) or 0)
+    quema = int(getattr(ficha, "quemadura", 0) or 0)
     rearme = getattr(ficha, "rearme", None)
     rearme = int(rearme) if rearme is not None else REARME_TRAMPA_DEFAULT
     vida_antes = estado.jugador.vida_actual
+    veneno_antes = estado.jugador.efectos.get("veneno")
+    quema_antes = estado.jugador.efectos.get("quemadura")
     estado.jugador.recibir_dano(dano)
     trampa.armada = False
     eventos: list[int] = []
     ev = agenda.programar(reloj.ahora + rearme, "rearme_trampa", {"instancia": trampa.instancia})
     eventos.append(ev.seq)
+    if quema:
+        eventos += quemar(estado, agenda, reloj, quema)
+    if veneno:
+        eventos += envenenar(estado, agenda, reloj, veneno)
     if not estado.jugador.vivo:
         estado.estado = "derrota"
+    mensaje = f"¡{nombre}!"
+    if dano:
+        mensaje += f" -{dano} de vida"
+    if veneno and quema:
+        mensaje += "; envenenado y ardiendo"
+    elif veneno:
+        mensaje += "; envenenado"
+    elif quema:
+        mensaje += "; ardiendo"
     inversa = {"op": "trampa", "datos": {"instancia": trampa.instancia,
-               "armada_antes": True, "vida_antes": vida_antes}, "eventos": eventos}
-    return ResultadoEfecto(True, "", dano, eventos), inversa
+               "armada_antes": True, "vida_antes": vida_antes,
+               "veneno_antes": veneno_antes, "quemadura_antes": quema_antes},
+               "eventos": eventos}
+    return ResultadoEfecto(True, mensaje, dano, eventos), inversa
 
 
 def ejecutar_rearme(estado: EstadoPartida, instancia_id: str) -> bool:
@@ -111,6 +138,34 @@ def ejecutar_veneno(estado: EstadoPartida, dano: int) -> bool:
         estado.jugador.efectos.pop("veneno", None)
         return False
     estado.jugador.efectos["veneno"] = rest
+    return True
+
+
+def quemar(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
+           dano_por_tick: int) -> list[int]:
+    """Mejoras 2026-10: fuego en la piel, 3 pulsos cada 80; el antídoto no cura."""
+    seqs = []
+    for i in range(1, QUEMADURA_DURACION // QUEMADURA_PERIODO + 1):
+        ev = agenda.programar(reloj.ahora + i * QUEMADURA_PERIODO, "quemadura",
+                              {"dano": dano_por_tick})
+        seqs.append(ev.seq)
+    estado.jugador.efectos["quemadura"] = (
+        estado.jugador.efectos.get("quemadura", 0) + QUEMADURA_DURACION)
+    return seqs
+
+
+def ejecutar_quemadura(estado: EstadoPartida, dano: int) -> bool:
+    """Un tick de quemadura: dana y descuenta. Devuelve si sigue ardiendo."""
+    estado.jugador.recibir_dano(dano)
+    if not estado.jugador.vivo:
+        estado.estado = "derrota"
+    rest = estado.jugador.efectos.get("quemadura", 0)
+    paso = QUEMADURA_PERIODO if rest >= QUEMADURA_PERIODO else 1
+    rest = rest - paso
+    if rest <= 0:
+        estado.jugador.efectos.pop("quemadura", None)
+        return False
+    estado.jugador.efectos["quemadura"] = rest
     return True
 
 

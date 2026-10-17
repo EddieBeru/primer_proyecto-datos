@@ -87,6 +87,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
                           pos_jugador, golpe, alcance)
+    # Mejoras 2026-10: sala oscura -> velo con halo (o luz plena con antorcha).
+    capas.dibujar_oscuridad(sup, area_sala, foto, pos_jugador)
     barra_x = area_sala.right + 12
     panel = pygame.Rect(barra_x - 6, 34, sup.get_width() - (barra_x - 6) - 8,
                         sup.get_height() - 34 - 8)

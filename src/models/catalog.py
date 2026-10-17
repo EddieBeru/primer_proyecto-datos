@@ -29,12 +29,23 @@ class Enemy:
             suelta=data.get("suelta"),
         )
 
+def _pulso(valor) -> Optional[int]:
+    """Campo opcional de efecto (``veneno``/``quemadura``): None si no viene,
+    cantidad de daño por pulso si viene (``true`` = 1)."""
+    if valor is None or valor is False:
+        return None
+    return max(1, int(valor))
+
+
 @dataclass
 class Trap:
     id: str
     nombre: str
     dano: int
     rearme: Optional[int] = None
+    # Efectos extra opcionales (mejoras 2026-10): daño por pulso.
+    veneno: Optional[int] = None      # pulsos cada 80 durante 400 (§2.10)
+    quemadura: Optional[int] = None   # pulsos propios; no la cura el antídoto
     clase: str = field(default="trampa", init=False)
 
     @classmethod
@@ -42,8 +53,10 @@ class Trap:
         return cls(
             id=data["id"],
             nombre=data["nombre"],
-            dano=data["daño"],
+            dano=int(data.get("daño", 0) or 0),
             rearme=data.get("rearme"),
+            veneno=_pulso(data.get("veneno")),
+            quemadura=_pulso(data.get("quemadura", data.get("fuego"))),
         )
 
 @dataclass

@@ -18,6 +18,7 @@ from src.controller2 import (
     Inventario,
     InventarioLlenoError,
     PilaDeshacer,
+    QUEMADURA_DURACION,
     RelojVirtual,
     SalaViva,
     TrampaInstancia,
@@ -30,6 +31,7 @@ from src.controller2 import (
     deshacer_una,
     ejecutar_cierre,
     ejecutar_fin_efecto,
+    ejecutar_quemadura,
     ejecutar_rearme,
     envenenar,
     formatear,
@@ -40,6 +42,7 @@ from src.controller2 import (
     ordenar_puntajes,
     parsear,
     pisar_trampa,
+    quemar,
     reproducir,
     turno_enemigo,
     usar_antidoto,
@@ -57,7 +60,7 @@ IDS_FICHAS = [
     "esqueleto-guardian-01", "murcielago-errante-01", "sombra-rastreadora-01",
     "jefe-cripta-01", "espada-hierro-01", "escudo-madera-01", "pocion-roja-01",
     "pocion-veloz-01", "antidoto-01", "llave-hierro-01", "llave-salida-01",
-    "antorcha-01", "pergamino-01", "pinchos-01", "veneno-01",
+    "antorcha-01", "pergamino-01", "pinchos-01", "veneno-01", "llamas-01",
 ]
 
 
@@ -133,6 +136,26 @@ def test_salida_vacia_es_abierta():
     s = SalaViva.desde_esqueleto(
         Room.from_dict({"id": 1, "nombre": "A", "salidas": {"N": {"sala": 2}}}))
     assert s.salidas["N"].cerrada is False and s.salidas["N"].llave is None
+
+
+def test_sala_oscura_se_hereda_y_serializa():
+    """Mejoras 2026-10: campo opcional `oscura`/`oscuridad` de la API."""
+    sala = Room.from_dict({"id": 7, "nombre": "Cripta", "oscuridad": True})
+    assert sala.oscura is True
+    assert Room.from_dict({"id": 8, "nombre": "Sala"}).oscura is False
+    sv = SalaViva.desde_esqueleto(sala)
+    assert sv.oscura is True
+    # el contenido también puede declararla y se mezcla al hidratar
+    assert RoomContentEntry.from_dict({"sala": 7, "oscuridad": True}).oscura is True
+    apagada = SalaViva.desde_esqueleto(Room.from_dict({"id": 9, "nombre": "S"}))
+    apagada.hidratar_contenido(RoomContentEntry.from_dict(
+        {"sala": 9, "enemigos": [], "objetos": [], "trampas": [], "oscura": True}))
+    assert apagada.oscura is True
+    # viaja en el guardado genérico (v2)
+    est = estado_chico()
+    est.registrar_sala(sv)
+    vuelta = EstadoPartida.desde_dict(est.a_dict())
+    assert vuelta.salas[7].oscura is True
 
 
 def test_puede_pasar_pide_llave():
@@ -515,6 +538,71 @@ def test_veneno_oficial_80_400():
     assert tiempos == [80, 160, 240, 320, 400]
 
 
+def test_trampa_venenosa_dana_y_envenena():
+    """Mejoras 2026-10: la trampa de la API puede traer `veneno`."""
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(3))  # t3-1 veneno-01: dano 5 + veneno 2
+    est.sala_actual = 3
+    ag, rj = Agenda(), RelojVirtual()
+    vida = est.jugador.vida_actual
+    res, inv = pisar_trampa(est, ag, rj, "t3-1", prov.catalogo)
+    assert res.ok and res.dano == 5 and "envenenado" in res.mensaje
+    assert est.jugador.vida_actual == vida - 5
+    assert est.jugador.efectos["veneno"] == 400  # §2.10
+    assert len([e for e in ag if e.tipo == "veneno"]) == 5
+    assert inv["datos"]["veneno_antes"] is None and inv["eventos"]
+
+
+def test_trampa_de_llamas_dana_y_quema():
+    """Mejoras 2026-10: quemadura propia (3 pulsos 80/240; antídoto no cura)."""
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))  # t1-2 llamas-01: dano 3 + quemadura 3
+    ag, rj = Agenda(), RelojVirtual()
+    vida = est.jugador.vida_actual
+    res, inv = pisar_trampa(est, ag, rj, "t1-2", prov.catalogo)
+    assert res.ok and res.dano == 3 and "ardiendo" in res.mensaje
+    assert est.jugador.vida_actual == vida - 3
+    assert est.jugador.efectos["quemadura"] == QUEMADURA_DURACION
+    ticks = [e for e in ag if e.tipo == "quemadura"]
+    assert len(ticks) == 3 and all(e.datos["dano"] == 3 for e in ticks)
+    est.jugador.inventario.append("antidoto-01")
+    usar_antidoto(est, ag, "antidoto-01")
+    assert "quemadura" in est.jugador.efectos  # el antídoto no la cura
+
+
+def test_quemadura_ticks_y_apagado():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    ag, rj = Agenda(), RelojVirtual()
+    seqs = quemar(est, ag, rj, 3)
+    assert len(seqs) == 3  # 240/80 (mejoras 2026-10)
+    assert est.jugador.efectos["quemadura"] == QUEMADURA_DURACION
+    vida = est.jugador.vida_actual
+    assert ejecutar_quemadura(est, 3) and est.jugador.vida_actual == vida - 3
+    assert est.jugador.efectos["quemadura"] == 160
+    ejecutar_quemadura(est, 3)
+    assert not ejecutar_quemadura(est, 3)
+    assert "quemadura" not in est.jugador.efectos
+
+
+def test_deshacer_trampa_restaura_vida_y_efectos():
+    """Mejoras 2026-10: deshacer también revierte veneno/quemadura y pulsos."""
+    prov = ProveedorVivo()
+    est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
+    est.registrar_sala(prov.sala_lista(1))
+    ag, rj = Agenda(), RelojVirtual()
+    vida = est.jugador.vida_actual
+    res, inv = pisar_trampa(est, ag, rj, "t1-2", prov.catalogo)
+    assert res.ok and est.jugador.efectos["quemadura"] == QUEMADURA_DURACION
+    assert aplicar_inversa(est, ag, inv)
+    assert est.jugador.vida_actual == vida
+    assert "quemadura" not in est.jugador.efectos
+    assert est.salas[1].trampas[1].armada  # t1-2 vuelve a estar armada
+    assert all(e.tipo != "quemadura" for e in ag)
+
+
 def test_pocion_veloz_dura_y_termina():
     prov = ProveedorVivo()
     est = EstadoPartida.nueva_partida(prov.general(), "fake-v1")
@@ -535,7 +623,9 @@ def test_antorcha_dura_y_termina():
     ag, rj = Agenda(), RelojVirtual()
     est.jugador.inventario.append("antorcha-01")
     res, _ = usar_antorcha(est, ag, rj, "antorcha-01", prov.catalogo)
-    assert res.ok and est.jugador.efectos["antorcha"] == 10
+    # Mejoras 2026-10: la antorcha debe durar lo suficiente para una sala
+    # oscura; el valor sale de la ficha (fake: 1200).
+    assert res.ok and est.jugador.efectos["antorcha"] == 1200
     assert ejecutar_fin_efecto(est, "antorcha")
 
 

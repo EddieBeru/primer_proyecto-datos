@@ -46,8 +46,9 @@ python -m pytest tests/ -q
 
 ## Consola mínima (solo fachada)
 
-`abrir N/S/E/O`, `N/S/E/O` mover, `atacar <inst>`, `esperar`, `recoger/usar/equipar/soltar`,
-`deshacer` (1 pergamino, intervalo completo), `avanzar` (siguiente evento), `foto`.
+`abrir N/S/E/O`, `N/S/E/O` mover, `atacar <inst>`, `esperar`, `pisar <inst>`,
+`recoger/usar/equipar/soltar`, `deshacer` (1 pergamino, intervalo completo),
+`avanzar` (siguiente evento), `foto`.
 
 ## Mapa de carpetas (separación vista–controlador)
 
@@ -62,3 +63,19 @@ python -m pytest tests/ -q
 Rutas únicas: solo existen `controller1` / `controller2` / `orchestrator` (más `models`, `view` y `main`).
 
 Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` vía Sesión); C1 nunca importa `controller2` (bitácora trata líneas como opacas); solo el orquestador ve ambos.
+
+## Mejoras 2026-10 (checklist: `docs/checklist mejoras.md`)
+
+- **Enemigos por todo el mapa.** Al armar una sala se precargan sus vecinas
+  del plano como salas *dormidas* (§2.4): errantes/rastreadores pueden
+  cruzarlas sin inflar `salas_visitadas` (§2.12). Al activar dormidos se usa
+  la velocidad real de la ficha (antes 5 fija). El guardián sigue estático
+  por diseño.
+- **Trampas: daño, veneno o quemadura.** La ficha puede traer `veneno` y
+  `quemadura`/`fuego`; la vista dispara `pisar <instancia>` al pasar por
+  encima de una trampa armada (además del disparo al entrar, §2.10).
+  Deshacer restaura vida/efectos y cancela pulsos.
+- **Salas oscuras.** Campo opcional `oscura`/`oscuridad` (esqueleto o
+  contenido) que viaja en el guardado; la vista dibuja velo con halo y lo
+  levanta mientras dure el efecto `antorcha`. La consola avisa cómo iluminar.
+  Todo probado offline con `paquete_demo/` (sala 3 «Capilla oscura»).

@@ -33,6 +33,8 @@ class RoomContentEntry:
     enemigos: list[EnemyPlacement] = field(default_factory=list)
     objetos: list[str] = field(default_factory=list)
     trampas: list[TrapPlacement] = field(default_factory=list)
+    # Mejoras 2026-10: la oscuridad también puede venir en el contenido.
+    oscura: bool = False
 
     @classmethod
     def from_dict(cls, data: dict) -> "RoomContentEntry":
@@ -41,6 +43,7 @@ class RoomContentEntry:
             enemigos=[EnemyPlacement.from_dict(item) for item in data.get("enemigos", [])],
             objetos=list(data.get("objetos", [])),
             trampas=[TrapPlacement.from_dict(item) for item in data.get("trampas", [])],
+            oscura=bool(data.get("oscura", data.get("oscuridad", False))),
         )
 
 @dataclass
