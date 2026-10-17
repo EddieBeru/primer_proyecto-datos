@@ -12,7 +12,7 @@ from src.view.pantallas import (menu_pausa, pantalla_carga, pantalla_error,
                                 pantalla_fin, pantalla_inicio,
                                 pantalla_juego, pantalla_seleccion,
                                 pantalla_version)
-from src.view.sprites import SpriteManager, clase_de_id
+from src.view.sprites import SpriteManager, clase_de_id, png_para_id
 from src.view.ui import (dibujar_barra_vida, dibujar_inventario,
                          dibujar_mensajes, dibujar_stats, dibujar_toast)
 
@@ -24,5 +24,6 @@ __all__ = [
     "intencion_para_tecla", "menu_pausa", "mover_para_tecla",
     "pantalla_carga", "pantalla_error", "pantalla_fin", "pantalla_inicio",
     "pantalla_juego", "pantalla_seleccion", "pantalla_version",
+    "png_para_id",
     "rutas_log_por_defecto",
 ]

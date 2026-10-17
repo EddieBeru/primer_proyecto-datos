@@ -12,7 +12,7 @@ import pygame
 
 from src.view import paleta
 from src.view import texto as _texto
-from src.view.sprites import TAM, SpriteManager
+from src.view.sprites import TAM, SpriteManager, clase_de_id
 
 if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
     from src.controller2.fachada import FotoEstado
@@ -26,6 +26,30 @@ POS_PUERTA = {"N": (0.5, 0.0), "S": (0.5, 1.0), "E": (1.0, 0.5), "O": (0.0, 0.5)
 RADIO_PUERTA = 40  # px para cruzar/recibir aviso
 RADIO_OBJETO = 56  # px para recoger del suelo
 RADIO_ENEMIGO = 80  # px para atacar (generoso: el aviso solo si lejos)
+
+# Escudo fijo al centro vertical (si sube/baja tapa cabeza/pies);
+# solo se desplaza en horizontal según hacia dónde mira.
+OFFSET_ESCUDO = {"N": (0, 0), "S": (0, 0), "E": (12, 0), "O": (-12, 0)}
+
+# Espada cerca de las manos (costado bajo del cuerpo); separada del escudo
+# para que ambos equipos se lean a la vez. Nunca tapa la cara.
+OFFSET_ESPADA = {"N":(21, 0), "S": (21, 0), "E": (21, 0), "O": (-21, 0)}
+
+
+def armadura_visible(foto) -> bool:
+    """Hay armadura puesta (foto nueva o equipado frontal por clase)."""
+    if getattr(foto, "armadura_equipada", None):
+        return True
+    equipado = getattr(foto, "equipado", None)
+    return bool(equipado) and clase_de_id(equipado) == "armadura"
+
+
+def arma_visible(foto) -> bool:
+    """Hay arma puesta (foto nueva o equipado frontal por clase)."""
+    if getattr(foto, "arma_equipada", None):
+        return True
+    equipado = getattr(foto, "equipado", None)
+    return bool(equipado) and clase_de_id(equipado) == "arma"
 
 
 def rect_puerta(area: pygame.Rect, direccion: str) -> pygame.Rect:
@@ -147,6 +171,18 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         jx = pos_jugador[0] - img_jugador.get_width() // 2 + desplaza[0]
         jy = pos_jugador[1] - img_jugador.get_height() + TAM // 2 + desplaza[1] + hop
     sup.blit(img_jugador, (jx, jy))
+    if armadura_visible(foto):  # escudo encima, hacia donde mira
+        esc = sprites.escudo()
+        dx, dy = OFFSET_ESCUDO.get(facing, (0, 0))
+        cx = jx + img_jugador.get_width() // 2 + dx
+        cy = jy + img_jugador.get_height() // 2 + dy
+        sup.blit(esc, (cx - esc.get_width() // 2, cy - esc.get_height() // 2))
+    if arma_visible(foto):  # espada rotada cerca de las manos, sobre todo
+        esp = sprites.espada(facing)
+        dx, dy = OFFSET_ESPADA.get(facing, (17, 10))
+        cx = jx + img_jugador.get_width() // 2 + dx
+        cy = jy + img_jugador.get_height() // 2 + dy
+        sup.blit(esp, (cx - esp.get_width() // 2, cy - esp.get_height() // 2))
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
     for i, enemigo in enumerate(vivos):
         cx, cy = pos_enemigo_animada(area, i, total)

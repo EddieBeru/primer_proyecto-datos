@@ -12,15 +12,25 @@ AYUDA = ("comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar
          "deshacer · foto · guardar [ruta] · cargar <ruta> · fin · salir · ayuda")
 
 
+def _cierre_puerta(v) -> str:
+    cierre = v.get("cierre_en")
+    if cierre is not None and not v["cerrada"]:
+        return f"\u23f3{cierre}"
+    return ""
+
+
+def _etiqueta_enemigo(e) -> str:
+    return f"{e['instancia']}({e['tipo'][:12]}:{e['vida']})"
+
+
 def renderizar(foto, salida=print) -> None:
     j = foto.jugador
     salida(f"— sala {foto.sala_id} {foto.sala_nombre} [{foto.estado}]")
     puertas = ", ".join(
-        f"{d}→{v['destino']}{'🔒' if v['cerrada'] else ''}"
-        f"{f'⏳{v.get(\"cierre_en\")}' if v.get('cierre_en') is not None and not v['cerrada'] else ''}"
+        f"{d}\u2192{v['destino']}{'\U0001f512' if v['cerrada'] else ''}{_cierre_puerta(v)}"
         for d, v in sorted(foto.puertas.items()))
     salida(f"  puertas: {puertas or '—'}")
-    salida(f"  enemigos: {', '.join(f'{e["instancia"]}({e["tipo"][:12]}:{e["vida"]})' for e in foto.enemigos) or '—'}")
+    salida(f"  enemigos: {', '.join(_etiqueta_enemigo(e) for e in foto.enemigos) or '—'}")
     salida(f"  suelo: {', '.join(foto.objetos_suelo) or '—'}")
     trampas = ", ".join(f"{t['instancia']}{'' if t['armada'] else '(off)'}" for t in foto.trampas)
     salida(f"  trampas: {trampas or '—'}")

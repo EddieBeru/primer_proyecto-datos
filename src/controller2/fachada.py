@@ -43,6 +43,8 @@ class FotoEstado:
     enemigos: list = field(default_factory=list)
     inventario: list = field(default_factory=list)
     equipado: str | None = None
+    armadura_equipada: str | None = None
+    arma_equipada: str | None = None
     pergaminos: int = 0
     mensajes: list = field(default_factory=list)
     presupuesto: int = 0
@@ -316,10 +318,14 @@ class Fachada:
             return self._fail("Nada en esa posición.")
         self.estado.jugador.inventario = inv.a_lista()
         ficha = self.catalogo.get(item)
+        # Equipo excluyente: solo un objeto a la vez; equipar uno suelta el otro
+        # (sigue en la mochila, solo pierde el bonus). Deshacer restaura ambos.
         if getattr(ficha, "clase", "") == "arma":
             self.estado.jugador.arma_equipada = item
+            self.estado.jugador.armadura_equipada = None
         elif getattr(ficha, "clase", "") == "armadura":
             self.estado.jugador.armadura_equipada = item
+            self.estado.jugador.arma_equipada = None
         self.pila.apilar({"op": "equipar", "datos": {"orden_antes": orden_antes,
                           "arma_antes": arma_antes, "armadura_antes": armadura_antes},
                           "eventos": []})
@@ -562,7 +568,9 @@ class Fachada:
             jugador={"vida": j.vida_actual, "vida_max": j.vida_max, "ataque": j.ataque,
                      "defensa": j.defensa, "velocidad": j.velocidad, "efectos": dict(j.efectos)},
             enemigos=enemigos, inventario=list(j.inventario),
-            equipado=j.inventario[0] if j.inventario else None, pergaminos=pergaminos,
+            equipado=j.inventario[0] if j.inventario else None,
+            armadura_equipada=j.armadura_equipada,
+            arma_equipada=j.arma_equipada, pergaminos=pergaminos,
             mensajes=self.mensajes[-20:], presupuesto=self.estado.presupuesto_restante,
             estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa)
 
