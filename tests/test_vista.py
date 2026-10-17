@@ -345,7 +345,7 @@ def test_recoger_y_atacar_por_proximidad(app):
     area = app.area_sala()
     assert app.recoger_cercano() is None and app.aviso  # lejos: aviso local
     assert app.atacar_cercano() is None
-    _teletransportar(app, *capas.pos_suelo(area, 0))
+    _teletransportar(app, *app._spots()[0][0])
     assert app.recoger_cercano() == 'recoger antorcha-01'
     assert app.manejar_tecla(pygame.K_f) == 'recoger antorcha-01'
     assert 'antorcha-01' in app.foto.inventario
@@ -358,8 +358,33 @@ def test_geometria_dentro_de_sala(app):
     area = app.area_sala()
     for direccion in ('N', 'S', 'E', 'O'):
         assert area.collidepoint(capas.rect_puerta(area, direccion).center)
-    assert area.collidepoint(capas.pos_suelo(area, 0))
     assert area.collidepoint(capas.pos_enemigo(area, 0))
+    for cx, cy in capas.spots_estaticos(area):
+        assert area.collidepoint(cx, cy)
+
+
+def test_spots_esquivan_puertas_y_banda(app):
+    from src.view import capas
+    from src.view.sprites import TAM
+    area = app.area_sala()
+    puertas = [capas.rect_puerta(area, d) for d in ('N', 'S', 'E', 'O')]
+    banda = capas.banda_enemiga(area)
+    for cx, cy in capas.spots_estaticos(area):
+        tile = pygame.Rect(cx - TAM // 2, cy - TAM // 2, TAM, TAM)
+        assert area.contains(tile)
+        assert not any(tile.colliderect(p) for p in puertas)
+        assert not tile.colliderect(banda)
+
+
+def test_spots_estables_al_recoger_y_al_recargar(app):
+    from src.view import capas
+    area = app.area_sala()
+    memoria = {}
+    antes, _ = capas.asignar_spots(area, 1, [], ['a', 'b'], memoria)
+    tras_recoger, _ = capas.asignar_spots(area, 1, [], ['b'], memoria)
+    assert tras_recoger[0] == antes[1]  # 'b' conserva su puesto
+    fresca, _ = capas.asignar_spots(area, 1, [], ['a', 'b'], {})
+    assert fresca == antes  # recarga sin memoria: mismo scatter
 
 
 # ------------------------------------------------------- pelean de vuelta + ritmo

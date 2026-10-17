@@ -50,6 +50,7 @@ class VistaApp:
         self.sel_suelo = 0
         self.sel_inv = 0
         self.ref_vida: dict[str, int] = {}
+        self.memoria_spots: dict = {}  # (sala, tipo, id) -> puesto estable
         self.ultimo_error: str | None = None
         self.reporte: dict | None = None
         self.corriendo = True
@@ -89,6 +90,7 @@ class VistaApp:
             self.pantalla = "error"
             raise
         self._reset_vista()
+        self.memoria_spots = {}  # partida nueva: scatter reproducible
         self.pantalla = "juego"
         return self.foto
 
@@ -263,12 +265,22 @@ class VistaApp:
         objetivo = self._cercano(puntos, capas.RADIO_ENEMIGO, "enemigo")
         return f"atacar {objetivo}" if objetivo else None
 
+    def _spots(self) -> tuple[list, list]:
+        """Puestos (items, trampas) estables de la sala actual."""
+        if self.foto is None:
+            return [], []
+        return capas.asignar_spots(
+            self.area_sala(), self.foto.sala_id,
+            list(self.foto.trampas or []),
+            list(self.foto.objetos_suelo or []),
+            self.memoria_spots)
+
     def recoger_cercano(self) -> str | None:
         """Id del suelo a rango, o None con aviso."""
-        area = self.area_sala()
         suelo = list(self.foto.objetos_suelo or [])
+        puntos_items, _ = self._spots()
         puntos = [(c[0], c[1], item)
-                  for item, c in ((o, capas.pos_suelo(area, i)) for i, o in enumerate(suelo))]
+                  for item, c in zip(suelo, puntos_items)]
         objetivo = self._cercano(puntos, capas.RADIO_OBJETO, "objeto")
         return f"recoger {objetivo}" if objetivo else None
 
@@ -424,7 +436,8 @@ class VistaApp:
                                      self.ref_vida, self.dev,
                                      self.facing, desplaza,
                                      (moviendo, self.tick_anim, self.tick_total),
-                                     self._pos_px(), self.golpe, alcance)
+                                     self._pos_px(), self.golpe, alcance,
+                                     spots=self._spots())
             if self.golpe_ttl > 0:
                 self.golpe_ttl -= 1
                 if self.golpe_ttl == 0:

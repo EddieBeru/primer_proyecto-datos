@@ -60,18 +60,105 @@ def rect_puerta(area: pygame.Rect, direccion: str) -> pygame.Rect:
     return pygame.Rect(x, y, TAM, TAM)
 
 
-def pos_suelo(area: pygame.Rect, i: int) -> tuple[int, int]:
-    """Centro del i-ésimo objeto del suelo (misma geometría que dibujar)."""
-    x = area.x + 12 + (i % 6) * (TAM + 6)
-    y = area.y + area.h - 2 * (TAM + 6) + (i // 6) * (TAM + 6)
-    return x + TAM // 2, y + TAM // 2
+SPOTS_COLS = 6  # retícula base de puestos estáticos (columnas)
+SPOTS_FILAS = 4  # retícula base de puestos estáticos (filas)
+SPOT_JITTER = 22  # desvío determinista del puesto (px)
+SPOT_MARGEN = 36  # margen al borde del área para el centro del puesto
+
+
+def banda_enemiga(area: pygame.Rect) -> pygame.Rect:
+    """Zona donde dibujan los enemigos (rejilla 4x2); los puestos la esquivan."""
+    return pygame.Rect(area.centerx - 116, area.centery - 60, 232, 120)
+
+
+def _jitter(k: int) -> tuple[int, int]:
+    """Desvío pseudoaleatorio fijo del puesto k: mismo tablero en cada sala."""
+    r = (1103515245 * (k * 3 + 7) + 12345) & 0x7FFFFFFF
+    dx = r % (2 * SPOT_JITTER + 1) - SPOT_JITTER
+    r = (1103515245 * (r >> 7) + 12345) & 0x7FFFFFFF
+    dy = r % (2 * SPOT_JITTER + 1) - SPOT_JITTER
+    return dx, dy
+
+
+def spots_estaticos(area: pygame.Rect) -> list[tuple[int, int]]:
+    """Puestos con jitter fijo repartidos por el área.
+
+    Descarta los que pisan alguna puerta (con margen) o la banda enemiga.
+    """
+    x0, x1 = area.x + SPOT_MARGEN, area.right - SPOT_MARGEN
+    y0, y1 = area.y + SPOT_MARGEN, area.bottom - SPOT_MARGEN
+    excluir = [rect_puerta(area, d).inflate(28, 28) for d in POS_PUERTA]
+    excluir.append(banda_enemiga(area))
+    libres: list[tuple[int, int]] = []
+    for k in range(SPOTS_COLS * SPOTS_FILAS):
+        col, fila = k % SPOTS_COLS, k // SPOTS_COLS
+        dx, dy = _jitter(k)
+        x = x0 + (x1 - x0) * col // max(1, SPOTS_COLS - 1) + dx
+        y = y0 + (y1 - y0) * fila // max(1, SPOTS_FILAS - 1) + dy
+        tile = pygame.Rect(x - TAM // 2, y - TAM // 2, TAM, TAM)
+        if area.contains(tile) and not any(tile.colliderect(e) for e in excluir):
+            libres.append((x, y))
+    return libres or [(area.centerx, area.centery)]
+
+
+def _hash_slot(texto: str, n: int) -> int:
+    """FNV-1a: estable entre procesos (``hash()`` cambia con PYTHONHASHSEED)."""
+    h = 2166136261
+    for b in texto.encode("utf-8"):
+        h = ((h ^ b) * 16777619) & 0xFFFFFFFF
+    return h % max(1, n)
+
+
+def _ident(x, i: int) -> str:
+    if isinstance(x, dict):
+        return str(x.get("instancia", f"t{i}"))
+    return str(x)
+
+
+def asignar_spots(area: pygame.Rect, sala: int, trampas, items,
+                  memoria: dict | None = None) -> tuple[list, list]:
+    """Puntos (items, trampas) estables por identidad, en orden de entrada.
+
+    ``crc32(sala|tipo|id)`` elige puesto; si está ocupado prueba el siguiente
+    libre. ``memoria`` congela la asignación de la sesión: recoger o soltar
+    nunca mueve a los demás. Sin memoria el resultado es el mismo para el
+    mismo contenido (recarga/reinicio reproducible).
+    """
+    spots = spots_estaticos(area)
+    n = len(spots)
+    memoria = memoria if memoria is not None else {}
+    usados: set[int] = set()
+    vistos: dict[tuple, int] = {}
+    out: dict[str, list] = {"item": [], "trampa": []}
+    for tipo, lista in (("trampa", list(trampas or [])), ("item", list(items or []))):
+        for i, bruto in enumerate(lista):
+            ident = _ident(bruto, i)
+            base = (sala, tipo, ident)
+            k = vistos.get(base, 0)
+            vistos[base] = k + 1
+            clave = base + (k,)
+            slot = memoria.get(clave)
+            if slot is None or slot in usados:
+                inicio = _hash_slot(f"{sala}|{tipo}|{ident}|{k}", n)
+                slot = next(((inicio + d) % n for d in range(n)
+                             if (inicio + d) % n not in usados), inicio)
+            usados.add(slot)
+            memoria[clave] = slot
+            out[tipo].append(spots[slot])
+    return out["item"], out["trampa"]
 
 
 def pos_enemigo(area: pygame.Rect, i: int) -> tuple[int, int]:
-    """Centro del slot del i-ésimo enemigo vivo (misma geometría que dibujar)."""
-    x = area.x + 20 + (i % 4) * (TAM + 14)
-    y = area.y + area.h // 2 - TAM // 2
-    return x + TAM // 2, y + TAM // 2
+    """Centro del slot del i-ésimo enemigo vivo (misma geometría que dibujar).
+
+    Rejilla centrada 4x2 (hasta 8): ningún slot tapa las puertas N/S/E/O.
+    """
+    sep = TAM + 20
+    col = i % 4
+    fila = (i // 4) % 2
+    x = area.centerx + (col * 2 - 3) * sep // 2
+    y = area.centery + (fila * 2 - 1) * 28
+    return x, y
 
 
 def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int]:
@@ -121,11 +208,19 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
 
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                      sprites: SpriteManager, sel_suelo: int = 0,
-                     fuente: pygame.Font | None = None) -> None:
-    """Capa 2: objetos del suelo + trampas (armada vs desactivada)."""
+                     fuente: pygame.Font | None = None,
+                     spots: tuple[list, list] | None = None) -> None:
+    """Capa 2: objetos del suelo + trampas (armada vs desactivada).
+
+    ``spots`` = (items, trampas) ya asignados; None = calcular sin memoria.
+    """
     suelo = list(foto.objetos_suelo or [])
+    trampas = list(foto.trampas or [])
+    if spots is None:
+        spots = asignar_spots(area, foto.sala_id, trampas, suelo)
+    puntos_items, puntos_trampas = spots
     for i, item_id in enumerate(suelo):
-        cx, cy = pos_suelo(area, i)
+        cx, cy = puntos_items[i]
         x, y = cx - TAM // 2, cy - TAM // 2
         sup.blit(sprites.sprite(item_id), (x, y))
         if i == sel_suelo % max(len(suelo), 1):
@@ -136,9 +231,9 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                 fondo = pygame.Rect(x, y + TAM + 2, etiqueta.get_width() + 4, 18)
                 sup.fill(paleta.ETIQUETA_FONDO, fondo)
                 sup.blit(etiqueta, (x + 2, y + TAM + 2))
-    for j, trampa in enumerate(foto.trampas or []):
-        x = area.x + 12 + (j % 6) * (TAM + 6)
-        y = area.y + 12 + (j // 6) * (TAM + 6)
+    for j, trampa in enumerate(trampas):
+        cx, cy = puntos_trampas[j]
+        x, y = cx - TAM // 2, cy - TAM // 2
         img = sprites.sprite(str(trampa.get("tipo", "trampa")))
         if not trampa.get("armada", True):
             img = img.copy()
