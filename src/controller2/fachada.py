@@ -502,13 +502,17 @@ class Fachada:
             if tipo and tipo in self.catalogo:
                 vmax = int(getattr(self.catalogo[tipo], "vida_max", 0) or 0) or None
             ejecutar_regeneracion(self.estado, inst, int(d.get("cantidad", 1)), vmax)
-            self.pila.apilar({"op": "regeneracion", "datos": {"instancia": inst,
-                             "vida_antes": antes}, "eventos": []})
-            # Reprograma siguiente pulso si sigue vivo.
+            # Reprograma siguiente pulso si sigue vivo; su seq va a la pila
+            # para que deshacer corte también la regeneración pendiente.
             vivo = any(e.instancia == inst and e.vivo for s in self.estado.salas.values() for e in s.enemigos)
+            seq_pulso = None
             if vivo:
-                self.agenda.programar(self.reloj.ahora + REGENERACION_PERIODO,
-                                      "regeneracion", dict(d))
+                ev2 = self.agenda.programar(self.reloj.ahora + REGENERACION_PERIODO,
+                                            "regeneracion", dict(d))
+                seq_pulso = ev2.seq
+            self.pila.apilar({"op": "regeneracion", "datos": {"instancia": inst,
+                             "vida_antes": antes},
+                             "eventos": [seq_pulso] if seq_pulso is not None else []})
         elif ev.tipo == "turno" and (d.get("kind") == "enemigo" or d.get("actor", "").startswith("e")):
             actor = d.get("actor")
             sala_a, obj = None, None
@@ -587,7 +591,7 @@ class Fachada:
         for e in (sala.enemigos if sala else []):
             enemigos.append({"instancia": e.instancia, "tipo": e.tipo_id,
                              "comportamiento": comportamiento_de(self.catalogo, e.tipo_id),
-                             "vida": e.vida_actual})
+                             "vida": e.vida_actual, "activa": bool(e.activa)})
         j = self.estado.jugador
         return FotoEstado(
             sala_id=self.estado.sala_actual, sala_nombre=sala.nombre if sala else "?",

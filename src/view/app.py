@@ -76,9 +76,21 @@ class VistaApp:
         self.paso_dir = (0.0, 0.0)  # dirección del paso visible actual
         self.paso_push = [0.0, 0.0]  # desplazamiento del paso, suavizado
         self.trampas_fuego = {}  # {instancia: ttl} trampas recién disparadas
+        self.golpes = {}  # {instancia enemiga: ttl} embestidas enemigas recién vistas
         self.cripta_actual: str | None = None  # para "jugar de nuevo" en fin
 
     # -- ciclo de vida (guía §1/§9) --
+    def preparar_menu(self, criptas: list, puede_continuar: bool) -> None:
+        """Carga las tarjetas de cripta y deja el menú principal visible.
+
+        Arranque normal (main): el juego abre SIEMPRE en el menú; pulsar 1
+        entra a la selección. `listar_para_seleccion` sigue disponible para
+        saltar directo a la selección (carga de partida, pruebas).
+        """
+        self.criptas = list(criptas)
+        self.puede_continuar = puede_continuar
+        self.pantalla = "inicio"
+
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
         self.criptas = list(criptas)
         self.puede_continuar = puede_continuar
@@ -148,6 +160,7 @@ class VistaApp:
         self.paso_dir = (0.0, 0.0)
         self.paso_push = [0.0, 0.0]
         self.trampas_fuego = {}
+        self.golpes = {}
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -162,6 +175,10 @@ class VistaApp:
     def _fases_trampas(self) -> dict[str, float]:
         """{instancia: fase 0..1} de las trampas que están chispeando."""
         return {inst: ttl / 12 for inst, ttl in self.trampas_fuego.items()}
+
+    def _fases_golpes(self) -> dict[str, float]:
+        """{instancia: fase 0..1} de los enemigos que embisten al atacarte."""
+        return {inst: ttl / 12 for inst, ttl in self.golpes.items()}
 
     def _pintar_cargando_sala(self) -> tuple[str | None, int]:
         """Píldora visible durante la petición de la sala destino.
@@ -211,6 +228,14 @@ class VistaApp:
                     nuevos.append(m)
             self.trampas_fuego = {str(m).rsplit("|", 1)[-1]: 12
                                   for m in nuevos if "|efecto|trampa|" in str(m)}
+            # Embestida enemiga: el motor anota `dano|<instancia enemiga>|N`
+            # al atacarte; esa instancia embiste y destella en la vista.
+            self.golpes = {}
+            for trozo in nuevos:
+                campos = str(trozo).split("|")
+                if len(campos) >= 4 and campos[1] == "dano" \
+                        and campos[2] not in ("jugador", "trampa"):
+                    self.golpes[campos[2]] = 12
             direccion = texto.strip().upper()
             if direccion in ("N", "S", "E", "O"):
                 self.facing = direccion
@@ -621,7 +646,8 @@ class VistaApp:
                                      spots=self._spots(),
                                      tinte_dano=self.dano_ttl > 0, tajo=tajo,
                                      espejo=self.espejo,
-                                     trampas_fuego=self._fases_trampas())
+                                     trampas_fuego=self._fases_trampas(),
+                                     golpes=self._fases_golpes())
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,
@@ -637,6 +663,9 @@ class VistaApp:
                 # El chispazo dura 12 frames como el resto del feedback.
                 self.trampas_fuego = {i: ttl - 1 for i, ttl in self.trampas_fuego.items()
                                       if ttl > 1}
+            if self.golpes:
+                self.golpes = {i: ttl - 1 for i, ttl in self.golpes.items()
+                               if ttl > 1}
             if self.aviso and self.aviso_ttl > 0:
                 ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
                 self.aviso_ttl -= 1

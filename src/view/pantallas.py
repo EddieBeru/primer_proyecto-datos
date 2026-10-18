@@ -126,19 +126,23 @@ def boton(sup: pygame.Surface, rect: pygame.Rect, tecla: str, etiqueta: str,
 
 
 def _prota(sup: pygame.Surface, sprites: SpriteManager | None,
-           centro: tuple[int, int], escala: int = 3,
+           centro: tuple[int, int], escala: float = 2.0,
            espejo: bool = False, tinte=None) -> None:
-    """El prota en grande para los menús (frame quieto, sin implementos)."""
+    """El prota en grande para los menús.
+
+    Usa el PNG nativo (`jugador_grande`, smoothscale): en partida el sprite
+    se reduce a TAM para el look retro, pero en menús esa reducción se veía
+    pixelada al agrandarla. `escala` = factor sobre el arte nativo 117×161.
+    """
     if sprites is None:
         return
     try:
-        img, _ = sprites.jugador_frame(False, 0, "S", 0, espejo=espejo)
+        img = sprites.jugador_grande(escala, espejo)
     except Exception:
-        img = sprites.icono()
-        if espejo:
-            img = pygame.transform.flip(img, True, False)
-    img = pygame.transform.scale(
-        img, (img.get_width() * escala, img.get_height() * escala))
+        img, _ = sprites.jugador_frame(False, 0, "S", 0, espejo=espejo)
+        img = pygame.transform.scale(
+            img, (round(img.get_width() * escala * 3),
+                  round(img.get_height() * escala * 3)))
     if tinte is not None:
         img = img.copy()
         img.fill(tinte, special_flags=pygame.BLEND_MULT)
@@ -206,8 +210,8 @@ def pantalla_inicio(sup: pygame.Surface, fuente: pygame.Font,
     sub = _fuente(T_CUERPO).render("explora · saquea · sobrevive", True, GRIS)
     sup.blit(sub, (sup.get_width() // 2 - sub.get_width() // 2, 152))
 
-    # El prota mira los botones (arte grande, sin fondos ni cajas).
-    _prota(sup, sprites, (796, 396), 4, espejo=True)
+    # El prota mira los botones (arte nativo, sin fondos ni cajas).
+    _prota(sup, sprites, (800, 400), 1.9, espejo=True)
 
     rects = [
         pygame.Rect(120, 240, 460, 74),
@@ -305,7 +309,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    tinte_dano: bool = False,
                    tajo: tuple[str, float] | None = None,
                    espejo: bool | None = None,
-                   trampas_fuego: dict[str, float] | None = None) -> None:
+                   trampas_fuego: dict[str, float] | None = None,
+                   golpes: dict[str, float] | None = None) -> None:
     """1.4 Sala + actores + HUD. Toda la lectura sale de la foto."""
     sup.fill(FONDO)
     titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
@@ -319,7 +324,7 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
                           pos_jugador, golpe, alcance,
-                          tinte_dano, tajo, espejo)
+                          tinte_dano, tajo, espejo, golpes)
     # Mejoras 2026-10: sala oscura -> velo con halo (o luz plena con antorcha).
     capas.dibujar_oscuridad(sup, area_sala, foto, pos_jugador)
     barra_x = area_sala.right + 12
@@ -394,7 +399,7 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     sup.blit(etiqueta, (sup.get_width() // 2 - etiqueta.get_width() // 2, 96))
 
     # Arte: el prota (rojo si cayó), más escudo y espada como botín tras ganar.
-    _prota(sup, sprites, (330, 300), 3,
+    _prota(sup, sprites, (330, 300), 1.4,
            tinte=None if gano else (255, 120, 120))
     if gano:
         _adorno(sup, sprites, "escudo", (238, 236), 2)

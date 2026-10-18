@@ -213,6 +213,53 @@ def test_humanizar_bitacora():
     assert texto_vista.humanizar("8|raro|actor|detalle") == "detalle"
 
 
+def test_jugador_grande_nativo_y_cacheado(app):
+    """Menús: el prota sale del PNG nativo (nítido), no del frame TAM."""
+    sp = app.sprites
+    chico = sp.jugador_frame(False, 0, "S", 0)[0]
+    grande = sp.jugador_grande(2.0)
+    assert grande.get_width() > chico.get_width() * 3
+    assert grande.get_height() > chico.get_height() * 3
+    assert grande is sp.jugador_grande(2.0)  # cache por (escala, espejo)
+    espejado = sp.jugador_grande(2.0, espejo=True)
+    assert espejado.get_size() == grande.get_size()
+
+
+def test_arranque_abre_en_el_menu_principal(app):
+    """Arranque normal: siempre menú; "1 Jugar" lleva a la selección.
+
+    Antes, con una sola cripta el main saltaba directo a la partida y el
+    menú nunca se veía.
+    """
+    from src.view.app import VistaApp
+    vista = VistaApp(app.ses, ventana=pygame.Surface((960, 640)))
+    vista.preparar_menu([{"id": "a", "nombre": "A", "salas": 6, "dificultad": 1}],
+                        False)
+    assert vista.pantalla == "inicio"
+    vista.dibujar()  # pinta el menú principal sin crashear
+    assert vista.manejar_tecla(pygame.K_1) == "@jugar"
+    assert vista.pantalla == "seleccion"
+    vista.dibujar()
+
+
+def test_embestida_enemiga_marca_al_agresor(app):
+    """Turno enemigo en la misma sala: la vista marca la embestida del atacante.
+
+    e1-1 es el guardián de la sala 1 (vel 5): tras dos esperas su turno cae
+    y ataca; el motor anota `dano|e1-1|N` y la vista lo detecta.
+    """
+    assert all("activa" in e for e in app.foto.enemigos)
+    for _ in range(6):
+        ok, msg, _ = app.enviar("esperar")
+        assert ok, msg
+        if app.golpes:
+            break
+    assert app.golpes, app.foto.mensajes[-3:]
+    assert next(iter(app.golpes)) == "e1-1"
+    assert 0 < app._fases_golpes()["e1-1"] <= 1
+    app.dibujar()  # pinta la embestida sin crashear
+
+
 def test_fin_teclas_jugar_de_nuevo_y_menu(app):
     for comando in RUTA_VICTORIA:
         ok, msg, _ = app.enviar(comando)

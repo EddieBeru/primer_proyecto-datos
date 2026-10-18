@@ -427,3 +427,19 @@ helpers (botón con tecla, panel). Todo el cromo va a escuadra: rectángulos
 duros sin redondeos (insignias de tecla cuadradas, pepperoni cuadrado,
 pizza cuadrada en la carga), coherente con el pixel-art. Todo dibujo local:
 sin cambios de contrato K1-K5.
+
+**Embestida enemiga (18/10/2026).** Cuando un enemigo te ataca, la vista lo
+señala: la foto expone `activa` por enemigo (dormido vs despierto) y el App
+diffea la bitácora — la línea `dano|<instancia>|N` solo la produce
+`Fachada.ataque_enemigo` — para marcar al agresor (`app.golpes`, 12 frames).
+`capas.dibujar_actores` lo embiste hasta 10 px hacia el jugador con destello
+rojo al impactar: el mismo lenguaje que la embestida del prota (decisión 41)
+y el mismo pipeline que el chispazo de trampas (decisión 44). El motor no
+cambia; K5 solo gana un campo booleano en la lista de enemigos de la foto.
+Arranque: el juego abre SIEMPRE en el menú principal (`VistaApp.preparar_menu`
+carga las tarjetas sin cambiar de pantalla); "1 Jugar" entra a la selección,
+haya una o varias criptas.
+Arte de menús: `SpriteManager.jugador_grande(escala, espejo)` parte del PNG
+nativo (117×161) con `smoothscale` y caché, en vez de reescalar el frame TAM
+del juego (ese queda para la sala, look retro). `pantallas._prota` lo usa en
+inicio (1.9×) y fin (1.4×), con fallback al frame si falta el PNG.

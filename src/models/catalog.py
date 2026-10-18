@@ -14,6 +14,8 @@ class Enemy:
     velocidad: int  # > 0
     comportamiento: Literal["guardián", "errante", "rastreador"]
     suelta: Optional[list[str]] = None
+    # Opcional (§2.10): cantidad curada cada 200, sin pasar vida_max.
+    regeneracion: Optional[int] = None
     clase: str = field(default="enemigo", init=False)
 
     @classmethod
@@ -27,7 +29,19 @@ class Enemy:
             velocidad=data["velocidad"],
             comportamiento=data["comportamiento"],
             suelta=data.get("suelta"),
+            regeneracion=_regen(data.get("regeneracion", data.get("regen"))),
         )
+
+
+def _regen(valor) -> Optional[int]:
+    """Campo opcional de regeneración: None si no viene o no es positivo."""
+    if valor in (None, False):
+        return None
+    try:
+        n = int(valor)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
 
 def _pulso(valor) -> Optional[int]:
     """Campo opcional de efecto (``veneno``/``quemadura``): None si no viene,

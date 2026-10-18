@@ -331,7 +331,8 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     alcance: frozenset = frozenset(),
                     tinte_dano: bool = False,
                     tajo: tuple[str, float] | None = None,
-                    espejo: bool | None = None) -> None:
+                    espejo: bool | None = None,
+                    golpes: dict[str, float] | None = None) -> None:
     """Capa 3: jugador + enemigos con barra de vida y color por comportamiento.
 
     `facing` dibuja hacia dónde mira el personaje; `desplaza` es un offset
@@ -341,6 +342,8 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     `tinte_dano` enrojece al jugador (golpe recibido); `tajo=(facing, fase)`
     dibuja la estela del espadazo (feedback de ataque con arma); `espejo`
     conserva el volteo horizontal al mirar N/S (el App lo mantiene).
+    `golpes` = {instancia: fase 0..1}: el enemigo embiste hacia el jugador y
+    destella al atacarte (mismo lenguaje que la embestida del prota).
     """
     ref_vida = ref_vida or {}
     moviendo, tick, total = paso_jugador
@@ -372,9 +375,24 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         cy = jy + img_jugador.get_height() // 2
         dibujar_tajo(sup, (cx, cy), tajo[0], tajo[1])
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
+    golpes = golpes or {}
+    px = jx + img_jugador.get_width() // 2
+    py = jy + img_jugador.get_height() // 2
     for i, enemigo in enumerate(vivos):
         cx, cy = pos_enemigo_animada(area, i, total)
         img = sprites.enemigo(str(enemigo.get("comportamiento", "")))
+        fase = golpes.get(enemigo.get("instancia", ""), 0.0)
+        if fase > 0:
+            # Embestida enemiga: se lanza hacia el jugador y vuelve (misma
+            # duración que el resto del feedback); destella al impactar.
+            dx, dy = px - cx, py - cy
+            dist = (dx * dx + dy * dy) ** 0.5
+            empuje = round(10 * fase)
+            if dist > 0.001 and empuje:
+                cx += round(dx / dist * empuje)
+                cy += round(dy / dist * empuje)
+            if fase > 0.45:
+                img = _tinte_rojo(img)
         sup.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
         vida = int(enemigo.get("vida", 0))
         bx, by = cx - TAM // 2, cy - TAM // 2  # casilla del enemigo

@@ -22,6 +22,7 @@ from src.controller2 import (
     RelojVirtual,
     SalaViva,
     TrampaInstancia,
+    activar_sala,
     actualizar_estado,
     aplicar_inversa,
     ataque_enemigo,
@@ -33,6 +34,7 @@ from src.controller2 import (
     ejecutar_fin_efecto,
     ejecutar_quemadura,
     ejecutar_rearme,
+    ejecutar_regeneracion,
     envenenar,
     formatear,
     hay_derrota,
@@ -669,6 +671,39 @@ def test_mover_enemigo_cambia_sala():
     est.salas[2].enemigos = [EnemigoInstancia("e1", "e", 10, 2)]
     assert mover_enemigo(est, "e1", 3)
     assert est.salas[2].enemigos == [] and est.salas[3].enemigos[0].sala_actual == 3
+
+
+def test_enemigo_con_regeneracion_se_cura_con_tope():
+    fac, prov = fachada_fake()
+    jefe = EnemigoInstancia("e-jefe", "jefe-cripta-01", 5, 1)
+    fac.estado.salas[1].enemigos.append(jefe)
+    activar_sala(fac.estado, fac.agenda, fac.reloj.ahora, 1, fac.catalogo)
+    assert any(ev.tipo == "regeneracion" for ev in fac.agenda)
+    for _ in range(300):  # avanza hasta el primer pulso
+        if jefe.vida_actual > 5:
+            break
+        fac.avanzar()
+    assert jefe.vida_actual == 7  # 5 + regeneracion 2
+    jefe.vida_actual = 79
+    ejecutar_regeneracion(fac.estado, "e-jefe", 2, 80)
+    assert jefe.vida_actual == 80  # nunca pasa vida_max
+
+
+def test_deshacer_regeneracion_corta_pulsos():
+    fac, prov = fachada_fake()
+    jefe = EnemigoInstancia("e-jefe", "jefe-cripta-01", 5, 1)
+    fac.estado.salas[1].enemigos.append(jefe)
+    activar_sala(fac.estado, fac.agenda, fac.reloj.ahora, 1, fac.catalogo)
+    for _ in range(300):
+        if jefe.vida_actual > 5:
+            break
+        fac.avanzar()
+    assert jefe.vida_actual == 7
+    assert any(ev.tipo == "regeneracion" for ev in fac.agenda)  # siguiente pulso
+    fac.estado.jugador.inventario.append("pergamino-01")
+    ok, _ = deshacer_una(fac.estado, fac.agenda, fac.pila, fac.catalogo)
+    assert ok and jefe.vida_actual == 5
+    assert not any(ev.tipo == "regeneracion" for ev in fac.agenda)
 
 
 def test_turno_reprograma_y_decae_rastro():

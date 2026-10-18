@@ -104,13 +104,9 @@ def modo_vista(cfg):
              "dificultad": getattr(c, "dificultad", "?")}
             for c in criptas.criptas
         ]
-        app.listar_para_seleccion(tarjetas, os.path.isfile(app.save_path))
-        if len(tarjetas) == 1:
-            try:
-                app.iniciar_partida(str(tarjetas[0]["id"]), semilla=cfg.semilla)
-            except CriptaError as e:
-                print(f"Error al iniciar: {e}")
-                return 1
+        # Siempre se abre en el menú principal; "1 Jugar" lleva a la
+        # selección (aunque haya una sola cripta).
+        app.preparar_menu(tarjetas, os.path.isfile(app.save_path))
     return app.ejecutar()
 
 

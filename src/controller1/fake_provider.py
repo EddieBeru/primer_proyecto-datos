@@ -63,6 +63,7 @@ def _fichas_fijas() -> dict[str, Entidad]:
             velocidad=6,
             comportamiento="guardián",
             suelta=["pocion-roja-01", "antorcha-01"],
+            regeneracion=2,
         ),
         # equipo / consumibles
         "espada-hierro-01": Weapon(

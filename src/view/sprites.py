@@ -224,6 +224,7 @@ class SpriteManager:
         self._frame_cache: dict[tuple[int, str, int, int, int], pygame.Surface] = {}
         self._espada_cache: dict[bool, pygame.Surface] = {}
         self._escudo_cache: dict[bool, pygame.Surface] = {}
+        self._grande_cache: dict[tuple[float, bool], pygame.Surface] = {}
         self._puertas = {
             estado: _mosaico(color, tam=TAM - 8)
             for estado, color in COLORES_PUERTA.items()
@@ -362,6 +363,44 @@ class SpriteManager:
     @property
     def jugador(self) -> pygame.Surface:
         return self._jugador
+
+    def jugador_grande(self, escala: float = 2.0,
+                       espejo: bool = False) -> pygame.Surface:
+        """PNG nativo del prota para menús, nítido a cualquier tamaño.
+
+        En partida el arte se reduce a TAM (nearest, look retro); en los
+        menús se parte del PNG original (117×161) y se escala nearest por
+        defecto (sin antialiasing; `suavizado=True` cambia a smoothscale).
+        Sin PNG cae al frame de juego escalado (nunca rompe).
+        """
+        clave = (round(float(escala), 2), bool(espejo))
+        if clave in self._grande_cache:
+            return self._grande_cache[clave]
+        ruta = ASSETS_DIR / JUGADOR_PNGS[0]
+        img = None
+        if ruta.is_file():
+            try:
+                img = pygame.image.load(str(ruta))
+                try:
+                    img = img.convert_alpha()
+                except pygame.error:  # sin video mode (tests): tal cual
+                    pass
+            except pygame.error:
+                img = None
+        if img is None:
+            base = self._jugador_frames[0] if self._jugador_frames else self._jugador
+            img = pygame.transform.scale(
+                base, (max(1, round(base.get_width() * escala * 3)),
+                       max(1, round(base.get_height() * escala * 3))))
+        else:
+            escalar = pygame.transform.smoothscale if self.suavizado \
+                else pygame.transform.scale  # nearest: sin antialiasing
+            img = escalar(img, (max(1, round(img.get_width() * escala)),
+                                max(1, round(img.get_height() * escala))))
+        if espejo:
+            img = pygame.transform.flip(img, True, False)
+        self._grande_cache[clave] = img
+        return img
 
     def icono(self) -> pygame.Surface:
         """Icono de ventana: el prota en su frame de paso (fallback al quieto).

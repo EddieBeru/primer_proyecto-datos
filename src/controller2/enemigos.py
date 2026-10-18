@@ -9,6 +9,7 @@ Costo mover/atacar/esperar = 100 siempre.
 from __future__ import annotations
 
 from src.controller2.agenda import Agenda
+from src.controller2.efectos import REGENERACION_PERIODO
 from src.controller2.modelo import EnemigoInstancia, EstadoPartida
 from src.controller2.reloj import RelojVirtual
 
@@ -29,6 +30,17 @@ def velocidad_de(catalogo: dict | None, tipo_id: str, defecto: int = 5) -> int:
     ficha = (catalogo or {}).get(tipo_id)
     vel = int(getattr(ficha, "velocidad", defecto) or defecto)
     return vel if vel > 0 else defecto
+
+
+def regeneracion_de(catalogo: dict | None, tipo_id: str) -> int | None:
+    """Curación por pulso si la ficha la declara (§2.10); None si no."""
+    ficha = (catalogo or {}).get(tipo_id)
+    valor = getattr(ficha, "regeneracion", None)
+    try:
+        n = int(valor)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
 
 
 def _vecinas_abiertas(estado: EstadoPartida, sala_id: int) -> list[int]:
@@ -72,6 +84,12 @@ def activar_sala(estado: EstadoPartida, agenda: Agenda, ahora: int,
                                "tipo": e.tipo_id, "costo": 100})
         e.tiempo_siguiente = ev.t
         evs.append(ev)
+        # §2.10: un enemigo que declare regeneración pulsa cada 200.
+        cant = regeneracion_de(catalogo, e.tipo_id)
+        if cant:
+            evs.append(agenda.programar(
+                ahora + REGENERACION_PERIODO, "regeneracion",
+                {"instancia": e.instancia, "cantidad": cant}))
     return evs
 
 
