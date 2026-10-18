@@ -409,7 +409,7 @@ foto (rearme corto). Recuerda: §2.10 activa TODAS las armadas al entrar, sin
 importar la distancia al jugador.
 
 **Menús y pantalla final (18/10/2026).** Inicio, selección de cripta y fin
-se redibujan con el lenguaje del juego (registro producto, 960×640 fijo):
+se redibujan con el lenguaje del juego (registro producto, 1024×800 por defecto):
 fondo damero crema, logo «CRIPTA» con sombra escoltado por el escudo y la
 espada-pizza, prota en grande (frame quieto, espejado) y botones con insignia
 de tecla (Jugar primario en naranja; Continuar deshabilitado con su motivo).
@@ -440,6 +440,45 @@ Arranque: el juego abre SIEMPRE en el menú principal (`VistaApp.preparar_menu`
 carga las tarjetas sin cambiar de pantalla); "1 Jugar" entra a la selección,
 haya una o varias criptas.
 Arte de menús: `SpriteManager.jugador_grande(escala, espejo)` parte del PNG
-nativo (117×161) con `smoothscale` y caché, en vez de reescalar el frame TAM
+nativo (117×161) y lo escala nearest por defecto (sin antialiasing; con
+`suavizado=True` usa smoothscale) con caché, en vez de reescalar el frame TAM
 del juego (ese queda para la sala, look retro). `pantallas._prota` lo usa en
 inicio (1.9×) y fin (1.4×), con fallback al frame si falta el PNG.
+
+HUD de partida (DECISIONES 49): `VistaApp.area_sala` devuelve el canvas
+superior centrado (4:3, ~4/5 del alto útil, con 8 px de padding); la banda
+inferior la dibuja `pantalla_juego` con tres filas: `ui.dibujar_contadores`
+(vida, stats, efectos, pergaminos), `ui.dibujar_mochila` (horizontal, marco
+dorado = seleccionado, "E" = equipado) y la fila `pantallas.CONTROLES`
+siempre visible. Sin panel de bitácora; el toast se apoya sobre la línea
+(`dibujar_toast(tope_inferior=...)`).
+
+Caja de pizza (DECISIONES 50): `SpriteManager.caja(stage)` / `caja_fondo(w, h)`
+leen `assets/sprites/Pizza Box/` (7 PNG de 512² alineados). El canvas de sala
+usa Box como piso (recorte centrado sin deformar; si falta el arte cae al
+damero). El menú de inicio superpone cuerpo, título y tapa en el mismo rect:
+`pantallas.stage_caja(apertura)` (30 frames cerrada + 10 por stage) y
+`VistaApp.menu_ttl` animan la apertura; `_abrir_menu()` la reinicia.
+
+Hueco del sprite (DECISIONES 51): el arte de la caja deja libre (110,110) de
+290x290 en su lienzo; `sprites.zona_caja(rect)` da el campo de juego para una
+caja pintada en `rect` y `capas.rect_caja(area)` es la inversa. `area_sala`
+maximiza la caja en la zona útil y devuelve su hueco (cuadrado, centrado).
+
+Ratón en menús (DECISIONES 53): cada menú devuelve sus hotspots `(rect, tecla)`
+al App (`app.hotspots`); `manejar_clic` despacha la MISMA tecla, así clic y
+teclado comparten lógica y los botones deshabilitados (Continuar) no tienen
+hotspot. `boton`/`_tarjeta_cripta` se resaltan con el ratón encima
+(`resaltado`), y error/versión ganan un botón "Volver al menú" (Esc) además
+del pie.
+
+Menús unificados y ventana (DECISIONES 52): TODOS los menús (inicio,
+selección, carga, fin, error, versión, pausa) usan el mismo layout —
+`pantallas._caja_menu(sup, sprites, titulo, color, sub)` pinta la caja arriba
+(290×380 centrada, título y subtítulo DENTRO del arte) y el contenido va
+debajo; se eliminó la caja tenue de fondo (`_caja_de_fondo`). La ventana pasa
+a 1024×800 por defecto (`VistaApp(ancho, alto)`): el hueco del arte crece a
+~436² (≥ el canvas anterior) y los componentes de menú se centran según el
+ancho real. Durante el zoom menú→partida solo se ve la caja interpolada:
+`pantalla_juego(mostrar_canvas=False)` oculta el canvas y al terminar la
+animación (`zoom_ttl`) se intercambia por la vista de juego.

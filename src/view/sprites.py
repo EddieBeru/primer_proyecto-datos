@@ -47,6 +47,20 @@ PERGAMINO_PNG = "pergamino.png"
 ANTORCHA_PNG = "antorcha.png"
 TRAMPA_PNG = "trampa.png"
 
+# Caja de pizza (subcarpeta): Box = caja abierta (fondo del canvas de sala);
+# Lid Stage 1-6 = fotogramas de la tapa abriéndose (menú de inicio). Los 7
+# PNG comparten un lienzo de 512x512 y están alineados entre sí: se pueden
+# superponer escalados al mismo rect.
+CAJA_DIR = "Pizza Box"
+CAJA_LADOS = 512
+LID_STAGES = 6
+# Área útil común de los 7 PNG (la caja ocupa el mismo lienzo en todos):
+# encaja el arte sin cortes y mantiene los lids alineados al superponer.
+CAJA_ARTE_X, CAJA_ARTE_Y = 95, 39
+CAJA_ARTE_ANCHO, CAJA_ARTE_ALTO = 318, 378
+# Hueco interior del arte (512²) donde vive el juego: 110,110 de 290x290.
+CAJA_ZONA_X, CAJA_ZONA_Y, CAJA_ZONA_ANCHO = 110, 110, 290
+
 # Enemigos con arte propio por comportamiento (el resto sigue círculo).
 ENEMIGO_PNG = {"errante": "enemigo-errante.png"}
 ENEMIGO_ESCALA = 3  # el arte del errante se dibuja 3x el mosaico base
@@ -225,6 +239,8 @@ class SpriteManager:
         self._espada_cache: dict[bool, pygame.Surface] = {}
         self._escudo_cache: dict[bool, pygame.Surface] = {}
         self._grande_cache: dict[tuple[float, bool], pygame.Surface] = {}
+        self._caja_cache: dict[tuple[int, float], pygame.Surface | None] = {}
+        self._caja_fondo_cache: dict[tuple[int, int], pygame.Surface | None] = {}
         self._puertas = {
             estado: _mosaico(color, tam=TAM - 8)
             for estado, color in COLORES_PUERTA.items()
@@ -402,6 +418,73 @@ class SpriteManager:
         self._grande_cache[clave] = img
         return img
 
+    def _cargar_caja(self, nombre: str) -> pygame.Surface | None:
+        """PNG de `Pizza Box/` sin escalar; `None` si falta o falla."""
+        ruta = ASSETS_DIR / CAJA_DIR / nombre
+        if not ruta.is_file():
+            return None
+        try:
+            img = pygame.image.load(str(ruta))
+        except pygame.error:
+            return None
+        try:  # sin video mode (tests): tal cual
+            img = img.convert_alpha()
+        except pygame.error:
+            pass
+        return img
+
+    def caja(self, stage: int | None = None,
+             escala: float = 1.0) -> pygame.Surface | None:
+        """Box.png (stage None) o el lid 1-6, escalados nearest al unísono.
+
+        Los 7 PNG comparten el lienzo de 512x512, así que superponerlos
+        escalados al mismo rect compone la caja abriéndose. `None` si falta
+        el archivo (el llamador decide el fallback).
+        """
+        clave = (stage if stage is not None else 0, round(float(escala), 3))
+        if clave in self._caja_cache:
+            return self._caja_cache[clave]
+        nombre = "Box.png" if stage is None else f"Lid Stage {stage}.png"
+        img = self._cargar_caja(nombre)
+        if img is not None and escala != 1.0:
+            escalar = pygame.transform.smoothscale if self.suavizado \
+                else pygame.transform.scale
+            img = escalar(img, (max(1, round(img.get_width() * escala)),
+                                max(1, round(img.get_height() * escala))))
+        self._caja_cache[clave] = img
+        return img
+
+    def caja_fondo(self, ancho: int, alto: int) -> pygame.Surface | None:
+        """Box.png recortado (arte útil, sin deformar) cubriendo ancho×alto.
+
+        Fondo del canvas de sala: se escala hasta cubrir y se recorta
+        centrado, así el cartón llena el área sin estirarse. `None` si
+        falta el arte (el llamador pinta el damero de respaldo).
+        """
+        clave = (max(int(ancho), 1), max(int(alto), 1))
+        if clave in self._caja_fondo_cache:
+            return self._caja_fondo_cache[clave]
+        resultado = None
+        img = self._cargar_caja("Box.png")
+        if img is not None:
+            borde = img.get_bounding_rect()
+            if borde.width > 4 and borde.height > 4:
+                arte = img.subsurface(borde)
+                escala = max(ancho / borde.width, alto / borde.height)
+                escalar = pygame.transform.smoothscale if self.suavizado \
+                    else pygame.transform.scale
+                grande = escalar(arte, (max(1, round(borde.width * escala)),
+                                         max(1, round(borde.height * escala))))
+                corte = pygame.Rect(
+                    max(0, (grande.get_width() - ancho) // 2),
+                    max(0, (grande.get_height() - alto) // 2),
+                    min(ancho, grande.get_width()),
+                    min(alto, grande.get_height()))
+                resultado = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+                resultado.blit(grande, (0, 0), corte)
+        self._caja_fondo_cache[clave] = resultado
+        return resultado
+
     def icono(self) -> pygame.Surface:
         """Icono de ventana: el prota en su frame de paso (fallback al quieto).
 
@@ -490,3 +573,32 @@ class SpriteManager:
         if llave:
             return self._puertas["cerrada-llave"]
         return self._puertas["trabada"]
+
+
+def escala_caja(rect: pygame.Rect) -> float:
+    """Escala para encajar el arte útil de la caja dentro de `rect`.
+
+    Encaje completo (contain): la caja nunca se corta; sobra relleno.
+    """
+    return min(rect.w / CAJA_ARTE_ANCHO, rect.h / CAJA_ARTE_ALTO)
+
+
+def posicion_caja(rect: pygame.Rect, escala: float) -> tuple[int, int]:
+    """Esquina para blitear el PNG de 512² con el arte útil en el rect."""
+    centro = (CAJA_ARTE_X + CAJA_ARTE_ANCHO / 2,
+              CAJA_ARTE_Y + CAJA_ARTE_ALTO / 2)
+    return (round(rect.centerx - centro[0] * escala),
+            round(rect.centery - centro[1] * escala))
+
+
+def zona_caja(rect: pygame.Rect) -> pygame.Rect:
+    """Hueco interior (cuadrado) del arte dibujado con `rect`.
+
+    `rect` es el rect de encaje (escala_caja/posicion_caja); el hueco es
+    donde entra el canvas de sala, centrado en el sprite.
+    """
+    escala = escala_caja(rect)
+    x, y = posicion_caja(rect, escala)
+    lado = round(CAJA_ZONA_ANCHO * escala)
+    return pygame.Rect(round(x + CAJA_ZONA_X * escala),
+                       round(y + CAJA_ZONA_Y * escala), lado, lado)

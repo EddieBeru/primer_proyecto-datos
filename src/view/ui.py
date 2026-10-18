@@ -89,6 +89,64 @@ def dibujar_inventario(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
     return y
 
 
+def dibujar_contadores(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
+                       foto: "FotoEstado", dev: bool = False) -> None:
+    """Fila única: vida, stats, efectos y pergaminos (Parte 1 §3)."""
+    j = foto.jugador
+    x, y = rect.x, rect.y
+    etiqueta = fuente.render("Vida", True, GRIS)
+    sup.blit(etiqueta, (x, y + 2))
+    x += etiqueta.get_width() + 8
+    vida = int(j.get("vida", 0))
+    maxima = max(int(j.get("vida_max", 1)), 1)
+    ancho = 150
+    pygame.draw.rect(sup, paleta.VIDA_FONDO, pygame.Rect(x, y + 3, ancho, 14))
+    pygame.draw.rect(sup, VERDE, pygame.Rect(
+        x, y + 3, ancho * max(min(vida, maxima), 0) // maxima, 14))
+    marcador = fuente.render(f"{vida}/{maxima}", True, BLANCO)
+    sup.blit(marcador, (x + ancho + 8, y + 2))
+    x += ancho + 8 + marcador.get_width() + 24
+    stats = fuente.render(
+        f"ATK {j.get('ataque', '?')}  DEF {j.get('defensa', '?')}  "
+        f"VEL {j.get('velocidad', '?')}", True, BLANCO)
+    sup.blit(stats, (x, y + 2))
+    x += stats.get_width() + 24
+    perg = fuente.render(f"Pergaminos: {foto.pergaminos}", True, DORADO)
+    sup.blit(perg, (x, y + 2))
+    x += perg.get_width() + 16
+    for nombre, restante in (j.get("efectos", {}) or {}).items():
+        chip = fuente.render(f"* {nombre} {restante}", True, GRIS)
+        sup.blit(chip, (x, y + 2))
+        x += chip.get_width() + 12
+    if dev:
+        aviso = fuente.render(f"[dev] solicitudes: {foto.presupuesto}", True, GRIS)
+        sup.blit(aviso, (rect.right - aviso.get_width(), y + 2))
+
+
+def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
+                    foto: "FotoEstado", sprites: SpriteManager,
+                    sel_inv: int = 0) -> None:
+    """Objetos en fila horizontal; [0] equipado (E), seleccionado con marco."""
+    etiqueta = fuente.render("Mochila:", True, DORADO)
+    sup.blit(etiqueta, (rect.x, rect.y + 12))
+    x = rect.x + etiqueta.get_width() + 12
+    inv = list(foto.inventario or [])
+    if not inv:
+        sup.blit(fuente.render("(vacía)", True, GRIS), (x, rect.y + 12))
+        return
+    lado = TAM + 4
+    for i, item_id in enumerate(inv):
+        caja = pygame.Rect(x, rect.y, lado, lado)
+        sup.fill(paleta.PANEL, caja)
+        icono = sprites.sprite(item_id)
+        sup.blit(icono, icono.get_rect(center=caja.center))
+        pygame.draw.rect(sup, DORADO if i == sel_inv % len(inv) else GRIS,
+                         caja, 2)
+        if i == 0:
+            sup.blit(fuente.render("E", True, DORADO), (caja.x + 2, caja.y))
+        x += lado + 8
+
+
 def dibujar_mensajes(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
                      foto: "FotoEstado", max_lineas: int = 5,
                      ancho_max: int | None = None) -> None:
@@ -107,14 +165,20 @@ def dibujar_mensajes(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
             usadas += 1
 
 
-def dibujar_toast(sup: pygame.Surface, fuente: pygame.Font, texto: str) -> None:
-    """Error amable (guía §6): toast abajo ajustado a 2 líneas; sigue."""
+def dibujar_toast(sup: pygame.Surface, fuente: pygame.Font, texto: str,
+                  tope_inferior: int | None = None) -> None:
+    """Error amable (guía §6): toast ajustado a 2 líneas; sigue.
+
+    Con `tope_inferior` se apoya ahí (p. ej. sobre la banda de HUD) en
+    lugar del borde de la ventana.
+    """
     if not texto:
         return
     lineas = _texto.envolver(texto, fuente, sup.get_width() - 36, 2)
     etiquetas = [fuente.render(parte, True, paleta.TEXTO_CLARO) for parte in lineas]
     alto = len(etiquetas) * 22 + 4
-    fondo = pygame.Rect(10, sup.get_height() - 10 - alto,
+    abajo = tope_inferior if tope_inferior is not None else sup.get_height() - 10
+    fondo = pygame.Rect(10, abajo - alto,
                         max(e.get_width() for e in etiquetas) + 16, alto)
     pygame.draw.rect(sup, ROJO, fondo)
     for i, etiqueta in enumerate(etiquetas):

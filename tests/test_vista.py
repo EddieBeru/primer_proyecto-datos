@@ -213,6 +213,80 @@ def test_humanizar_bitacora():
     assert texto_vista.humanizar("8|raro|actor|detalle") == "detalle"
 
 
+def test_caja_encajada_sin_cortes_y_area_dentro(app):
+    """Arte contain (nada cortado), área jugable dentro y HUD sin tapar."""
+    from src.view import capas
+    from src.view.sprites import (CAJA_ARTE_ALTO, CAJA_ARTE_ANCHO,
+                                  escala_caja)
+    area = app.area_sala()
+    rect = capas.rect_caja(area)
+    assert rect.contains(area)
+    escala = escala_caja(rect)
+    assert CAJA_ARTE_ANCHO * escala <= rect.w + 1
+    assert CAJA_ARTE_ALTO * escala <= rect.h + 1
+    assert rect.bottom + 2 < app.ventana.get_height() - 120  # banda HUD libre
+
+
+def test_zona_caja_cuadrada_y_rect_inverso(app):
+    """El campo de juego es el hueco 110/290 del sprite (cuadrado), y
+    `capas.rect_caja` reconstruye el rect del arte sin desviarse."""
+    from src.view import capas
+    from src.view.sprites import zona_caja
+    area = app.area_sala()
+    assert area.w == area.h  # hueco cuadrado, centrado en el sprite
+    vuelta = zona_caja(capas.rect_caja(area))
+    assert abs(vuelta.x - area.x) <= 2
+    assert abs(vuelta.y - area.y) <= 2
+    assert abs(vuelta.w - area.w) <= 2
+
+
+def test_zoom_de_menu_a_partida(app, tmp_path):
+    """Empezar partida desde el menú: zoom de la caja hasta la del juego."""
+    from src.view.app import VistaApp, ZOOM_FRAMES
+    ses = Sesion(backend=FakeBackend(), log_ruta=None,
+                 puntajes_ruta=str(tmp_path / "puntajes.jsonl"))
+    vista = VistaApp(ses, ventana=pygame.Surface((960, 640)),
+                     save_path=str(tmp_path / "partida.bin"))
+    vista.preparar_menu([{"id": CRIPTA_ID, "nombre": "A", "salas": 6,
+                          "dificultad": 1}], False)
+    vista.manejar_tecla(pygame.K_1)  # menú -> selección
+    assert vista.manejar_tecla(pygame.K_1) == "@jugar"
+    assert vista.pantalla == "juego" and vista.zoom_ttl == 0
+    for _ in range(ZOOM_FRAMES):
+        vista.dibujar()
+    assert vista.zoom_ttl is None
+
+
+def test_caja_pizza_abre_por_stages(app):
+    """Menú: la tapa avanza 1 -> 6 con la cuenta de frames (y para en 6)."""
+    from src.view import pantallas
+    pantallas.pantalla_inicio(app.ventana, app.fuente, False, app.sprites,
+                              apertura=0)
+    assert pantallas.stage_caja(None) == 6
+    assert pantallas.stage_caja(0) == 1
+    assert pantallas.stage_caja(34) == 2
+    assert pantallas.stage_caja(64) == 5
+    assert pantallas.stage_caja(200) == 6
+
+
+def test_caja_fondo_cubre_area_y_assets(app):
+    """Box.png cubre el canvas exacto; los lids existen y no rompen."""
+    fondo = app.sprites.caja_fondo(240, 180)
+    assert fondo is not None and fondo.get_size() == (240, 180)
+    assert app.sprites.caja(1) is not None
+    assert app.sprites.caja(6) is not None
+
+
+def test_menu_animacion_se_reinicia(app):
+    """Entrar al menú reinicia la apertura; dibujar avanza la cuenta."""
+    app._abrir_menu()
+    app.dibujar()
+    app.dibujar()
+    assert app.menu_ttl == 2
+    app._abrir_menu()
+    assert app.menu_ttl == 0
+
+
 def test_jugador_grande_nativo_y_cacheado(app):
     """Menús: el prota sale del PNG nativo (nítido), no del frame TAM."""
     sp = app.sprites
@@ -839,3 +913,43 @@ def test_patrullaje_y_alcance(app):
     _teletransportar(app, *capas.pos_enemigo(area, 0))
     assert app.atacar_cercano() == 'atacar e1-1'  # la deriva no rompe alcance
     app.dibujar()  # alcance dibujado, sin crash
+
+
+def test_raton_interactua_con_botones_de_menu(app):
+    """Los botones de todos los menús responden al ratón (clic = tecla)."""
+    app.preparar_menu([{"id": CRIPTA_ID, "nombre": "A", "salas": 6,
+                        "dificultad": 1}], False)
+    app.dibujar()
+    # Continuar deshabilitado: no hay hotspot para K_2.
+    assert all(tecla != pygame.K_2 for _, tecla in app.hotspots)
+    rect_jugar = next(r for r, t in app.hotspots if t == pygame.K_1)
+    # Hover: el panel del botón cambia de color con el ratón encima.
+    antes = app.ventana.get_at((rect_jugar.x + 5, rect_jugar.centery))
+    app.raton_pos = rect_jugar.center
+    app.dibujar()
+    despues = app.ventana.get_at((rect_jugar.x + 5, rect_jugar.centery))
+    assert antes != despues
+    # Clic en Jugar -> selección; clic en la primera tarjeta -> partida.
+    assert app.manejar_clic(rect_jugar.center) == "@jugar"
+    assert app.pantalla == "seleccion"
+    app.dibujar()
+    assert app.manejar_clic(app.hotspots[0][0].center) == "@jugar"
+    assert app.pantalla == "juego" and app.cripta_actual == CRIPTA_ID
+    # Pausa: clic en Volver reanuda y clic en Salir al menú vuelve al inicio.
+    assert app.manejar_tecla(pygame.K_ESCAPE) == "@pausa"
+    app.dibujar()
+    rect_volver = next(r for r, t in app.hotspots if t == pygame.K_ESCAPE)
+    assert app.manejar_clic(rect_volver.center) == "@volver"
+    assert app.pantalla == "juego"
+    app.manejar_tecla(pygame.K_ESCAPE)
+    app.dibujar()
+    rect_menu = next(r for r, t in app.hotspots if t == pygame.K_q)
+    assert app.manejar_clic(rect_menu.center) == "@menu"
+    assert app.pantalla == "inicio"
+    # Error: el botón "Volver al menú" (Esc) también es clicable.
+    app.pantalla = "error"
+    app.ultimo_error = "prueba"
+    app.dibujar()
+    rect_esc = next(r for r, t in app.hotspots if t == pygame.K_ESCAPE)
+    assert app.manejar_clic(rect_esc.center) == "@menu"
+    assert app.pantalla == "inicio"

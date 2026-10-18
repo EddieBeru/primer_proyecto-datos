@@ -15,12 +15,13 @@ import pygame
 from src.orchestrator.sesion import Sesion
 from src.view import capas, entrada, paleta, pantallas, ui
 from src.view.sfx import Sonidos
-from src.view.sprites import SpriteManager
+from src.view.sprites import LID_STAGES, SpriteManager, zona_caja
 
 if TYPE_CHECKING:  # solo tipos
     from src.controller2.fachada import FotoEstado
 
 FPS = 60
+ZOOM_FRAMES = 18  # frames del zoom menú -> caja del juego al empezar partida
 VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
 VECTOR_DIRECCION = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
@@ -31,7 +32,7 @@ AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
 class VistaApp:
     """Ventana Pygame sobre una Sesión ya creada (backend lo elige main)."""
 
-    def __init__(self, sesion: Sesion, ancho: int = 960, alto: int = 640,
+    def __init__(self, sesion: Sesion, ancho: int = 1024, alto: int = 800,
                  dev: bool = False, save_path: str = "partida.bin",
                  ventana: pygame.Surface | None = None) -> None:
         self.ses = sesion
@@ -46,6 +47,10 @@ class VistaApp:
         pygame.display.set_icon(self.sprites.icono())  # el prota de paso
         self.reloj = pygame.time.Clock()
         self.pantalla = "inicio"
+        self.menu_ttl = 0  # frames desde que se abrió el menú (caja abriéndose)
+        self.zoom_ttl: int | None = None  # zoom menú -> caja al empezar
+        self.hotspots: list = []  # (rect, tecla) de los botones del menú
+        self.raton_pos: tuple[int, int] | None = None  # última posición del ratón
         self.foto: FotoEstado | None = None
         self.criptas: list = []
         self.puede_continuar = False
@@ -89,7 +94,12 @@ class VistaApp:
         """
         self.criptas = list(criptas)
         self.puede_continuar = puede_continuar
+        self._abrir_menu()
+
+    def _abrir_menu(self) -> None:
+        """Vuelve al menú de inicio reiniciando la apertura de la caja."""
         self.pantalla = "inicio"
+        self.menu_ttl = 0
 
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
         self.criptas = list(criptas)
@@ -105,10 +115,11 @@ class VistaApp:
     def _pintar_carga(self, detalle: str = "Preparando la cripta…") -> None:
         """Pantalla de carga visible durante las peticiones de arranque."""
         self.pantalla = "carga"
-        pantallas.pantalla_carga(self.ventana, self.fuente, detalle)
+        pantallas.pantalla_carga(self.ventana, self.fuente, detalle, self.sprites)
         self._flip()
 
-    def iniciar_partida(self, cripta_id: str, semilla: int = 0) -> "FotoEstado":
+    def iniciar_partida(self, cripta_id: str, semilla: int = 0,
+                        animar: bool = False) -> "FotoEstado":
         self._pintar_carga(f"Preparando {cripta_id}…")
         try:
             self.foto = self.ses.iniciar(cripta_id, semilla=semilla)
@@ -120,10 +131,12 @@ class VistaApp:
         self.reporte = None
         self.cripta_actual = str(cripta_id)
         self.pantalla = "juego"
+        self.zoom_ttl = 0 if animar else None
         self.sfx.jingle_inicio()  # guiño: suena cada vez que empieza la partida
         return self.foto
 
-    def cargar_partida(self, ruta: str | None = None) -> "FotoEstado":
+    def cargar_partida(self, ruta: str | None = None,
+                       animar: bool = False) -> "FotoEstado":
         self._pintar_carga("Cargando partida…")
         try:
             self.foto = self.ses.cargar_en_frio(ruta or self.save_path)
@@ -133,6 +146,7 @@ class VistaApp:
         self._reset_vista()
         self.reporte = None
         self.pantalla = "juego"
+        self.zoom_ttl = 0 if animar else None
         self.sfx.jingle_inicio()  # guiño también al retomar una partida
         return self.foto
 
@@ -487,11 +501,22 @@ class VistaApp:
             if key == pygame.K_1:
                 return self._reintentar_o_elegir()
             if key in (pygame.K_2, pygame.K_ESCAPE):
-                self.pantalla = "inicio"
+                self._abrir_menu()
                 return "@menu"
         if self.pantalla in ("error", "version") and key == pygame.K_ESCAPE:
-            self.pantalla = "inicio"
+            self._abrir_menu()
             return "@menu"
+        return None
+
+    def manejar_clic(self, pos: tuple[int, int]) -> str | None:
+        """Clic izquierdo: si cae en un botón del menú, dispara su tecla.
+
+        Los botones de menú son atajos del teclado: mismo código de acción
+        (los hotspots los publica `dibujar` desde `pantallas`).
+        """
+        for rect, tecla in self.hotspots:
+            if rect.collidepoint(pos):
+                return self.manejar_tecla(tecla)
         return None
 
     def _reintentar_o_elegir(self) -> str | None:
@@ -500,7 +525,7 @@ class VistaApp:
             self.listar_para_seleccion(self.criptas, self.puede_continuar)
             return "@jugar"
         try:
-            self.iniciar_partida(self.cripta_actual)
+            self.iniciar_partida(self.cripta_actual, animar=True)
             return "@jugar"
         except Exception as e:  # la vista no muestra trazas al jugador
             self.ultimo_error = str(e)
@@ -531,14 +556,14 @@ class VistaApp:
             return "@guardar"
         if key == pygame.K_c:
             try:
-                self.cargar_partida()
+                self.cargar_partida(animar=True)
                 return "@cargar"
             except Exception as e:  # GuardadoError -> pantalla 1.7/1.6
                 self.ultimo_error = str(e)
                 self.pantalla = "version"
                 return "@version"
         if key == pygame.K_q:
-            self.pantalla = "inicio"
+            self._abrir_menu()
             return "@menu"
         return None
 
@@ -549,7 +574,7 @@ class VistaApp:
                 return "@jugar"
             if key == pygame.K_2 and self.puede_continuar:
                 try:
-                    self.cargar_partida()
+                    self.cargar_partida(animar=True)
                     return "@cargar"
                 except Exception as e:
                     self.ultimo_error = str(e)
@@ -563,10 +588,10 @@ class VistaApp:
             if idx is not None and 0 <= idx < len(self.criptas):
                 crip = self.criptas[idx]
                 cid = crip.get("id", crip.get("cripta_id", "")) if isinstance(crip, dict) else crip.id
-                self.iniciar_partida(str(cid))
+                self.iniciar_partida(str(cid), animar=True)
                 return "@jugar"
             if key == pygame.K_ESCAPE:
-                self.pantalla = "inicio"
+                self._abrir_menu()
                 return "@menu"
         return None
 
@@ -580,29 +605,78 @@ class VistaApp:
 
     # -- dibujo (Parte 1 §2/§7) --
     def area_sala(self) -> pygame.Rect:
+        """Canvas de la sala: zona superior centrada, info abajo (ratio 4:1).
+
+        La banda inferior (~1/5 del alto útil) guarda contadores y mochila;
+        el canvas ocupa el resto, centrado en el eje horizontal.
+        """
         w, h = self.ventana.get_size()
-        return pygame.Rect(10, 36, min(620, w - 240), h - 200)
+        arriba, pie, pad = 34, 6, 20
+        disponible = h - arriba - pie
+        info = disponible // 5
+        # Zona máxima donde encaja la caja; el campo de juego es su hueco
+        # interior (110,110 de 290x290 en el lienzo de 512²), centrado.
+        zona = pygame.Rect(pad, arriba + pad, w - 2 * pad,
+                           disponible - info - 2 * pad)
+        return zona_caja(zona)
+
+    def _dibujar_zoom(self) -> None:
+        """Zoom de la caja del menú hacia la caja del juego (arranque).
+
+        Sobrepinta la caja compuesta (cuerpo + título + tapa 6) sobre la
+        pantalla, interpolando del rect del menú al rect de la caja en sala.
+        """
+        t = min(self.zoom_ttl / ZOOM_FRAMES, 1.0)
+        suave = t * t * (3 - 2 * t)  # ease-in-out
+        desde = pantallas.rect_caja_menu(self.ventana)
+        hasta = capas.rect_caja(self.area_sala())
+        rect = pygame.Rect(0, 0,
+                           round(desde.w + (hasta.w - desde.w) * suave),
+                           round(desde.h + (hasta.h - desde.h) * suave))
+        rect.center = (round(desde.centerx + (hasta.centerx - desde.centerx) * suave),
+                       round(desde.centery + (hasta.centery - desde.centery) * suave))
+        capas.dibujar_caja_cuerpo(self.ventana, self.sprites, rect)
+        factor = rect.h / max(desde.h, 1)
+        fuente = pantallas._fuente(max(10, int(64 * factor) // 4 * 4), negrita=True)
+        titulo = fuente.render("CRIPTA", True, paleta.TITULO)
+        self.ventana.blit(titulo,
+                          titulo.get_rect(center=(rect.centerx, rect.centery)))
+        capas.dibujar_caja_tapa(self.ventana, self.sprites, rect, LID_STAGES)
+        self.zoom_ttl += 1
+        if self.zoom_ttl >= ZOOM_FRAMES:
+            self.zoom_ttl = None
 
     def dibujar(self) -> None:
+        self.hotspots = []
         if self.pantalla == "inicio":
-            pantallas.pantalla_inicio(self.ventana, self.fuente,
-                                      self.puede_continuar, self.sprites)
+            self.hotspots = pantallas.pantalla_inicio(
+                self.ventana, self.fuente, self.puede_continuar, self.sprites,
+                apertura=self.menu_ttl, raton=self.raton_pos)
+            self.menu_ttl += 1
         elif self.pantalla == "seleccion":
-            pantallas.pantalla_seleccion(self.ventana, self.fuente,
-                                         self.criptas, self.sprites)
+            self.hotspots = pantallas.pantalla_seleccion(
+                self.ventana, self.fuente, self.criptas, self.sprites,
+                raton=self.raton_pos)
         elif self.pantalla == "carga":
-            pantallas.pantalla_carga(self.ventana, self.fuente)
+            pantallas.pantalla_carga(self.ventana, self.fuente,
+                                     sprites=self.sprites)
         elif self.pantalla == "pausa":
-            pantallas.menu_pausa(self.ventana, self.fuente)
+            self.hotspots = pantallas.menu_pausa(
+                self.ventana, self.fuente, self.sprites, raton=self.raton_pos)
         elif self.pantalla == "fin" and self.foto is not None:
             if self.reporte is None and self.foto.estado != "jugando":
                 self.finalizar()
-            pantallas.pantalla_fin(self.ventana, self.fuente, self.foto,
-                                   self.reporte, self.sprites)
+            self.hotspots = pantallas.pantalla_fin(
+                self.ventana, self.fuente, self.foto, self.reporte,
+                self.sprites, raton=self.raton_pos)
         elif self.pantalla == "error":
-            pantallas.pantalla_error(self.ventana, self.fuente, self.ultimo_error or "")
+            self.hotspots = pantallas.pantalla_error(
+                self.ventana, self.fuente, self.ultimo_error or "",
+                self.sprites, raton=self.raton_pos)
         elif self.pantalla == "version":
-            pantallas.pantalla_version(self.ventana, self.fuente, self.ultimo_error or "")
+            self.hotspots = pantallas.pantalla_version(
+                self.ventana, self.fuente, self.ultimo_error or "",
+                self.sprites, raton=self.raton_pos)
         elif self.foto is not None:
             # Desplazamiento del paso con suavizado: al girar no salta de eje
             # (el objetivo es corto, ~8 px; el push lo alcanza en 2-3 frames).
@@ -647,7 +721,8 @@ class VistaApp:
                                      tinte_dano=self.dano_ttl > 0, tajo=tajo,
                                      espejo=self.espejo,
                                      trampas_fuego=self._fases_trampas(),
-                                     golpes=self._fases_golpes())
+                                     golpes=self._fases_golpes(),
+                                     mostrar_canvas=self.zoom_ttl is None)
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,
@@ -667,8 +742,14 @@ class VistaApp:
                 self.golpes = {i: ttl - 1 for i, ttl in self.golpes.items()
                                if ttl > 1}
             if self.aviso and self.aviso_ttl > 0:
-                ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
+                # En partida el aviso se apoya sobre la banda de HUD.
+                tope = (capas.rect_caja(self.area_sala()).bottom - 4
+                        if self.pantalla == "juego" else None)
+                ui.dibujar_toast(self.ventana, self.fuente, self.aviso,
+                                 tope_inferior=tope)
                 self.aviso_ttl -= 1
+        if self.zoom_ttl is not None and self.pantalla in ("carga", "juego"):
+            self._dibujar_zoom()
         pygame.display.flip() if self.ventana is pygame.display.get_surface() else None
 
     def ejecutar(self) -> int:
@@ -681,6 +762,15 @@ class VistaApp:
                     try:
                         self.manejar_tecla(evento.key)
                     except Exception as e:  # nunca crashear la ventana
+                        self.ultimo_error = str(e)
+                        self.pantalla = "error"
+                elif evento.type == pygame.MOUSEMOTION:
+                    self.raton_pos = evento.pos
+                elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                    self.raton_pos = evento.pos
+                    try:
+                        self.manejar_clic(evento.pos)
+                    except Exception as e:  # igual que las teclas
                         self.ultimo_error = str(e)
                         self.pantalla = "error"
             if self.pantalla == "juego" and self.foto is not None:

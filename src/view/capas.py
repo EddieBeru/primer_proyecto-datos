@@ -12,7 +12,11 @@ import pygame
 
 from src.view import paleta
 from src.view import texto as _texto
-from src.view.sprites import TAM, SpriteManager, clase_de_id
+from src.view.sprites import (CAJA_ARTE_ALTO, CAJA_ARTE_ANCHO,
+                              CAJA_ARTE_X, CAJA_ARTE_Y, CAJA_ZONA_ANCHO,
+                              CAJA_ZONA_X, CAJA_ZONA_Y, LID_STAGES, TAM,
+                              SpriteManager, clase_de_id, escala_caja,
+                              posicion_caja)
 
 if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
     from src.controller2.fachada import FotoEstado
@@ -189,17 +193,25 @@ def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                   sprites: SpriteManager, fuente: pygame.Font | None = None) -> None:
-    """Capa 1: piso damero + puertas (inexistente/abierta/cerrada-llave/trabada).
+    """Capa 1: interior de la caja + puertas (inexistente/abierta/cerrada).
 
-    Puerta abierta con cierre programado: badge con ticks restantes.
+    El fondo es Box.png cubriendo el área (el cartón de la caja); si falta
+    el arte, damero de respaldo. Puerta abierta con cierre programado:
+    badge con ticks restantes.
     """
-    sup.fill(FONDO_SALA, area)
-    paso = 24
-    for yy in range(area.y, area.y + area.h, paso):
-        for xx in range(area.x, area.x + area.w, paso):
-            if ((xx - area.x) // paso + (yy - area.y) // paso) % 2:
-                sup.fill(paleta.PISO_ALT, pygame.Rect(xx, yy, paso, paso))
-    pygame.draw.rect(sup, MURO, area, 6)
+    rect = rect_caja(area)
+    if sprites.caja(None) is not None:
+        sup.fill(FONDO_SALA, rect)  # mesa alrededor de la caja encajada
+        dibujar_caja_cuerpo(sup, sprites, rect)
+        dibujar_caja_tapa(sup, sprites, rect, LID_STAGES)
+    else:
+        sup.fill(FONDO_SALA, area)
+        paso = 24
+        for yy in range(area.y, area.y + area.h, paso):
+            for xx in range(area.x, area.x + area.w, paso):
+                if ((xx - area.x) // paso + (yy - area.y) // paso) % 2:
+                    sup.fill(paleta.PISO_ALT, pygame.Rect(xx, yy, paso, paso))
+        pygame.draw.rect(sup, MURO, area, 6)
     for direccion, (fx, fy) in POS_PUERTA.items():
         puerta = (foto.puertas or {}).get(direccion)
         rect = rect_puerta(area, direccion)
@@ -448,3 +460,39 @@ def dibujar_oscuridad(sup: pygame.Surface, area: pygame.Rect, foto,
     pygame.draw.circle(velo, (6, 5, 12, 150), (cx, cy), LUZ_PENUMBRA)
     pygame.draw.circle(velo, (6, 5, 12, 0), (cx, cy), LUZ_SIN_ANTORCHA)
     sup.blit(velo, (area.x, area.y))
+
+
+def rect_caja(area: pygame.Rect) -> pygame.Rect:
+    """Rect del arte de la caja cuyo hueco interior coincide con `area`.
+
+    Inverso de `zona_caja`: el área jugable es el recuadro libre que deja
+    el sprite (110,110 de 290x290 en su lienzo de 512²).
+    """
+    escala = area.w / CAJA_ZONA_ANCHO
+    rect = pygame.Rect(0, 0, round(CAJA_ARTE_ANCHO * escala),
+                       round(CAJA_ARTE_ALTO * escala))
+    centro_arte = (CAJA_ARTE_X + CAJA_ARTE_ANCHO / 2,
+                   CAJA_ARTE_Y + CAJA_ARTE_ALTO / 2)
+    centro_zona = (CAJA_ZONA_X + CAJA_ZONA_ANCHO / 2,
+                   CAJA_ZONA_Y + CAJA_ZONA_ANCHO / 2)
+    rect.centerx = round(area.centerx + (centro_arte[0] - centro_zona[0]) * escala)
+    rect.centery = round(area.centery + (centro_arte[1] - centro_zona[1]) * escala)
+    return rect
+
+
+def dibujar_caja_cuerpo(sup: pygame.Surface, sprites: SpriteManager,
+                        rect: pygame.Rect) -> None:
+    """Box.png encajado (contain, sin cortes) centrado en `rect`."""
+    escala = escala_caja(rect)
+    img = sprites.caja(None, escala)
+    if img is not None:
+        sup.blit(img, posicion_caja(rect, escala))
+
+
+def dibujar_caja_tapa(sup: pygame.Surface, sprites: SpriteManager,
+                      rect: pygame.Rect, stage: int) -> None:
+    """Lid del stage encajado centrado en `rect` (mismo arte útil que Box)."""
+    escala = escala_caja(rect)
+    img = sprites.caja(stage, escala)
+    if img is not None:
+        sup.blit(img, posicion_caja(rect, escala))

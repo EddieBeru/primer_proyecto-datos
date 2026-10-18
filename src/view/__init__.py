@@ -13,14 +13,17 @@ from src.view.pantallas import (menu_pausa, pantalla_carga, pantalla_error,
                                 pantalla_juego, pantalla_seleccion,
                                 pantalla_version)
 from src.view.sprites import SpriteManager, clase_de_id, png_para_id
-from src.view.ui import (dibujar_barra_vida, dibujar_inventario,
-                         dibujar_mensajes, dibujar_stats, dibujar_toast)
+from src.view.ui import (dibujar_barra_vida, dibujar_contadores,
+                         dibujar_inventario, dibujar_mensajes,
+                         dibujar_mochila, dibujar_stats, dibujar_toast)
 
 __all__ = [
     "AYUDA", "FPS", "SpriteManager", "VistaApp",
     "clase_de_id", "dibujar_actores", "dibujar_barra_vida",
+    "dibujar_contadores",
     "dibujar_estatica", "dibujar_fondo", "dibujar_inventario",
-    "dibujar_mensajes", "dibujar_stats", "dibujar_toast",
+    "dibujar_mensajes", "dibujar_mochila", "dibujar_stats",
+    "dibujar_toast",
     "intencion_para_tecla", "menu_pausa", "mover_para_tecla",
     "pantalla_carga", "pantalla_error", "pantalla_fin", "pantalla_inicio",
     "pantalla_juego", "pantalla_seleccion", "pantalla_version",
