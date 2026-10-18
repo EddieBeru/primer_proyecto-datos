@@ -407,3 +407,23 @@ diffeando `foto.mensajes` (bitácora `efecto|trampa|<inst>`) contra la foto
 previa: fiable aunque la trampa vuelva a estar armada antes de la siguiente
 foto (rearme corto). Recuerda: §2.10 activa TODAS las armadas al entrar, sin
 importar la distancia al jugador.
+
+**Menús y pantalla final (18/10/2026).** Inicio, selección de cripta y fin
+se redibujan con el lenguaje del juego (registro producto, 960×640 fijo):
+fondo damero crema, logo «CRIPTA» con sombra escoltado por el escudo y la
+espada-pizza, prota en grande (frame quieto, espejado) y botones con insignia
+de tecla (Jugar primario en naranja; Continuar deshabilitado con su motivo).
+La selección usa tarjetas: número de tecla, nombre envuelto a 2 líneas,
+puerta dibujada con «N salas» y dificultad como 5 puntos de pepperoni
+(1 columna de 2 para ≤4 criptas; 3×3 hasta 9). El fin muestra banner
+¡VICTORIA!/DERROTA (prota teñido de rojo si cayó; escudo y espada como botín
+al ganar), resumen etiqueta→valor que baja de línea si no cabe (sala, perga-
+minos, peticiones, vida), últimos sucesos humanizados y teclas 1 = jugar de
+nuevo (misma cripta; sin cripta conocida, selección) y 2/Esc = menú. La
+bitácora del HUD también se humaniza (`texto.humanizar`): «Te moviste al
+sur», «Se activó la trampa t3», «Un enemigo se movió»; nunca se ven líneas
+`seq|tipo|actor|detalle`. Pausa, error y versión reutilizan los mismos
+helpers (botón con tecla, panel). Todo el cromo va a escuadra: rectángulos
+duros sin redondeos (insignias de tecla cuadradas, pepperoni cuadrado,
+pizza cuadrada en la carga), coherente con el pixel-art. Todo dibujo local:
+sin cambios de contrato K1-K5.

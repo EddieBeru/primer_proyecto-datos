@@ -67,6 +67,53 @@ def etiqueta_item(item_id: str) -> str:
     return nombre_corto(item_id)
 
 
+_DIRECCIONES = {"n": "norte", "s": "sur", "e": "este", "o": "oeste"}
+
+
+def humanizar(linea: str) -> str:
+    """Línea de bitácora `seq|tipo|actor|detalle` -> frase para el jugador.
+
+    Solo presentación: nunca inventa datos; si el tipo no se reconoce,
+    devuelve el detalle tal cual (o la línea original si ni eso).
+    """
+    partes = str(linea).split("|")
+    if len(partes) < 4:
+        return str(linea)
+    _, tipo, actor, detalle = partes[0], partes[1], partes[2], partes[3]
+    if tipo == "mover":
+        if actor == "jugador":
+            if detalle == "esperar":
+                return "Esperaste un turno"
+            return f"Te moviste al {_DIRECCIONES.get(detalle.lower(), detalle)}"
+        return "Un enemigo se movió"
+    if tipo == "abrir":
+        return f"Abriste la puerta al {_DIRECCIONES.get(detalle.lower(), detalle)}"
+    if tipo == "atacar":
+        return f"Atacaste a {nombre_corto(detalle)}"
+    if tipo == "dano":
+        return f"Recibiste {detalle} de daño de {nombre_corto(actor)}"
+    if tipo == "efecto":
+        if actor == "trampa":
+            return f"Se activó la trampa {nombre_corto(detalle)}"
+        if actor == "oleada":
+            return "Llegaron enemigos nuevos"
+        if detalle.startswith(("pocion:", "antidoto:", "antorcha:")):
+            clase, _, objeto = detalle.partition(":")
+            return f"Usaste {clase} {nombre_corto(objeto)}"
+        return f"Efecto: {detalle}"
+    if tipo == "equipar":
+        return f"Equipaste {nombre_corto(detalle)}"
+    if tipo == "recoger":
+        return f"Recogiste {nombre_corto(detalle)}"
+    if tipo == "soltar":
+        return f"Soltaste {nombre_corto(detalle)}"
+    if tipo == "deshacer":
+        return "Rebobinaste con un pergamino"
+    if tipo == "muerte":
+        return "Moriste" if detalle == "jugador" else f"Derrotaste a {nombre_corto(actor)}"
+    return detalle or str(linea)
+
+
 def envolver(texto: str, fuente: "pygame.Font", ancho_max: int,
              max_lineas: int = 5) -> list[str]:
     """Parte el texto en líneas que quepan en ancho_max píxeles.

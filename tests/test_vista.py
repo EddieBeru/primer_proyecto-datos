@@ -169,10 +169,16 @@ def test_pantallas(app):
     from src.view import pantallas
     sup, fuente = app.ventana, app.fuente
     pantallas.pantalla_inicio(sup, fuente, False)
-    pantallas.pantalla_inicio(sup, fuente, True)
-    pantallas.pantalla_seleccion(sup, fuente, [
+    pantallas.pantalla_inicio(sup, fuente, True, app.sprites)
+    largo = [
         {"id": "a", "nombre": "A", "salas": 6, "dificultad": 1},
-        {"id": "b", "nombre": "B", "salas": 3, "dificultad": 2}])
+        {"id": "b", "nombre": "B", "salas": 3, "dificultad": 2},
+        {"id": "c", "nombre": "El Horno Maldito de la Muerte Eterna",
+         "salas": 9, "dificultad": 5},
+        {"id": "d", "nombre": "D", "salas": 5, "dificultad": 3},
+        {"id": "e", "nombre": "E", "salas": 7, "dificultad": 4}]
+    pantallas.pantalla_seleccion(sup, fuente, largo[:2], app.sprites)
+    pantallas.pantalla_seleccion(sup, fuente, largo, app.sprites)  # 3 col + envolver
     pantallas.pantalla_carga(sup, fuente)
     pantallas.pantalla_carga(sup, fuente, "El servidor pide esperar 5 segundos…")
     pantallas.pantalla_juego(sup, fuente, app.foto, app.sprites, app.area_sala())
@@ -184,6 +190,44 @@ def test_pantallas(app):
     assert isinstance(app.foto, FotoEstado)
 
 
+def test_dibujar_en_todas_las_pantallas(app):
+    """App.dibujar con sprites reales no puede romper en ningún estado."""
+    for comando in RUTA_VICTORIA:
+        ok, msg, _ = app.enviar(comando)
+        assert ok, (comando, msg)
+    assert app.foto.estado == "victoria"
+    for pantalla in ("fin", "inicio", "seleccion", "carga", "pausa", "juego",
+                     "error", "version"):
+        app.pantalla = pantalla
+        app.dibujar()
+
+
+def test_humanizar_bitacora():
+    from src.view import texto as texto_vista
+    assert texto_vista.humanizar("3|mover|jugador|s") == "Te moviste al sur"
+    assert texto_vista.humanizar("4|mover|jugador|esperar") == "Esperaste un turno"
+    assert texto_vista.humanizar("5|abrir|jugador|e") == "Abriste la puerta al este"
+    assert texto_vista.humanizar("6|efecto|trampa|t3-1") == "Se activó la trampa t3"
+    assert "Recibiste 4 de daño" in texto_vista.humanizar("7|dano|e1-1|4")
+    assert texto_vista.humanizar("sin formato") == "sin formato"
+    assert texto_vista.humanizar("8|raro|actor|detalle") == "detalle"
+
+
+def test_fin_teclas_jugar_de_nuevo_y_menu(app):
+    for comando in RUTA_VICTORIA:
+        ok, msg, _ = app.enviar(comando)
+        assert ok, (comando, msg)
+    app.dibujar()  # estado fin: fuerza finalizar() y pinta el resumen
+    assert app.pantalla == "fin" and app.reporte is not None
+    assert app.manejar_tecla(pygame.K_2) == "@menu"
+    assert app.pantalla == "inicio"
+    app.pantalla = "fin"
+    app.dibujar()
+    assert app.manejar_tecla(pygame.K_1) == "@jugar"
+    assert app.pantalla == "juego" and app.cripta_actual == CRIPTA_ID
+    assert app.foto.estado == "jugando" and app.reporte is None
+
+
 def test_pantalla_fin_victoria_y_derrota(app):
     from src.view import pantallas
     for cmd in RUTA_VICTORIA:
@@ -192,7 +236,7 @@ def test_pantalla_fin_victoria_y_derrota(app):
     assert app.foto.estado == "victoria" and app.pantalla == "fin"
     reporte = app.finalizar()
     assert reporte["terminada"] is True
-    pantallas.pantalla_fin(app.ventana, app.fuente, app.foto, reporte)
+    pantallas.pantalla_fin(app.ventana, app.fuente, app.foto, reporte, app.sprites)
     app2_foto = app.foto
     app.ses.estado.jugador.vida_actual = 0
     actualizar_estado(app.ses.estado)

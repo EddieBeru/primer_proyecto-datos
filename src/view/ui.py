@@ -92,13 +92,14 @@ def dibujar_inventario(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
 def dibujar_mensajes(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
                      foto: "FotoEstado", max_lineas: int = 5,
                      ancho_max: int | None = None) -> None:
-    """Panel con las últimas líneas de bitácora, ajustadas al ancho."""
+    """Panel con las últimas líneas de bitácora, humanizadas al jugador."""
     ancho = ancho_max if ancho_max is not None else max(sup.get_width() - x - 10, 100)
     usadas = 0
     for linea in (foto.mensajes or [])[-max_lineas:]:
         if usadas >= max_lineas:
             return
-        for parte in _texto.envolver(linea, fuente, ancho, max_lineas - usadas):
+        for parte in _texto.envolver(_texto.humanizar(linea), fuente, ancho,
+                                     max_lineas - usadas):
             if usadas >= max_lineas:
                 return
             sup.blit(fuente.render(parte, True, GRIS), (x, y))

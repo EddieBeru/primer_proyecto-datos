@@ -76,6 +76,7 @@ class VistaApp:
         self.paso_dir = (0.0, 0.0)  # dirección del paso visible actual
         self.paso_push = [0.0, 0.0]  # desplazamiento del paso, suavizado
         self.trampas_fuego = {}  # {instancia: ttl} trampas recién disparadas
+        self.cripta_actual: str | None = None  # para "jugar de nuevo" en fin
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -104,6 +105,8 @@ class VistaApp:
             raise
         self._reset_vista()
         self.memoria_spots = {}  # partida nueva: scatter reproducible
+        self.reporte = None
+        self.cripta_actual = str(cripta_id)
         self.pantalla = "juego"
         self.sfx.jingle_inicio()  # guiño: suena cada vez que empieza la partida
         return self.foto
@@ -116,6 +119,7 @@ class VistaApp:
             self.pantalla = "error"
             raise
         self._reset_vista()
+        self.reporte = None
         self.pantalla = "juego"
         self.sfx.jingle_inicio()  # guiño también al retomar una partida
         return self.foto
@@ -454,10 +458,29 @@ class VistaApp:
             return self._tecla_pausa(key)
         if self.pantalla in ("inicio", "seleccion"):
             return self._tecla_menu(key)
-        if self.pantalla in ("error", "version", "fin") and key == pygame.K_ESCAPE:
+        if self.pantalla == "fin":
+            if key == pygame.K_1:
+                return self._reintentar_o_elegir()
+            if key in (pygame.K_2, pygame.K_ESCAPE):
+                self.pantalla = "inicio"
+                return "@menu"
+        if self.pantalla in ("error", "version") and key == pygame.K_ESCAPE:
             self.pantalla = "inicio"
             return "@menu"
         return None
+
+    def _reintentar_o_elegir(self) -> str | None:
+        """Fin -> nueva partida: misma cripta si se conoce; si no, selección."""
+        if not self.cripta_actual:
+            self.listar_para_seleccion(self.criptas, self.puede_continuar)
+            return "@jugar"
+        try:
+            self.iniciar_partida(self.cripta_actual)
+            return "@jugar"
+        except Exception as e:  # la vista no muestra trazas al jugador
+            self.ultimo_error = str(e)
+            self.pantalla = "error"
+            return "@error"
 
     def _accion_local(self, accion: str) -> str:
         if accion == "@pausa":
@@ -537,9 +560,11 @@ class VistaApp:
 
     def dibujar(self) -> None:
         if self.pantalla == "inicio":
-            pantallas.pantalla_inicio(self.ventana, self.fuente, self.puede_continuar)
+            pantallas.pantalla_inicio(self.ventana, self.fuente,
+                                      self.puede_continuar, self.sprites)
         elif self.pantalla == "seleccion":
-            pantallas.pantalla_seleccion(self.ventana, self.fuente, self.criptas)
+            pantallas.pantalla_seleccion(self.ventana, self.fuente,
+                                         self.criptas, self.sprites)
         elif self.pantalla == "carga":
             pantallas.pantalla_carga(self.ventana, self.fuente)
         elif self.pantalla == "pausa":
@@ -547,7 +572,8 @@ class VistaApp:
         elif self.pantalla == "fin" and self.foto is not None:
             if self.reporte is None and self.foto.estado != "jugando":
                 self.finalizar()
-            pantallas.pantalla_fin(self.ventana, self.fuente, self.foto, self.reporte)
+            pantallas.pantalla_fin(self.ventana, self.fuente, self.foto,
+                                   self.reporte, self.sprites)
         elif self.pantalla == "error":
             pantallas.pantalla_error(self.ventana, self.fuente, self.ultimo_error or "")
         elif self.pantalla == "version":
