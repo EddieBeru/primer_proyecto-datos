@@ -14,6 +14,7 @@ import pygame
 
 from src.orchestrator.sesion import Sesion
 from src.view import capas, entrada, paleta, pantallas, ui
+from src.view.sfx import Sonidos
 from src.view.sprites import SpriteManager
 
 if TYPE_CHECKING:  # solo tipos
@@ -37,6 +38,7 @@ class VistaApp:
         self.dev = dev
         self.save_path = save_path
         self.sprites = SpriteManager()
+        self.sfx = Sonidos()  # solo audio local: nunca rompe la partida
         pygame.font.init()
         self.fuente = pygame.font.SysFont("consolas,monospace", 16)
         self.ventana = ventana or pygame.display.set_mode((ancho, alto))
@@ -101,6 +103,7 @@ class VistaApp:
         self._reset_vista()
         self.memoria_spots = {}  # partida nueva: scatter reproducible
         self.pantalla = "juego"
+        self.sfx.jingle_inicio()  # guiño: suena cada vez que empieza la partida
         return self.foto
 
     def cargar_partida(self, ruta: str | None = None) -> "FotoEstado":
@@ -112,6 +115,7 @@ class VistaApp:
             raise
         self._reset_vista()
         self.pantalla = "juego"
+        self.sfx.jingle_inicio()  # guiño también al retomar una partida
         return self.foto
 
     def _reset_vista(self) -> None:

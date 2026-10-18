@@ -385,3 +385,10 @@ El arma y el escudo acompañan ese estado: `sprites.escudo(espejo)` y
 y `capas.dibujar_actores` los corre a `OFFSET_ESCUDO_LADO`/`OFFSET_ESPADA_LADO`
 del lado del espejo. `espejo=None` sigue derivando de `facing=="O"` para
 llamadas viejas. Sin cambios de contrato.
+
+**Sonido (18/10/2026).** `src/view/sfx.py` reproduce el jingle de inicio
+(`assets/sfx/little_caesars_pizza.mp3`, guiño a la empresa que inspiró los
+visuales) cada vez que empieza la partida: `iniciar_partida` y
+`cargar_partida` llaman `Sonidos.jingle_inicio()`. Todo es local y tolerante
+a fallos: sin mixer, dispositivo o códec devuelve `False` y la partida sigue
+en silencio; no toca la `FotoEstado` ni el contrato K5.

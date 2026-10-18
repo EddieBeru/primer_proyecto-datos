@@ -252,6 +252,24 @@ def test_cli_vista():
     assert parse_args(["--vista"]).vista is True
 
 
+# ------------------------------------------------------- sfx (guiño al empezar)
+def test_jingle_al_empezar_partida(app, monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(app.sfx, "jingle_inicio",
+                        lambda: llamadas.append("jingle") or True)
+    app.iniciar_partida(CRIPTA_ID)
+    assert llamadas == ["jingle"]
+    app.guardar()
+    app.cargar_partida()  # retomar también es empezar a jugar
+    assert len(llamadas) == 2
+
+
+def test_jingle_sin_audio_no_rompe():
+    from src.view.sfx import Sonidos
+    pygame.init()
+    assert isinstance(Sonidos().jingle_inicio(), bool)  # suene o no, no crashea
+
+
 # ------------------------------------------------------- API real (presupuesto)
 @pytest.mark.skipif(os.environ.get("CRIPTA_API_REAL") != "1",
                     reason="gasta presupuesto real; solo cuando todo esté funcional")
