@@ -128,6 +128,23 @@ def test_manejar_tecla_mueve_libre_sin_cambiar_sala(app):
     assert app.pos_jugador[1] > pos0[1]
 
 
+def test_movimiento_diagonal_normalizado(app):
+    """Diagonal = recto: el vector se normaliza (no √2 más rápido)."""
+    from src.view import app as mod
+    app.pos_jugador = [0.5, 0.5]
+    app._mover_libre(1, 1)
+    dx = app.pos_jugador[0] - 0.5
+    dy = app.pos_jugador[1] - 0.5
+    assert abs((dx * dx + dy * dy) ** 0.5 - mod.VELOCIDAD) < 1e-9
+    app.pos_jugador = [0.5, 0.5]
+    app._mover_libre(1, 0)
+    assert abs(app.pos_jugador[0] - 0.5 - mod.VELOCIDAD) < 1e-9
+    assert app.pos_jugador[1] == 0.5
+    app.pos_jugador = [0.5, 0.5]
+    app._mover_libre(0, 0)  # teclas opuestas se cancelan: no mueve
+    assert app.pos_jugador == [0.5, 0.5]
+
+
 # ------------------------------------------------------- sprites y reemplazo
 def test_sprites_cache_y_reemplazo():
     from src.view.sprites import SpriteManager
@@ -255,6 +272,73 @@ def test_api_real_listar_iniciar_un_paso():
 
 
 # ------------------------------------------------------- personaje que se mueve
+def test_espejo_se_conserva_al_mirar_arriba_o_abajo(app):
+    app._mover_libre(-1, 0)  # camina a la izquierda
+    assert app.facing == "O" and app.espejo
+    app._mover_libre(0, -1)  # luego arriba: NO voltea a la derecha
+    assert app.facing == "N" and app.espejo
+    app._mover_libre(0, 1)   # luego abajo: sigue mirando a la izquierda
+    assert app.facing == "S" and app.espejo
+    app._mover_libre(1, 0)   # al caminar a la derecha sí voltea
+    assert app.facing == "E" and not app.espejo
+
+
+def test_sin_brinco_al_cambiar_de_eje(app):
+    for _ in range(6):
+        app._mover_libre(1, 0)
+        app.dibujar()
+    assert app.paso_push[0] > 1  # venía empujando a la derecha
+    app._mover_libre(0, -1)      # cambia a subir
+    app.dibujar()
+    assert app.paso_push[0] > 0  # el desplazamiento no salta de eje en 1 frame
+    assert app.paso_push[1] < 0  # y ya empieza a subir suavemente
+
+
+def test_espada_y_escudo_en_cache_por_lado():
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    sp = SpriteManager()
+    izq = sp.espada("N", espejo=True)
+    assert izq is sp.espada("O")  # el lado manda, no el facing
+    assert izq is not sp.espada("N", espejo=False)
+    assert sp.escudo(True) is sp.escudo(True)
+    assert sp.escudo(True) is not sp.escudo(False)
+
+
+def test_arma_y_escudo_se_dibujan_del_lado_del_espejo(app):
+    """El equipo acompaña el espejo persistente: mirar N con espejo no salta."""
+    import dataclasses
+    from src.view import capas
+    area = pygame.Rect(0, 0, 320, 260)
+    centro = (area.w // 2, area.h // 2)
+    sup = pygame.Surface(area.size)
+    cuerpo = app.sprites.jugador_frame(False, 0, "N", 100, False)[0].get_width() // 2
+
+    def lados(espejo, foto):
+        sup.fill((0, 0, 0))
+        capas.dibujar_actores(sup, area, foto, app.sprites, app.fuente,
+                              facing="N", pos_jugador=centro, espejo=espejo)
+        izq = der = 0
+        for x in range(area.w):
+            for y in range(area.h):
+                if sup.get_at((x, y))[:3] == (0, 0, 0):
+                    continue
+                if x < centro[0] - cuerpo - 4:
+                    izq += 1
+                elif x > centro[0] + cuerpo + 4:
+                    der += 1
+        return izq, der
+
+    for item in ("espada-hierro-01", "escudo-madera-01"):
+        app.ses.estado.jugador.inventario.append(item)
+        assert app.enviar(f"equipar {item}")[0]
+        foto = dataclasses.replace(app.foto, enemigos=[])
+        izq0, der0 = lados(False, foto)
+        izq1, der1 = lados(True, foto)
+        assert der0 > 0 and izq0 == 0, item  # sin espejo: a la derecha
+        assert izq1 > 0 and der1 == 0, item  # con espejo: a la izquierda
+
+
 def test_personaje_mira_y_da_el_paso(app):
     from src.view import capas
     assert app.facing == 'N' and app.anim_pasos == 0
@@ -288,6 +372,10 @@ def test_jugador_png_frames():
     normal, _ = sp.jugador_frame(False, 0, facing='E')
     assert espejo.get_size() == normal.get_size()
     assert espejo.get_at((0, 0)) == normal.get_at((normal.get_width() - 1, 0))
+    # `espejo` explícito: mirar N/S conservando el volteo horizontal
+    izq, _ = sp.jugador_frame(False, 0, facing='N', espejo=True)
+    der, _ = sp.jugador_frame(False, 0, facing='N', espejo=False)
+    assert izq.get_at((0, 0)) == der.get_at((der.get_width() - 1, 0))
 
 
 def test_jugador_fallback_sin_png(tmp_path, monkeypatch):
@@ -436,6 +524,49 @@ def test_golpe_destella_y_barra_baja(app):
     for _ in range(12):
         app.dibujar()
     assert app.golpe is None  # el destello expira
+
+
+# ------------------------------------------------------- feedback de daño/ataque
+def test_dano_tinte_y_sacudida(app):
+    from src.view import capas
+    base = pygame.Surface((8, 8), pygame.SRCALPHA)
+    base.fill((200, 180, 160, 255))
+    antes = base.get_at((4, 4))
+    rojo = capas._tinte_rojo(base)
+    ahora = rojo.get_at((4, 4))
+    assert ahora.r >= antes.r and ahora.g < antes.g and ahora.b < antes.b
+    assert base.get_at((4, 4)) == antes  # no muta el frame original
+    app.dano_ttl = 8
+    app.dibujar()  # el tinte y la sacudida se dibujan sin crashear
+    assert app.dano_ttl == 7  # y expiran solos
+
+
+def test_ataque_embiste_siempre_y_taja_con_arma(app):
+    ok, _, _ = app.enviar("atacar e1-1")
+    assert ok and app.ataque_ttl > 0 and not app.ataque_espada  # embestida
+    assert app._empuje_ataque() != (0, 0)  # sin arma ya empujaba
+    app.dibujar()
+    app.ses.estado.jugador.inventario.append("espada-hierro-01")
+    ok, _, _ = app.enviar("equipar espada-hierro-01")
+    assert ok
+    app.facing = "E"
+    ok, _, _ = app.enviar("atacar e1-1")
+    assert ok and app.ataque_espada and app.ataque_dir == "E"  # estela
+    assert app._empuje_ataque()[0] > 0  # y la embestida también va con arma
+    app.dibujar()
+
+
+def test_tajo_estela_visible_y_expira():
+    from src.view import capas
+    zona = [(x, y) for x in range(30, 130, 2) for y in range(30, 130, 2)]
+    sup = pygame.Surface((160, 160), pygame.SRCALPHA)
+    capas.dibujar_tajo(sup, (80, 80), "E", 1.0)
+    pintados = [sup.get_at(p) for p in zona if sup.get_at(p)[3] > 0]
+    assert pintados
+    assert all(c.r == c.g == c.b == 255 for c in pintados)  # estela blanca
+    sup2 = pygame.Surface((160, 160), pygame.SRCALPHA)
+    capas.dibujar_tajo(sup2, (80, 80), "N", 0.0)
+    assert not any(sup2.get_at(p)[3] for p in zona)
 
 
 # ------------------------------------------------------- trampas al caminar

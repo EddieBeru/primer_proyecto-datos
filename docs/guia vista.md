@@ -368,3 +368,20 @@ feedback claro (destello rojo + toast). El mensaje de `pisar` ya describe el
 daño y el efecto (veneno: pulsos cada 80 durante 400, lo corta el antídoto;
 quemadura: pulsos propios que el antídoto no cura). `deshacer` también
 devuelve la vida y los efectos.
+
+**Daño y ataque (18/10/2026).** Además del destello, al perder vida el sprite
+se tiñe de rojo y tiembla unos frames; al atacar, el personaje siempre
+embiste hacia donde mira (con o sin arma) y, si hay arma equipada, además
+aparece una estela de espadazo (`capas.dibujar_tajo`). Es dibujo local del
+App (misma `FotoEstado` de siempre): no cambia la partida ni añade datos al
+contrato K5.
+
+**Espejo y equipo (18/10/2026).** El volteo horizontal es estado propio de la
+vista: caminar al Oeste espeja el sprite y al subir/bajar el volteo se
+conserva (`app.espejo`), sin volver "de la nada" a la derecha; el
+desplazamiento del paso se interpola (`paso_push`) para no brincar de eje.
+El arma y el escudo acompañan ese estado: `sprites.escudo(espejo)` y
+`sprites.espada(facing, espejo)` rotan/voltean por lado (no por facing crudo)
+y `capas.dibujar_actores` los corre a `OFFSET_ESCUDO_LADO`/`OFFSET_ESPADA_LADO`
+del lado del espejo. `espejo=None` sigue derivando de `facing=="O"` para
+llamadas viejas. Sin cambios de contrato.

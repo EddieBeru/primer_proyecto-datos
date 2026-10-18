@@ -21,6 +21,7 @@ if TYPE_CHECKING:  # solo tipos
 
 FPS = 60
 VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
+VECTOR_DIRECCION = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
          "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
          "pisar trampas las dispara · F1 dev · G guardar · Esc pausa")
@@ -65,6 +66,12 @@ class VistaApp:
         self.golpe_ttl = 0
         self.dano_ttl = 0  # destello rojo al perder vida (mejoras 2026-10)
         self.trampa_pisada: str | None = None  # no repetir mientras siga encima
+        self.ataque_ttl = 0  # feedback de ataque (embestida; con arma + estela)
+        self.ataque_dir = "N"  # dirección del golpe (facing al atacar)
+        self.ataque_espada = False  # True = además estela (la embestida va siempre)
+        self.espejo = False  # arte volteado (mira a la izquierda); se conserva
+        self.paso_dir = (0.0, 0.0)  # dirección del paso visible actual
+        self.paso_push = [0.0, 0.0]  # desplazamiento del paso, suavizado
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -124,6 +131,12 @@ class VistaApp:
         self.golpe_ttl = 0
         self.dano_ttl = 0
         self.trampa_pisada = None
+        self.ataque_ttl = 0
+        self.ataque_dir = "N"
+        self.ataque_espada = False
+        self.espejo = False
+        self.paso_dir = (0.0, 0.0)
+        self.paso_push = [0.0, 0.0]
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -173,10 +186,18 @@ class VistaApp:
             direccion = texto.strip().upper()
             if direccion in ("N", "S", "E", "O"):
                 self.facing = direccion
+                if direccion in ("E", "O"):
+                    self.espejo = direccion == "O"
+                self.paso_dir = {"N": (0.0, -1.0), "S": (0.0, 1.0),
+                                 "E": (1.0, 0.0), "O": (-1.0, 0.0)}[direccion]
                 self.anim_pasos = 8  # el personaje da el paso en pantalla
             partes = texto.strip().split()
             if len(partes) == 2 and partes[0].lower() == "atacar":
                 self.golpe, self.golpe_ttl = partes[1], 12  # destello de impacto
+                # Feedback de ataque: embestida siempre (con o sin arma);
+                # con arma se añade ADEMÁS la estela de espada.
+                self.ataque_ttl, self.ataque_dir = 12, self.facing
+                self.ataque_espada = capas.arma_visible(foto)
             # Mejoras 2026-10: feedback visible al perder vida (trampas,
             # contraataques, veneno/quemadura…).
             try:
@@ -209,21 +230,50 @@ class VistaApp:
         self.aviso, self.aviso_ttl = texto, ttl
 
     def _paso_libre(self, direccion: str) -> str:
-        """Mueve el sprite por la sala; solo cruza al llegar a puerta abierta.
+        """Mueve el sprite por la sala; solo cruza al llegar a puerta abierta."""
+        dx, dy = VECTOR_DIRECCION[direccion]
+        return self._mover_libre(dx, dy)
+
+    def _mover_libre(self, dx: float, dy: float) -> str:
+        """Aplica el vector de paso normalizado (diagonal = recto).
 
         Caminar es gratis (no consume tiempo ni vida): los enemigos y efectos
         actúan tras tus intenciones (atacar, recoger, abrir, usar, esperar…).
+        El vector llega en unidades de eje (p. ej. (1, 1) en diagonal) y se
+        normaliza para que ninguna dirección sea más rápida que otra; (0, 0)
+        (teclas opuestas) no mueve.
         """
-        vec = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
-        dx, dy = vec[direccion]
+        largo = (dx * dx + dy * dy) ** 0.5
+        if largo == 0:
+            return "@paso"
+        dx, dy = dx / largo, dy / largo
         self.pos_jugador[0] = min(0.96, max(0.04, self.pos_jugador[0] + dx * VELOCIDAD))
         self.pos_jugador[1] = min(0.96, max(0.04, self.pos_jugador[1] + dy * VELOCIDAD))
-        self.facing = direccion.upper()
+        if dx and not dy:
+            self.facing = "E" if dx > 0 else "O"
+        elif dy and not dx:
+            self.facing = "S" if dy > 0 else "N"
+        if dx:  # el volteo horizontal solo depende del eje X: se conserva
+            self.espejo = dx < 0  # al subir/bajar (no voltea "de la nada")
+        self.paso_dir = (dx, dy)  # paso visible hacia donde se camina
         self.anim_pasos = max(self.anim_pasos, 4)
         self.tick_anim += 1
         self._revisar_puerta()
         self._revisar_trampas()
         return "@paso"
+
+    def _empuje_ataque(self) -> tuple[int, int]:
+        """Embestida hacia la dirección del golpe mientras dure el ataque.
+
+        Se dibuja SIEMPRE que haya ataque activo, con o sin arma (con arma
+        se suma a la estela); es solo desplazamiento visual del App, sin
+        tocar el modelo ni el contrato K5.
+        """
+        if self.ataque_ttl <= 0:
+            return (0, 0)
+        adx, ady = VECTOR_DIRECCION.get(str(self.ataque_dir).lower(), (0, 0))
+        empuje = round(11 * self.ataque_ttl / 12)
+        return (adx * empuje, ady * empuje)
 
     def _revisar_trampas(self) -> None:
         """Pasar por encima de una trampa armada la dispara (mejoras 2026-10).
@@ -472,9 +522,25 @@ class VistaApp:
         elif self.pantalla == "version":
             pantallas.pantalla_version(self.ventana, self.fuente, self.ultimo_error or "")
         elif self.foto is not None:
-            vec = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "O": (-1, 0)}
-            dx, dy = vec.get(self.facing, (0, 0))
-            desplaza = (dx * self.anim_pasos * 2, dy * self.anim_pasos * 2)
+            # Desplazamiento del paso con suavizado: al girar no salta de eje
+            # (el objetivo es corto, ~8 px; el push lo alcanza en 2-3 frames).
+            objetivo = (self.paso_dir[0] * self.anim_pasos * 2,
+                        self.paso_dir[1] * self.anim_pasos * 2)
+            self.paso_push[0] += (objetivo[0] - self.paso_push[0]) * 0.5
+            self.paso_push[1] += (objetivo[1] - self.paso_push[1]) * 0.5
+            desplaza = (round(self.paso_push[0]), round(self.paso_push[1]))
+            empuje = self._empuje_ataque()
+            if empuje != (0, 0):
+                # Embestida al atacar (con o sin arma): con arma se suma a
+                # la estela para que la acción se lea igual de claro.
+                desplaza = (desplaza[0] + empuje[0], desplaza[1] + empuje[1])
+            if self.dano_ttl > 0:
+                # Sacudida breve al recibir daño (patrón fijo, sin azar real).
+                sac = ((-3, 2), (3, -2), (-2, -2), (2, 2),
+                       (-1, 3), (1, -3))[self.dano_ttl % 6]
+                desplaza = (desplaza[0] + sac[0], desplaza[1] + sac[1])
+            tajo = (self.ataque_dir, self.ataque_ttl / 12) \
+                if self.ataque_ttl > 0 and self.ataque_espada else None
             moviendo = self.anim_pasos > 0
             if moviendo:
                 self.anim_pasos -= 1
@@ -495,7 +561,9 @@ class VistaApp:
                                      self.facing, desplaza,
                                      (moviendo, self.tick_anim, self.tick_total),
                                      self._pos_px(), self.golpe, alcance,
-                                     spots=self._spots())
+                                     spots=self._spots(),
+                                     tinte_dano=self.dano_ttl > 0, tajo=tajo,
+                                     espejo=self.espejo)
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,
@@ -505,6 +573,8 @@ class VistaApp:
                 self.golpe_ttl -= 1
                 if self.golpe_ttl == 0:
                     self.golpe = None
+            if self.ataque_ttl > 0:
+                self.ataque_ttl -= 1
             if self.aviso and self.aviso_ttl > 0:
                 ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
                 self.aviso_ttl -= 1
@@ -525,9 +595,16 @@ class VistaApp:
             if self.pantalla == "juego" and self.foto is not None:
                 try:
                     held = pygame.key.get_pressed()
+                    dx = dy = 0
+                    vistos = set()
                     for tecla, direccion in entrada.MOVER.items():
-                        if held[tecla]:
-                            self._paso_libre(direccion)
+                        if held[tecla] and direccion not in vistos:
+                            vistos.add(direccion)
+                            ix, iy = VECTOR_DIRECCION[direccion]
+                            dx += ix
+                            dy += iy
+                    if dx or dy:  # un solo paso por frame, ya normalizado
+                        self._mover_libre(dx, dy)
                 except Exception as e:
                     self.ultimo_error = str(e)
                     self.pantalla = "error"

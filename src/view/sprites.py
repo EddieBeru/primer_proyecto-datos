@@ -35,9 +35,10 @@ ESCUDO_TAM = 30  # overlay sobre el jugador: menor que el mosaico
 # Espada del arma equipada. Igual que el escudo: `<id>.png` exacto manda,
 # si no el alias por clase (vale para cualquier arma futura).
 ESPADA_PNG = "espada.png"
-# Rotación por facing (grados antihorarios; el arte base apunta arriba).
-# N/S sin rotación: el personaje no rota al mirar arriba/abajo.
-ANGULO_ESPADA = {"N": -45, "E": -45, "S": -45, "O": 45}
+# Grados base (antihorarios; el arte apunta arriba, -45 lo inclina a la
+# derecha). El lado lo decide `espejo` (se invierte), no el facing: así
+# subir/bajar no voltea la espada "de la nada".
+ANGULO_ESPADA = -45
 
 # Arte por clase para ítems sin `<id>.png` exacto (ese sigue teniendo
 # prioridad). Cualquier id futuro de la clase usa el mismo PNG.
@@ -221,7 +222,8 @@ class SpriteManager:
         self._jugador = _mosaico(JUGADOR)
         self._jugador_frames: list[pygame.Surface] = self._cargar_jugador()
         self._frame_cache: dict[tuple[int, str, int, int, int], pygame.Surface] = {}
-        self._espada_cache: dict[str, pygame.Surface] = {}
+        self._espada_cache: dict[bool, pygame.Surface] = {}
+        self._escudo_cache: dict[bool, pygame.Surface] = {}
         self._puertas = {
             estado: _mosaico(color, tam=TAM - 8)
             for estado, color in COLORES_PUERTA.items()
@@ -287,19 +289,26 @@ class SpriteManager:
         return len(self._jugador_frames) > 0
 
     def jugador_frame(self, moviendo: bool, tick: int, facing: str = "S",
-                      total: int = 0) -> tuple[pygame.Surface, int]:
+                      total: int = 0,
+                      espejo: bool | None = None) -> tuple[pygame.Surface, int]:
         """Frame + salto del prota estilo Pokémon Rojo/Azul.
 
         Quieto: frame 0 con respiración (squash & stretch vertical suave
         atado al reloj global) y parpadeo (frame 1) cada ~4 s.
         Moviendo: alterna 0/1 cada 2 ticks y el frame 1 salta 3px
         (transformación por offset, sin mutar la imagen) con una ligera
-        inclinación de INCLINACION_PASO grados. Mirar al Oeste
-        espeja (flip) el arte frontal. Inclinación y respiración se
-        recortan/centran para no mover el punto de apoyo.
+        inclinación de INCLINACION_PASO grados. El arte base mira a la
+        derecha; `espejo=True` lo voltea (caminar al Oeste). Con
+        `espejo=None` se deriva de `facing=="O"` (compatibilidad); el App
+        mantiene el espejo al subir/bajar para no voltear "de la nada".
+        Inclinación y respiración se recortan/centran para no mover el
+        punto de apoyo.
         """
         if not self._jugador_frames:
             return self._jugador, 0
+        if espejo is None:
+            espejo = facing == "O"
+        espejo = bool(espejo)
         idx, hop, lean = 0, 0, 0
         if moviendo and len(self._jugador_frames) > 1 and (tick // 2) % 2 == 1:
             idx, hop, lean = 1, -3, -INCLINACION_PASO
@@ -307,14 +316,14 @@ class SpriteManager:
             idx = 1  # parpadeo en reposo, sin salto ni inclinación
         base = self._jugador_frames[idx]
         respiro = _escala_respiro(base, total)
-        clave = (idx, facing, lean, respiro[0], respiro[1])
+        clave = (idx, facing, lean, respiro[0], respiro[1], espejo)
         if clave not in self._frame_cache:
             img = base
             if (respiro[0], respiro[1]) != (img.get_width(), img.get_height()):
                 escalar = pygame.transform.smoothscale if self.suavizado \
                     else pygame.transform.scale
                 img = escalar(img, respiro)
-            if facing == "O":
+            if espejo:
                 img = pygame.transform.flip(img, True, False)
             if lean:
                 rot = pygame.transform.rotate(img, lean)
@@ -373,8 +382,16 @@ class SpriteManager:
         _glifo(sup, "enemigo", color)
         return sup
 
-    def escudo(self) -> pygame.Surface:
-        """Escudo de la armadura equipada (PNG con fallback procedural)."""
+    def escudo(self, espejo: bool = False) -> pygame.Surface:
+        """Escudo de la armadura equipada (PNG con fallback procedural).
+
+        `espejo=True` lo voltea igual que el prota. El lado lo decide el
+        estado persistente del jugador, no el facing (subir/bajar no
+        cambia nada). Caché por espejo.
+        """
+        espejo = bool(espejo)
+        if espejo in self._escudo_cache:
+            return self._escudo_cache[espejo]
         img = self._cargar_png(ESCUDO_PNG)
         if img is None:
             color = COLORES_CLASE.get("armadura", REEMPLAZO)
@@ -384,27 +401,37 @@ class SpriteManager:
             escalar = pygame.transform.smoothscale if self.suavizado \
                 else pygame.transform.scale
             try:
-                return escalar(img, (ESCUDO_TAM, ESCUDO_TAM))
+                img = escalar(img, (ESCUDO_TAM, ESCUDO_TAM))
             except pygame.error:
-                return img
+                pass
+        if espejo:
+            img = pygame.transform.flip(img, True, False)
+        self._escudo_cache[espejo] = img
         return img
 
-    def espada(self, facing: str = "N") -> pygame.Surface:
-        """Espada del arma equipada, rotada según facing (caché por facing)."""
-        if facing in self._espada_cache:
-            return self._espada_cache[facing]
+    def espada(self, facing: str = "N",
+               espejo: bool | None = None) -> pygame.Surface:
+        """Espada del arma equipada, rotada por el lado del jugador.
+
+        Con `espejo=None` se deriva de `facing=="O"` (compatibilidad); el
+        App pasa el estado real para que subir/bajar no cambie el lado.
+        Caché por lado.
+        """
+        izq = (facing == "O") if espejo is None else bool(espejo)
+        if izq in self._espada_cache:
+            return self._espada_cache[izq]
         img = self._cargar_png(ESPADA_PNG)
         if img is None:
             color = COLORES_CLASE.get("arma", REEMPLAZO)
             img = _mosaico(color)
             _glifo(img, "arma", color)
-        angulo = ANGULO_ESPADA.get(facing, 0)
+        angulo = ANGULO_ESPADA * (-1 if izq else 1)
         if angulo:
             try:
                 img = pygame.transform.rotate(img, angulo)
             except pygame.error:
                 pass
-        self._espada_cache[facing] = img
+        self._espada_cache[izq] = img
         return img
 
     def puerta(self, cerrada: bool, llave) -> pygame.Surface | None:

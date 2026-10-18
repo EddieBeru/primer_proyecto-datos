@@ -34,13 +34,19 @@ LUZ_SIN_ANTORCHA = 84
 LUZ_PENUMBRA = 130
 ALFA_OSCURIDAD = 232
 
-# Escudo fijo al centro vertical (si sube/baja tapa cabeza/pies);
-# solo se desplaza en horizontal según hacia dónde mira.
-OFFSET_ESCUDO = {"N": (0, 0), "S": (0, 0), "E": (12, 0), "O": (-12, 0)}
+# Equipo a un lado del cuerpo: el lado lo decide el espejo persistente del
+# jugador (se conserva al subir/bajar), no el facing crudo. Antes los
+# offsets por dirección hacían saltar el arma y el escudo de lado al
+# cambiar de eje.
+OFFSET_ESCUDO_LADO = 12   # escudo: centrado vertical, corrido al costado
+OFFSET_ESPADA_LADO = 21   # espada: cerca de las manos, nunca tapa la cara
 
-# Espada cerca de las manos (costado bajo del cuerpo); separada del escudo
-# para que ambos equipos se lean a la vez. Nunca tapa la cara.
-OFFSET_ESPADA = {"N":(21, 0), "S": (21, 0), "E": (21, 0), "O": (-21, 0)}
+# Estela del espadazo (feedback de ataque con arma, solo vista).
+TAJO_RADIO = 46
+TAJO_PASOS = 5
+TAJO_COLOR = (255, 255, 255)  # blanca pura, como pidió el jugador
+# Barrido en grados por facing (0° = derecha, 90° = arriba, giro CCW).
+ANGULOS_TAJO = {"N": (30, 150), "S": (210, 330), "E": (-60, 60), "O": (120, 240)}
 
 
 def armadura_visible(foto) -> bool:
@@ -248,6 +254,40 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         sup.blit(img, (x, y))
 
 
+def _tinte_rojo(img: pygame.Surface) -> pygame.Surface:
+    """Copia teñida de rojo para el feedback de daño (no muta la caché)."""
+    copia = img.copy()
+    copia.fill((255, 90, 90), special_flags=pygame.BLEND_MULT)
+    return copia
+
+
+def dibujar_tajo(sup: pygame.Surface, centro: tuple[float, float],
+                 facing: str, fase: float) -> None:
+    """Estela del espadazo (capa actores; solo dibujo, no toca reglas).
+
+    `fase` 1 = golpe recién dado, 0 = terminado (no dibuja). El filo barre
+    de `inicio` a `fin` según `facing` y la estela se desvanece detrás.
+    """
+    if fase <= 0:
+        return
+    import math  # local: checklist §12 solo permite ciertos imports top-level
+    inicio, fin = ANGULOS_TAJO.get(facing, ANGULOS_TAJO["N"])
+    fase = min(1.0, fase)
+    largo = fin - inicio
+    cabeza = fin - largo * (1.0 - fase)
+    cola = max(inicio, cabeza - largo * 0.6)
+    borde = 6
+    capa = pygame.Surface((TAJO_RADIO * 2 + borde * 2,) * 2, pygame.SRCALPHA)
+    rect = pygame.Rect(borde, borde, TAJO_RADIO * 2, TAJO_RADIO * 2)
+    for k in range(TAJO_PASOS):
+        a0 = math.radians(cola + (cabeza - cola) * k / TAJO_PASOS)
+        a1 = math.radians(cola + (cabeza - cola) * (k + 1) / TAJO_PASOS)
+        alfa = int(210 * fase * (k + 1) / TAJO_PASOS)
+        pygame.draw.arc(capa, (*TAJO_COLOR, alfa), rect, a0, a1, 4)
+    sup.blit(capa, (int(centro[0]) - capa.get_width() // 2,
+                    int(centro[1]) - capa.get_height() // 2))
+
+
 def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     sprites: SpriteManager, fuente: pygame.Font,
                     sel_enemigo: int = 0, ref_vida: dict | None = None,
@@ -255,17 +295,26 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     paso_jugador: tuple[bool, int, int] = (False, 0, 0),
                     pos_jugador: tuple[float, float] | None = None,
                     golpe: str | None = None,
-                    alcance: frozenset = frozenset()) -> None:
+                    alcance: frozenset = frozenset(),
+                    tinte_dano: bool = False,
+                    tajo: tuple[str, float] | None = None,
+                    espejo: bool | None = None) -> None:
     """Capa 3: jugador + enemigos con barra de vida y color por comportamiento.
 
     `facing` dibuja hacia dónde mira el personaje; `desplaza` es un offset
     visual del paso (solo vista, sin coordenadas en el modelo).
     `paso_jugador=(moviendo, tick, total)` anima frames PNG estilo Rojo/Azul.
     `pos_jugador` = posición libre en px (None = centro, modo consola).
+    `tinte_dano` enrojece al jugador (golpe recibido); `tajo=(facing, fase)`
+    dibuja la estela del espadazo (feedback de ataque con arma); `espejo`
+    conserva el volteo horizontal al mirar N/S (el App lo mantiene).
     """
     ref_vida = ref_vida or {}
     moviendo, tick, total = paso_jugador
-    img_jugador, hop = sprites.jugador_frame(moviendo, tick, facing, total)
+    img_jugador, hop = sprites.jugador_frame(moviendo, tick, facing, total,
+                                             espejo)
+    if tinte_dano:
+        img_jugador = _tinte_rojo(img_jugador)
     if pos_jugador is None:
         jx = area.x + area.w // 2 - img_jugador.get_width() // 2 + desplaza[0]
         jy = area.y + area.h // 2 - TAM // 2 + desplaza[1] + hop
@@ -273,18 +322,22 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         jx = pos_jugador[0] - img_jugador.get_width() // 2 + desplaza[0]
         jy = pos_jugador[1] - img_jugador.get_height() + TAM // 2 + desplaza[1] + hop
     sup.blit(img_jugador, (jx, jy))
-    if armadura_visible(foto):  # escudo encima, hacia donde mira
-        esc = sprites.escudo()
-        dx, dy = OFFSET_ESCUDO.get(facing, (0, 0))
-        cx = jx + img_jugador.get_width() // 2 + dx
-        cy = jy + img_jugador.get_height() // 2 + dy
+    izq = (facing == "O") if espejo is None else bool(espejo)
+    lado = -1 if izq else 1  # el arte base mira a la derecha
+    if armadura_visible(foto):  # escudo encima, del lado del cuerpo
+        esc = sprites.escudo(izq)
+        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESCUDO_LADO
+        cy = jy + img_jugador.get_height() // 2
         sup.blit(esc, (cx - esc.get_width() // 2, cy - esc.get_height() // 2))
     if arma_visible(foto):  # espada rotada cerca de las manos, sobre todo
-        esp = sprites.espada(facing)
-        dx, dy = OFFSET_ESPADA.get(facing, (17, 10))
-        cx = jx + img_jugador.get_width() // 2 + dx
-        cy = jy + img_jugador.get_height() // 2 + dy
+        esp = sprites.espada(facing, izq)
+        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESPADA_LADO
+        cy = jy + img_jugador.get_height() // 2
         sup.blit(esp, (cx - esp.get_width() // 2, cy - esp.get_height() // 2))
+    if tajo is not None:  # estela del espadazo (feedback al atacar con arma)
+        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESPADA_LADO
+        cy = jy + img_jugador.get_height() // 2
+        dibujar_tajo(sup, (cx, cy), tajo[0], tajo[1])
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
     for i, enemigo in enumerate(vivos):
         cx, cy = pos_enemigo_animada(area, i, total)

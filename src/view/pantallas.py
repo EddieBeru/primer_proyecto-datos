@@ -73,7 +73,10 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    pos_jugador: tuple[float, float] | None = None,
                    golpe: str | None = None,
                    alcance: frozenset = frozenset(),
-                   spots: tuple[list, list] | None = None) -> None:
+                   spots: tuple[list, list] | None = None,
+                   tinte_dano: bool = False,
+                   tajo: tuple[str, float] | None = None,
+                   espejo: bool | None = None) -> None:
     """1.4 Sala + actores + HUD. Toda la lectura sale de la foto."""
     sup.fill(FONDO)
     titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
@@ -86,7 +89,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                            spots)
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
-                          pos_jugador, golpe, alcance)
+                          pos_jugador, golpe, alcance,
+                          tinte_dano, tajo, espejo)
     # Mejoras 2026-10: sala oscura -> velo con halo (o luz plena con antorcha).
     capas.dibujar_oscuridad(sup, area_sala, foto, pos_jugador)
     barra_x = area_sala.right + 12
