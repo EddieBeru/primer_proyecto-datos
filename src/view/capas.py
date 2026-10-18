@@ -27,6 +27,7 @@ RADIO_PUERTA = 40  # px para cruzar/recibir aviso
 RADIO_OBJETO = 56  # px para recoger del suelo
 RADIO_ENEMIGO = 80  # px para atacar (generoso: el aviso solo si lejos)
 RADIO_TRAMPA = 24  # px para disparar una trampa al pasar por encima
+TRAMPA_FUEGO_COLOR = (255, 140, 40)  # chispazo al dispararse una trampa
 
 # Sala oscura (mejoras 2026-10): halo del jugador sin antorcha; con antorcha
 # encendida la sala entera queda a la vista.
@@ -222,10 +223,14 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                      sprites: SpriteManager, sel_suelo: int = 0,
                      fuente: pygame.Font | None = None,
-                     spots: tuple[list, list] | None = None) -> None:
+                     spots: tuple[list, list] | None = None,
+                     trampas_fuego: dict[str, float] | None = None) -> None:
     """Capa 2: objetos del suelo + trampas (armada vs desactivada).
 
     ``spots`` = (items, trampas) ya asignados; None = calcular sin memoria.
+    ``trampas_fuego`` = {instancia: fase 0..1} para marcar las trampas que
+    acaban de dispararse (el motor las activa por sala, §2.10: sin esto el
+    daño llegaba "de la nada").
     """
     suelo = list(foto.objetos_suelo or [])
     trampas = list(foto.trampas or [])
@@ -252,6 +257,34 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
             img = img.copy()
             img.fill((60, 60, 60), special_flags=pygame.BLEND_MULT)
         sup.blit(img, (x, y))
+        fase = (trampas_fuego or {}).get(str(trampa.get("instancia", "")), 0.0)
+        if fase:
+            dibujar_fuego_trampa(sup, (cx, cy), fase)
+
+
+def dibujar_fuego_trampa(sup: pygame.Surface, centro: tuple[float, float],
+                         fase: float) -> None:
+    """Chispazo en el puesto de una trampa recién disparada (solo dibujo).
+
+    Anillo + rayos naranjas que se expanden y desvanecen; patrón fijo
+    (sin azar), para que el daño de entrada tenga origen visible.
+    """
+    if fase <= 0:
+        return
+    import math  # local: checklist §12 solo permite ciertos imports top-level
+    fase = min(1.0, fase)
+    radio = int(TAM * 0.7 + TAM * 0.9 * (1.0 - fase))
+    alfa = int(235 * fase)
+    capa = pygame.Surface((radio * 2 + 8,) * 2, pygame.SRCALPHA)
+    c = (capa.get_width() // 2, capa.get_height() // 2)
+    pygame.draw.circle(capa, (*TRAMPA_FUEGO_COLOR, alfa), c, radio, 3)
+    for k in range(6):
+        a = math.radians(60 * k + 15)
+        p0 = (c[0] + radio * 0.35 * math.cos(a), c[1] + radio * 0.35 * math.sin(a))
+        p1 = (c[0] + radio * math.cos(a), c[1] + radio * math.sin(a))
+        pygame.draw.line(capa, (*TRAMPA_FUEGO_COLOR, alfa), p0, p1, 3)
+    sup.blit(capa, (int(centro[0]) - capa.get_width() // 2,
+                    int(centro[1]) - capa.get_height() // 2))
 
 
 def _tinte_rojo(img: pygame.Surface) -> pygame.Surface:

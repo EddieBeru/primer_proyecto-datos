@@ -363,6 +363,16 @@ class SpriteManager:
     def jugador(self) -> pygame.Surface:
         return self._jugador
 
+    def icono(self) -> pygame.Surface:
+        """Icono de ventana: el prota en su frame de paso (fallback al quieto).
+
+        Da personalidad temática a la barra de tareas: mismo sprite que la
+        vista, sin assets extra. Si faltan los PNG usa el mosaico de siempre.
+        """
+        if len(self._jugador_frames) > 1:
+            return self._jugador_frames[1]
+        return self._jugador
+
     def enemigo(self, comportamiento: str) -> pygame.Surface:
         """Enemigo por comportamiento: PNG si hay arte, si no círculo + anillo.
 

@@ -43,6 +43,7 @@ class VistaApp:
         self.fuente = pygame.font.SysFont("consolas,monospace", 16)
         self.ventana = ventana or pygame.display.set_mode((ancho, alto))
         pygame.display.set_caption("CRIPTA")
+        pygame.display.set_icon(self.sprites.icono())  # el prota de paso
         self.reloj = pygame.time.Clock()
         self.pantalla = "inicio"
         self.foto: FotoEstado | None = None
@@ -74,6 +75,7 @@ class VistaApp:
         self.espejo = False  # arte volteado (mira a la izquierda); se conserva
         self.paso_dir = (0.0, 0.0)  # dirección del paso visible actual
         self.paso_push = [0.0, 0.0]  # desplazamiento del paso, suavizado
+        self.trampas_fuego = {}  # {instancia: ttl} trampas recién disparadas
 
     # -- ciclo de vida (guía §1/§9) --
     def listar_para_seleccion(self, criptas: list, puede_continuar: bool) -> None:
@@ -141,6 +143,7 @@ class VistaApp:
         self.espejo = False
         self.paso_dir = (0.0, 0.0)
         self.paso_push = [0.0, 0.0]
+        self.trampas_fuego = {}
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -151,6 +154,10 @@ class VistaApp:
             inst = e.get("instancia", "")
             self.ref_vida[inst] = max(int(e.get("vida", 0)),
                                       self.ref_vida.get(inst, 0))
+
+    def _fases_trampas(self) -> dict[str, float]:
+        """{instancia: fase 0..1} de las trampas que están chispeando."""
+        return {inst: ttl / 12 for inst, ttl in self.trampas_fuego.items()}
 
     def _pintar_cargando_sala(self) -> tuple[str | None, int]:
         """Píldora visible durante la petición de la sala destino.
@@ -179,6 +186,7 @@ class VistaApp:
                 and texto.strip().upper() in ("N", "S", "E", "O") \
                 and len(texto.strip()) == 1:
             previo = self._pintar_cargando_sala()
+        mensajes_antes = list(self.foto.mensajes or []) if self.foto is not None else []
         try:
             ok, msg, foto = self.ses.paso(texto)
         finally:
@@ -187,6 +195,18 @@ class VistaApp:
         self.foto = foto
         self.ultimo_error = None if ok else msg
         if ok:
+            # Chispazo: el motor anota `efecto|trampa|<inst>` en la bitácora
+            # (entrada por §2.10 o pisar); el multiset contra la foto previa
+            # detecta las recién disparadas aunque ya se hayan rearmado.
+            restantes = list(mensajes_antes)
+            nuevos = []
+            for m in (foto.mensajes or []):
+                if m in restantes:
+                    restantes.remove(m)
+                else:
+                    nuevos.append(m)
+            self.trampas_fuego = {str(m).rsplit("|", 1)[-1]: 12
+                                  for m in nuevos if "|efecto|trampa|" in str(m)}
             direccion = texto.strip().upper()
             if direccion in ("N", "S", "E", "O"):
                 self.facing = direccion
@@ -212,6 +232,13 @@ class VistaApp:
                 self.dano_ttl = 14
                 if partes and partes[0].lower() == "pisar" and msg:
                     self._avisar(msg)
+                elif self.trampas_fuego and sala_antes is not None \
+                        and foto.sala_id != sala_antes:
+                    # §2.10: la trampa se activa al ENTRAR a la sala, sin
+                    # importar la distancia; el chispazo marca el origen.
+                    plural = "s" if len(self.trampas_fuego) > 1 else ""
+                    self._avisar(f"¡Trampa{plural} al entrar! "
+                                 f"−{vida_antes - vida_ahora} de vida")
                 else:
                     self._avisar(f"¡{vida_antes - vida_ahora} de daño!")
             # Mejoras 2026-10: al entrar a una sala oscura sin antorcha.
@@ -567,7 +594,8 @@ class VistaApp:
                                      self._pos_px(), self.golpe, alcance,
                                      spots=self._spots(),
                                      tinte_dano=self.dano_ttl > 0, tajo=tajo,
-                                     espejo=self.espejo)
+                                     espejo=self.espejo,
+                                     trampas_fuego=self._fases_trampas())
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,
@@ -579,6 +607,10 @@ class VistaApp:
                     self.golpe = None
             if self.ataque_ttl > 0:
                 self.ataque_ttl -= 1
+            if self.trampas_fuego:
+                # El chispazo dura 12 frames como el resto del feedback.
+                self.trampas_fuego = {i: ttl - 1 for i, ttl in self.trampas_fuego.items()
+                                      if ttl > 1}
             if self.aviso and self.aviso_ttl > 0:
                 ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
                 self.aviso_ttl -= 1

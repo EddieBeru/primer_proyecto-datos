@@ -392,3 +392,18 @@ visuales) cada vez que empieza la partida: `iniciar_partida` y
 `cargar_partida` llaman `Sonidos.jingle_inicio()`. Todo es local y tolerante
 a fallos: sin mixer, dispositivo o códec devuelve `False` y la partida sigue
 en silencio; no toca la `FotoEstado` ni el contrato K5.
+
+**Icono de ventana (18/10/2026).** `SpriteManager.icono()` devuelve el frame
+de paso del prota (`Little Caesars Blink.png`, el mismo que anima Rojo/Azul;
+fallback al mosaico si faltan los PNG) y el App lo instala con
+`pygame.display.set_icon` al crear la ventana: personalidad temática también
+en la barra de tareas.
+
+**Chispazo de trampas (18/10/2026).** El daño por trampas (entrada §2.10 o
+pisar) ya tiene origen visible: chispazo naranja en el puesto de las trampas
+recién disparadas (`capas.dibujar_fuego_trampa`, 12 frames) y, al entrar a
+sala, toast «¡Trampa al entrar! −N de vida». La vista detecta el disparo
+diffeando `foto.mensajes` (bitácora `efecto|trampa|<inst>`) contra la foto
+previa: fiable aunque la trampa vuelva a estar armada antes de la siguiente
+foto (rearme corto). Recuerda: §2.10 activa TODAS las armadas al entrar, sin
+importar la distancia al jugador.

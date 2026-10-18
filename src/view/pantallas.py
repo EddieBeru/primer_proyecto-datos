@@ -76,7 +76,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    spots: tuple[list, list] | None = None,
                    tinte_dano: bool = False,
                    tajo: tuple[str, float] | None = None,
-                   espejo: bool | None = None) -> None:
+                   espejo: bool | None = None,
+                   trampas_fuego: dict[str, float] | None = None) -> None:
     """1.4 Sala + actores + HUD. Toda la lectura sale de la foto."""
     sup.fill(FONDO)
     titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
@@ -86,7 +87,7 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                      (sup.get_width() - 10, 30), 2)
     capas.dibujar_fondo(sup, area_sala, foto, sprites, fuente)
     capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo, fuente,
-                           spots)
+                           spots, trampas_fuego)
     capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                           sel_enemigo, ref_vida, facing, desplaza, paso_jugador,
                           pos_jugador, golpe, alcance,

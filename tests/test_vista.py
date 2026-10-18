@@ -407,6 +407,38 @@ def test_jugador_fallback_sin_png(tmp_path, monkeypatch):
     assert hop == 0 and img.get_at((5, 5))[:3] == (70, 130, 230)
 
 
+def test_icono_ventana_es_el_prota_de_paso():
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    sp = SpriteManager()
+    assert sp.jugador_png
+    icono = sp.icono()
+    assert icono is not sp.jugador          # frame PNG, no el mosaico
+    assert icono is sp._jugador_frames[1]   # el mismo que anima el paso
+    assert icono.get_height() >= 48         # escala de personaje, no reemplazo
+
+
+def test_icono_fallback_sin_png(tmp_path, monkeypatch):
+    import src.view.sprites as mod
+    from src.view.sprites import SpriteManager
+    pygame.init()
+    monkeypatch.setattr(mod, 'ASSETS_DIR', tmp_path)
+    sp = SpriteManager()
+    assert sp.icono() is sp.jugador
+
+
+def test_app_instala_el_icono(tmp_path, monkeypatch):
+    from src.view.app import VistaApp
+    pygame.init()
+    puestos = []
+    monkeypatch.setattr(pygame.display, "set_icon",
+                        lambda s: puestos.append(s))
+    ses = Sesion(backend=FakeBackend(), log_ruta=None,
+                 puntajes_ruta=str(tmp_path / "puntajes.jsonl"))
+    app = VistaApp(ses, ventana=pygame.Surface((320, 240)))
+    assert puestos and puestos[0] is app.sprites.icono()
+
+
 def test_app_anima_tick_mientras_se_mueve(app):
     tick0 = app.tick_anim
     app.enviar('s')
@@ -609,11 +641,36 @@ def test_caminar_sobre_trampa_la_dispara(app):
     assert app.foto.jugador["vida"] < vida0  # el motor aplicó el daño
     assert app.dano_ttl > 0                  # destello rojo
     assert app.trampa_pisada == inst
+    assert inst in app.trampas_fuego         # chispazo en su puesto
     # parado encima no se repite: hay que salir del radio y volver a pisarla
     vida1 = app.foto.jugador["vida"]
     for _ in range(3):
         app._paso_libre("n")
     assert app.foto.jugador["vida"] == vida1
+
+
+def test_trampa_al_entrar_marca_chispazo(app):
+    """§2.10: el daño al ENTRAR se ve: chispazo en el puesto de la trampa.
+
+    Aunque el motor la rearme antes de la foto (pinchos rearme=3), la
+    bitácora `efecto|trampa|<inst>` delata cuál se disparó.
+    """
+    from src.view import capas
+    app.enviar("s")  # sala 3: t3-1 (veneno) se dispara al entrar
+    assert app.trampas_fuego.get("t3-1") == 12
+    app.dibujar()    # se dibuja y decae
+    assert app.trampas_fuego == {"t3-1": 11}
+    ok, _, foto = app.enviar("e")  # sala 4 (iluminada): t4-1 pinchos
+    assert foto.sala_id == 4 and app.trampas_fuego.get("t4-1") == 12
+    assert "al entrar" in (app.aviso or "")  # el aviso dice el origen
+    sup = pygame.Surface((80, 80), pygame.SRCALPHA)
+    capas.dibujar_fuego_trampa(sup, (40, 40), 1.0)
+    pintados = [sup.get_at((x, y)) for x in range(80) for y in range(80)
+                if sup.get_at((x, y))[3] > 0]
+    assert pintados and all(c.r > 200 and c.g < 200 for c in pintados)
+    sup2 = pygame.Surface((80, 80), pygame.SRCALPHA)
+    capas.dibujar_fuego_trampa(sup2, (40, 40), 0.0)
+    assert not any(sup2.get_at((x, y))[3] for x in range(80) for y in range(80))
 
 
 # ------------------------------------------------------- sala oscura
