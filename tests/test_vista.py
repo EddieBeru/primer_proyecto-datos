@@ -180,8 +180,10 @@ def test_sprites_cache_y_reemplazo():
     assert sp.es_reemplazo("cosa-del-profe-99")
     assert raro.get_at((5, 5))[:3] == (255, 0, 255)
     assert raro is sp.reemplazo
-    assert sp.enemigo("guardián").get_at((5, 5)) != \
-        sp.enemigo("errante").get_at((5, 5))
+    # Todos los enemigos comparten el mismo sprite (solo cambia la IA).
+    assert sp.enemigo("guardián").get_at((5, 5)) == \
+        sp.enemigo("errante").get_at((5, 5)) == \
+        sp.enemigo("rastreador").get_at((5, 5))
     assert sp.puerta(False, None).get_at((5, 5)) != \
         sp.puerta(True, "llave-hierro-01").get_at((5, 5))
     assert sp.puerta(True, None).get_at((5, 5)) != \
@@ -196,7 +198,11 @@ def test_grupos_de_items_comparten_arte(app):
     assert png_para_id("coraza-runica-01") == "escudo.png"
     assert png_para_id("escudo-madera-01") == "escudo.png"
     assert png_para_id("mandoble-01") == "espada.png"
+    # Frasco único: toda poción (también la veloz) y las curas (antídoto).
     assert png_para_id("antidoto-01") == "pocion-salud.png"
+    assert png_para_id("pocion-roja-01") == "pocion-salud.png"
+    assert png_para_id("pocion-veloz-01") == "pocion-salud.png"
+    assert png_para_id("elixir-vital-futuro-02") == "pocion-salud.png"
     assert clase_de_id("llamas-01") == "trampa"
     assert png_para_id("llamas-01") == "trampa.png"
     assert clase_de_id("cosa-del-profe-99") == "desconocida"
@@ -813,7 +819,8 @@ def test_golpe_destella_y_barra_baja(app):
 
     def verdes():
         cx, cy = capas.pos_enemigo_animada(area, 0, app.tick_total)
-        bx, by = cx - TAM // 2, cy - TAM // 2 - 10 + 3
+        alto = app.sprites.enemigo("").get_height()  # arte compartido x3
+        bx, by = cx - TAM // 2, cy - alto // 2 - 10 + 3
         return sum(1 for px in range(bx, bx + TAM)
                    if app.ventana.get_at((px, by))[:3] == verde)
 

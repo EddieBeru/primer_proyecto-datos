@@ -22,10 +22,10 @@ INCLINACION_PASO = 6  # grados que se inclina el frame de paso al caminar
 RESPIRACION_PERIODO = 90  # ticks de un ciclo de squash & stretch en reposo
 RESPIRACION_AMP = 0.05  # ±5% vertical (sutil)
 
-# Pociones con arte PNG (assets/sprites/). Nombres canónicos por efecto;
-# agregar una variante nueva = soltar el PNG + (opcional) extender claves.
-POCION_SALUD_PNG = "pocion-salud.png"  # cura (ej. pocion-roja-01)
-POCION_VELOCIDAD_PNG = "pocion-velocidad.png"  # buff velocidad (ej. pocion-veloz-01)
+# Frasco único de consumibles: TODAS las pociones y las curas (antídoto)
+# comparten este PNG (también las de velocidad: el color no debe revelar el
+# efecto). `<id>.png` exacto sigue teniendo prioridad como override.
+POCION_SALUD_PNG = "pocion-salud.png"
 
 # Escudo de armadura (assets/sprites/). Vale para cualquier armadura futura:
 # `assets/sprites/<id>.png` exacto tiene prioridad, si no el alias por clase.
@@ -61,16 +61,20 @@ CAJA_ARTE_ANCHO, CAJA_ARTE_ALTO = 318, 378
 # Hueco interior del arte (512²) donde vive el juego: 110,110 de 290x290.
 CAJA_ZONA_X, CAJA_ZONA_Y, CAJA_ZONA_ANCHO = 110, 110, 290
 
-# Enemigos con arte propio por comportamiento (el resto sigue círculo).
-ENEMIGO_PNG = {"errante": "enemigo-errante.png"}
-ENEMIGO_ESCALA = 3  # el arte del errante se dibuja 3x el mosaico base
+# Todos los enemigos comparten el MISMO sprite (el arte del errante); el
+# comportamiento no cambia el dibujo, solo la IA. El fallback procedural
+# (sin PNG) sigue coloreando por comportamiento.
+ENEMIGO_PNG = "enemigo-errante.png"
+ENEMIGO_ESCALA = 3  # el arte se dibuja 3x el mosaico base
 
 # Grupos de ítems similares: todo id del grupo comparte arte (el PNG exacto
 # `<id>.png` siempre tiene prioridad). Vale para ids futuros sin tocar código.
 _CLAVES_POCION = ("pocion", "potion", "elixir", "brebaje", "frasco")
-_CLAVES_POCION_VELOCIDAD = ("veloz", "velocidad", "rapidez", "speed", "swift")
-_CLAVES_POCION_SALUD = ("roja", "salud", "vida", "cura", "health",
-                        "heal", "curativa", "restauradora")
+# Palabras de efecto: clasifican el PNG del frasco, no la clase (un enemigo
+# "sombra-veloz" no debe volverse poción).
+_CLAVES_POCION_EFECTO = ("veloz", "velocidad", "rapidez", "speed", "swift",
+                         "roja", "salud", "vida", "cura", "health",
+                         "heal", "curativa", "restauradora")
 _CLAVES_ANTIDOTO = ("antidoto", "antidote", "triaca")
 _CLAVES_LLAVE = ("llave", "key")
 _CLAVES_ANTORCHA = ("antorcha", "torch")
@@ -149,22 +153,19 @@ def png_para_id(item_id: str) -> str | None:
     """Nombre del PNG para un id. `None` = dibujo procedural.
 
     Prioridad: `assets/sprites/<id>.png` exacto (override sin código),
-    luego alias por efecto de poción (vale para `pocion-*-NN` futuros)
-    y alias por grupo de ítems similares: protección → escudo, armas →
-    espada, llave/pergamino/antorcha/trampa por clase, y antidoto al
-    frasco de poción. Cualquier id del grupo reutiliza el mismo PNG.
+    luego grupos: toda poción (por nombre o por efecto) y las curas
+    (antídoto) comparten el frasco `pocion-salud.png`; protección → escudo,
+    armas → espada, llave/pergamino/antorcha/trampa por clase. Cualquier id
+    del grupo reutiliza el mismo PNG.
     """
     if (ASSETS_DIR / f"{item_id}.png").is_file():
         return f"{item_id}.png"
     bajo = item_id.lower()
-    if any(k in bajo for k in _CLAVES_POCION):
-        if any(k in bajo for k in _CLAVES_POCION_VELOCIDAD):
-            return POCION_VELOCIDAD_PNG
-        if any(k in bajo for k in _CLAVES_POCION_SALUD):
-            return POCION_SALUD_PNG
+    if any(k in bajo for k in _CLAVES_POCION + _CLAVES_POCION_EFECTO):
+        return POCION_SALUD_PNG  # todas las pociones comparten el frasco
     clase = clase_de_id(item_id)
     if clase == "antidoto":
-        return POCION_SALUD_PNG  # mismo frasco del grupo de consumibles
+        return POCION_SALUD_PNG  # curas (antídoto) usan el mismo frasco
     if clase == "llave":
         return LLAVE_PNG
     if clase == "pergamino_retroceso":
@@ -515,16 +516,15 @@ class SpriteManager:
         return self._jugador
 
     def enemigo(self, comportamiento: str) -> pygame.Surface:
-        """Enemigo por comportamiento: PNG si hay arte, si no círculo + anillo.
+        """Enemigo: un mismo PNG para todos; sin arte, círculo + anillo.
 
         El arte PNG sale a `TAM * ENEMIGO_ESCALA` (lienzo cuadrado, escala
-        proporcional); el fallback procedural sigue en el mosaico TAM.
+        proporcional); el fallback procedural (sin assets) sigue coloreando
+        por comportamiento.
         """
-        nombre = ENEMIGO_PNG.get(comportamiento)
-        if nombre is not None:
-            img = self._cargar_png(nombre, tam=TAM * ENEMIGO_ESCALA)
-            if img is not None:
-                return img
+        img = self._cargar_png(ENEMIGO_PNG, tam=TAM * ENEMIGO_ESCALA)
+        if img is not None:
+            return img
         color = COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO)
         sup = _mosaico(color)
         centro, radio = TAM // 2, TAM // 2 - 3
