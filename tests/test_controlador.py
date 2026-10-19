@@ -237,6 +237,49 @@ def test_agenda_cancelar_donde():
     assert [e.tipo for e in ag] == ["turno"]
 
 
+def test_agenda_cancelar_tipo_solo_ese_tipo():
+    ag = Agenda()
+    ag.programar(1, "turno", {"actor": "g"})
+    ag.programar(2, "veneno", {})
+    ag.programar(2, "otorgo", {})
+    ag.programar(3, "veneno", {})
+    ag.programar(4, "turno", {"actor": "e"})
+    assert ag.cancelar_tipo("veneno") == 2
+    assert [e.tipo for e in ag] == ["turno", "otorgo", "turno"]
+    assert ag.cancelar_tipo("veneno") == 0
+
+
+def test_agenda_compacta_seq_y_sigue_cancelando():
+    """Regresión: la compactación del índice seq caminaba Evento, no _Nodo."""
+    ag = Agenda()
+    eventos = [ag.programar(i, "turno", {}) for i in range(200)]
+    for ev in eventos[:190]:
+        assert ag.cancelar_por_seq(ev.seq)
+    # len(por_seq)=200 > 4*len(10)+64=104: la próxima alta compacta.
+    nuevos = [ag.programar(1000 + i, "veneno", {}) for i in range(5)]
+    assert ag.cancelar_por_seq(eventos[195].seq)
+    assert not ag.cancelar_por_seq(eventos[5].seq)
+    assert ag.cancelar_tipo("veneno") == 5
+    esperados = [t for t in range(190, 200) if t != 195]
+    assert [e.t for e in ag] == esperados
+    assert len(ag) == len(esperados)
+    assert nuevos[0].seq > eventos[-1].seq
+
+
+def test_agenda_cancelar_tipo_intercalado_no_rompe_orden():
+    ag = Agenda()
+    esperados = []
+    for i in range(1, 11):
+        ag.programar(i, "veneno" if i % 2 == 0 else "turno", {})
+        if i % 2:
+            esperados.append(i)
+    assert ag.cancelar_tipo("veneno") == 5
+    assert [e.t for e in ag] == esperados
+    pend = ag.programar(11, "veneno", {})
+    assert ag.cancelar_por_seq(pend.seq)
+    assert [e.t for e in ag] == esperados
+
+
 def test_agenda_serializa_k2_y_sigue_seq():
     ag = Agenda()
     ag.programar(7, "turno", {"actor": "g"})
@@ -892,6 +935,28 @@ def test_foto_trae_todo_k5():
     assert f.inventario == [] and f.equipado is None and f.pergaminos == 0
     assert isinstance(f.mensajes, list) and f.presupuesto == 999
     assert f.estado == "jugando" and f.error is None and f.en_pausa is False
+
+
+def test_equipar_arma_y_armadura_conviven():
+    """§2.7: ranuras independientes; equipar una no suelta la otra."""
+    fac, _ = fachada_fake()
+    fac.estado.jugador.inventario = ["pergamino-01", "espada-hierro-01", "escudo-madera-01"]
+    assert fac.equipar(1)[0]
+    assert fac.estado.jugador.arma_equipada == "espada-hierro-01"
+    assert fac.equipar(2)[0]
+    assert fac.estado.jugador.armadura_equipada == "escudo-madera-01"
+    assert fac.estado.jugador.arma_equipada == "espada-hierro-01"
+    assert fac.deshacer()[0]
+    assert fac.estado.jugador.armadura_equipada is None
+    assert fac.estado.jugador.arma_equipada == "espada-hierro-01"
+
+
+def test_foto_solo_20_mensajes_mas_nuevos():
+    """§4.8: la foto entrega los últimos 20, en orden, con buffer circular."""
+    fac, _ = fachada_fake()
+    for i in range(25):
+        fac._ok(f"m{i}")
+    assert fac.foto().mensajes == [f"m{i}" for i in range(5, 25)]
 
 
 def test_recoger_llena_error_amable():

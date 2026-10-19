@@ -43,22 +43,24 @@ python -m pytest tests/ -q
 - `partida.log`: bitácora append, primera línea `#cripta <id> <ver> <vercat> <semilla>`.
 - `puntajes.jsonl`: tabla local (nombre, cripta id+versión, acciones, derrotados, reloj).
 - `cache.pkl`: caché LRU persistida (pickle versión + orden).
+- `cache.pkl.fichas`: almacén persistente de fichas desalojadas (§4.4, solo si hay `--cache`/ruta real).
 
 ## Consola mínima (solo fachada)
 
 `abrir N/S/E/O`, `N/S/E/O` mover, `atacar <inst>`, `esperar`, `pisar <inst>`,
-`recoger/usar/equipar/soltar`, `deshacer` (1 pergamino, intervalo completo),
-`avanzar` (siguiente evento), `foto`.
+`recoger/usar/equipar/soltar`, `inventario [nombre|peso|valor]` (vista
+ordenada sin tocar el orden real, §4.5), `deshacer` (1 pergamino, intervalo
+completo), `avanzar` (siguiente evento), `foto`.
 
 ## Mapa de carpetas (separación vista–controlador)
 
 | Capa | Carpeta canónica | Contenido |
 |---|---|---|
-| Controller 1: datos, red y persistencia | `src/controller1/` | `fake_provider`, `client`, `endpoints`, `session`, `offline`, `budget`, `room_loader`, `lru_cache`, `lista_doble`, `tabla_hash`, `mergesort`, `orden`, `savegame`, `gamelog`, `puntajes`, `cli` |
-| Controller 2: motor del juego | `src/controller2/` | `modelo`, `agenda`, `reloj`, `azar`, `movimiento`, `inventario`, `combate`, `efectos`, `enemigos`, `deshacer`, `victoria`, `bitacora` (formato K3), `fachada` (K5) |
+| Controller 1: datos, red y persistencia | `src/controller1/` | `fake_provider`, `client`, `endpoints`, `session`, `offline`, `budget`, `room_loader`, `lru_cache`, `almacen_fichas` (almacén en disco §4.4), `lista_doble`, `tabla_hash`, `mergesort`, `orden`, `savegame`, `gamelog`, `puntajes`, `cli` |
+| Controller 2: motor del juego | `src/controller2/` | `modelo`, `agenda` (doble + índices de cancelación), `reloj`, `azar`, `movimiento`, `inventario`, `combate`, `efectos`, `enemigos`, `deshacer`, `victoria`, `bitacora` (formato K3), `buffer_circular` (§4.8), `orden_local` (inserción propia sin C1), `fachada` (K5) |
 | Orchestrator (tercer controlador) | `src/orchestrator/` + `src/main.py` | `sesion` (ciclo de vida + drenaje §2.3), `consola` (puente §7.2, solo habla con Sesión), `bench` (mide C1+C2), `main` (entry point) |
 | Compartido (contratos, sin dueño) | `src/models/` | formas del API (`dungeons`, `rooms`, `roomContents`, `catalog`, `objects`, `types`) + `errors` (K4) |
-| Vista futura | `src/view/` | vacía hasta cumplir “Controlador en raya” (§7.3); Pygame solo leerá `FotoEstado` y enviará intenciones |
+| Vista | `src/view/` | Pygame: solo lee `FotoEstado` y envía intenciones a la Sesión (§7.3); `app`, `pantallas`, `capas`, `ui`, `entrada`, `movimiento`, `sprites`, `sfx`, `texto` |
 
 Rutas únicas: solo existen `controller1` / `controller2` / `orchestrator` (más `models`, `view` y `main`).
 

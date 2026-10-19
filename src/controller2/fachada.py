@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from src.controller2.agenda import Agenda
 from src.controller2.azar import Azar
 from src.controller2.bitacora import BitacoraMemoria, formatear
+from src.controller2.buffer_circular import BufferCircular
 from src.controller2.combate import ataque_enemigo, ataque_jugador
 from src.controller2.deshacer import PilaDeshacer, deshacer_una
 from src.controller2.efectos import (
@@ -30,6 +31,8 @@ from src.controller2.modelo import EstadoPartida
 from src.controller2.movimiento import abrir_puerta, ejecutar_cierre, intentar_mover
 from src.controller2.reloj import COSTOS, RelojVirtual, intervalo
 from src.controller2.victoria import actualizar_estado
+
+MENSAJES_MAX = 20  # §10.2: la vista muestra hasta 20 mensajes
 
 
 @dataclass
@@ -85,7 +88,9 @@ class Fachada:
                 self.azar.llamadas = int(getattr(estado, "azar_llamadas", 0))
             except Exception:
                 pass
-        self.mensajes: list[str] = []
+        # §4.8: buffer circular de capacidad fija; insertar es O(1) y la
+        # memoria no crece (antes: lista + self.mensajes[-20:] por mensaje).
+        self.mensajes = BufferCircular(MENSAJES_MAX)
         self.error: str | None = None
         self.en_pausa = False
         # Activa sala inicial §2.4 (rastro 0 + enemigos activos orden instancia).
@@ -129,10 +134,7 @@ class Fachada:
             self.bitacora.anotar(linea)
         except Exception:
             pass
-        self.mensajes.append(linea)
-        # §4.8: memoria constante, últimos 20 (sin desplazar físicamente: slice).
-        if len(self.mensajes) > 20:
-            self.mensajes = self.mensajes[-20:]
+        self.mensajes.agregar(linea)
 
     def _fail(self, mensaje: str) -> tuple[bool, str]:
         self.error = mensaje
@@ -141,9 +143,7 @@ class Fachada:
     def _ok(self, mensaje: str = "") -> tuple[bool, str]:
         self.error = None
         if mensaje:
-            self.mensajes.append(mensaje)
-            if len(self.mensajes) > 20:
-                self.mensajes = self.mensajes[-20:]
+            self.mensajes.agregar(mensaje)
         self._sync()
         actualizar_estado(self.estado)
         return True, mensaje
@@ -321,14 +321,12 @@ class Fachada:
             return self._fail("Nada en esa posición.")
         self.estado.jugador.inventario = inv.a_lista()
         ficha = self.catalogo.get(item)
-        # Equipo excluyente: solo un objeto a la vez; equipar uno suelta el otro
-        # (sigue en la mochila, solo pierde el bonus). Deshacer restaura ambos.
+        # §2.7: arma y armadura son ranuras independientes y conviven.
+        # (Antes, equipar un arma anulaba la armadura y viceversa: bug.)
         if getattr(ficha, "clase", "") == "arma":
             self.estado.jugador.arma_equipada = item
-            self.estado.jugador.armadura_equipada = None
         elif getattr(ficha, "clase", "") == "armadura":
             self.estado.jugador.armadura_equipada = item
-            self.estado.jugador.arma_equipada = None
         self.pila.apilar({"op": "equipar", "datos": {"orden_antes": orden_antes,
                           "arma_antes": arma_antes, "armadura_antes": armadura_antes},
                           "eventos": []})
@@ -604,7 +602,8 @@ class Fachada:
             equipado=j.inventario[0] if j.inventario else None,
             armadura_equipada=j.armadura_equipada,
             arma_equipada=j.arma_equipada, pergaminos=pergaminos,
-            mensajes=self.mensajes[-20:], presupuesto=self.estado.presupuesto_restante,
+            mensajes=self.mensajes.ultimos(MENSAJES_MAX),
+            presupuesto=self.estado.presupuesto_restante,
             estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa,
             sala_oscura=bool(getattr(sala, "oscura", False)))
 

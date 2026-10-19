@@ -20,6 +20,7 @@ import struct
 import time
 
 from src.controller1 import endpoints
+from src.controller1.mergesort import mergesort
 from src.models.errors import GuardadoError
 
 MAGIA = b"CRIPTA\x00"
@@ -138,7 +139,8 @@ def guardar(ruta, estado):
         entradas = b""
         base = len(idx) + n * struct.calcsize("<iqq") + struct.calcsize("<q")
         off = base + len(core)
-        orden = sorted(blobs.items(), key=lambda kv: int(kv[0]))
+        # §4.9: índice de salas ordenado con el mergesort propio (sin sorted).
+        orden = mergesort(list(blobs.items()), clave=lambda kv: int(kv[0]))
         for sid, blob in orden:
             entradas += struct.pack("<iqq", int(sid), off, len(blob))
             off += len(blob)

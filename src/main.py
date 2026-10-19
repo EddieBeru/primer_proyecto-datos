@@ -23,10 +23,11 @@ def main(argv=None):
 
 
 def modo_bench():
+    from src.controller1.mergesort import mergesort
     from src.orchestrator.bench import correr_todo
     res = correr_todo()
     print("bench por subsistema (sin red, sin vista):")
-    for k in sorted(res):
+    for k in mergesort(list(res)):
         v = res[k]
         print(f"  {k}: {v:.6f}" if isinstance(v, float) else f"  {k}: {v}")
     return 0

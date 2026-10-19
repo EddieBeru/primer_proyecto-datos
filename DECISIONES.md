@@ -1,6 +1,281 @@
-# DECISIONES (base del Documento de Decisiones, Hito 3)
+# DECISIONES (Documento de Decisiones de Diseño, §8)
 
-Formato: qué / por qué / descartado.
+Dos partes: (A) el documento por problema de §4 con problema, alternativas,
+decisión, complejidad, evidencia `--bench` y límites; (B) la bitácora
+numerada de decisiones (formato qué / por qué / descartado) que el grupo
+fue acumulando y que alimenta la parte A.
+
+Mediciones de la parte A: `python -m src.main --bench` (máquina del grupo,
+mejor de 3 repeticiones; el cronómetro varía ~±50% entre corridas, las
+comparaciones se hacen dentro de la misma corrida).
+
+## A. Documento por problema (§4.1–§4.11)
+
+### §4.1 Qué ocurre a continuación (agenda de eventos)
+
+- **Problema.** Cada paso del bucle saca el evento pendiente con menor
+  `(t, seq)` sin examinar todos los eventos; los actores mueren (sus
+  eventos se cancelan), los efectos se cancelan antes de activarse y el
+  orden debe quedar determinista. Operaciones reales por turno jugado:
+  1 `ver_proximo`+`sacar_proximo` por evento drenado (decenas), varias
+  `programar` por activación de sala (turnos, regeneración, veneno,
+  oleadas) y `cancelar_por_seq` al deshacer. Con 500 eventos en vuelo y
+  decenas de miles de extracciones (§4.1).
+- **Alternativas.** (a) Lista simplemente enlazada ordenada (la versión
+  anterior): sacar es O(1) pero cancelar por seq exige barrer; el antídoto
+  usaba `cancelar_donde` (barrido completo). (b) Montículo binario propio:
+  O(log n) sacar/insertar, pero cancelar un evento arbitrario (muerte,
+  efecto, deshacer) requiere búsqueda o borrado perezoso, y el desempate
+  estable por `seq` complica. Descartada (a) por el barrido del antídoto;
+  descartada (b) por el costo de las cancelaciones, que en este juego son
+  tan frecuentes como las extracciones.
+- **Decisión.** Agenda como lista doble ordenada por `(t, seq)` (cabeza y
+  cola), con caminos O(1): sacar el próximo, desenlazar un nodo conocido y
+  reinsertar al final cuando el reloj avanza. Índices internos propios
+  (sin `dict`, §7): hash encadenado `tipo → lista intrusiva de nodos` y
+  lista `seq → nodo` compactable. `cancelar_tipo(tipo)` recorre solo los
+  eventos de ese tipo; `cancelar_por_seq(seq)` es O(1).
+- **Complejidad.** `ver_proximo`/`sacar_proximo` O(1); `programar` O(1)
+  amortizado en el patrón real (t creciente) y O(n) en el peor caso
+  (inserciones con t viejo); `cancelar_por_seq` O(1); `cancelar_tipo` O(k);
+  `cancelar_donde` O(n) (queda solo para predicados sueltos, p. ej.
+  `datos["actor"]` en deshacer de enemigos).
+- **Evidencia (`--bench`).** `agenda_500` (500 altas desordenadas + vaciado)
+  = 0.011 s. `agenda_cancelar_tipo_20k` = 0.0009 s vs
+  `agenda_cancelar_barrido_20k` = 0.0025 s (misma agenda de 20 000 eventos,
+  400 de tipo veneno): el índice es ~3× más rápido y además la única
+  operación del antídoto; el barrido queda en el bench como la alternativa
+  descartada medida. `retroceso_200` (200 apilar+desapilar con cancelación
+  por seq O(1)) = 0.0002 s.
+- **Límites.** Si la mayoría de las inserciones vinieran con `t` en el
+  pasado (no es el patrón del reloj), `programar` degeneraría en O(n) por
+  alta; con varios cientos de miles de eventos en vuelo convendría el
+  montículo con borrado perezoso.
+
+### §4.2 Traer el contenido antes de que haga falta
+
+- **Problema.** Entrar a una sala exige su contenido ya disponible; pedirlo
+  al cruzar la puerta costaría ~400 ms de espera. Operaciones reales: al
+  armar cada sala se piden lotes de hasta 10 salas (contenido) y lotes de
+  catálogo; al empezar, 1 esqueleto completo.
+- **Alternativas.** (a) Pedir 1×1 al cruzar cada puerta: 6 salas = 6
+  solicitudes tardías y el jugador espera; (b) traer todo el contenido al
+  inicio: quema el presupuesto con mapas grandes. Descartadas ambas.
+- **Decisión.** Esqueleto completo al inicio (1 solicitud) + contenido en
+  lotes de 10 al armar la sala y sus vecinas del plano (§2.4: las vecinas
+  entran dormidas). Las solicitudes se hacen antes de confirmar el
+  movimiento; si algo falta,`_asegurar_fichas` lo trae como respaldo.
+- **Complejidad.** Cada contenido se pide una vez por versión vigente
+  (O(1) amortizado por sala); armar vecinas es O(grado) sobre el plano.
+- **Evidencia.** `ciclo_completo_s` = 0.004 s: iniciar + 12 pasos hasta
+  victoria (esqueleto, sala inicial con vecinas dormidas, combate, trampas,
+  apertura de puertas) con caché y almacén en disco reales y red sintética.
+- **Límites.** El lote de 10 deja de alcanzar si una cripta tuviera pasillos
+  de >9 vecinas simultáneas; el costo de red del servidor real (400 ms) no
+  está en el bench (offline), se contabiliza en presupuesto, no en reloj
+  virtual.
+
+### §4.3 Resolución de referencias del catálogo
+
+- **Problema.** Los ids se descubren en orden no controlado, se repiten
+  entre salas y criptas; resolverlos 1×1 no cabe en el presupuesto.
+  Operación frecuente: averiguar si una ficha ya está en memoria antes de
+  pedirla (una vez por entidad al armar cada sala).
+- **Alternativas.** (a) `dict` como índice — prohibido por §7;
+  (b) solicitar cada id al descubrirlo — quema el presupuesto.
+- **Decisión.** `lote_catalogo_auto(ids)` agrupa ids nuevos en una
+  solicitud; la caché LRU (tabla hash propia + lista doble) y el almacén en
+  disco resuelven el resto en memoria/disco. El proveedor acumula
+  `catalogo` para que C2 nunca vea ids sin ficha.
+- **Complejidad.** Consulta de caché O(1); lote O(ids nuevos).
+- **Evidencia.** `cache_hits_2000` = 0.0029 s (≈1.5 µs por acierto);
+  `almacen_recupera_200` = 0.0018 s (≈9 µs por ficha desalojada leída de
+  disco), contra ~400 ms de una solicitud de red.
+- **Límites.** La tabla hash es de la LRU; si el catálogo de una cripta
+  cabalgara sobre decenas de miles de fichas el factor de carga de las
+  cubetas debería re-dimensionarse (hoy fijo).
+
+### §4.4 Reutilización y caché persistente
+
+- **Problema.** Tope configurable de fichas en memoria (`--cache-size`,
+  default 25); al desalojar, la ficha queda en disco; recuperarla cuesta
+  una lectura de disco, no red; las fichas en uso (enemigo vivo, inventario,
+  suelo/trampas de la sala actual) jamás se desalojan; la caché sobrevive
+  al cierre y se valida por versión.
+- **Alternativas.** (a) LRU puro sin pin: desalojaba fichas en uso y el
+  juego pedía red para objetos visibles; (b) pin de todo el catálogo
+  (versión anterior): con 25 de tope nada podía desalojarse. Descartadas.
+- **Decisión.** `CacheLRU` (tabla hash + lista doble) con `fijar_en_uso`
+  recalculado desde el estado real; `AlmacenFichas` (archivo append-only
+  con índice hash id→offset) persiste cada ficha al salir de la LRU. La
+  sesión fija solo lo que la partida usa: vivos, suelo, trampas e
+  inventario de la sala actual. Al recuperar del almacén, la ficha vuelve
+  a la LRU.
+- **Complejidad.** Consulta O(1), desalojo O(1), recuperación de disco
+  O(1) + deserialización de 1 ficha; fijar en uso O(fichas en uso).
+- **Evidencia.** `cache_hits_2000` 0.0029 s / `cache_misses_2000` 0.0036 s
+  (las consultas fallidas también son O(1)); `cache_disco_guarda` 24 µs y
+  `cache_disco_carga` 94 µs para 25 fichas; `almacen_recupera_200` 9 µs por
+  ficha. Prueba `test_ficha_desalojada_se_recupera_sin_red` (LRU de 2 con
+  backend que cuenta lotes: recuperar no pide red).
+- **Límites.** El almacén hace append y no compacta: con muchísimas
+  versiones del catálogo el archivo crece (hoy se trunca al cambiar de
+  versión). El pin asume que la sala actual es la única visible; vistas que
+  muestren dos salas a la vez requerirían ampliarlo.
+
+### §4.5 Inventario
+
+- **Problema.** Recorrer hacia adelante y atrás, soltar en cualquier
+  posición sin costo según posición, equipar mueve al frente, vista
+  ordenada por peso/valor/nombre sin tocar el orden real, tope de capacidad.
+- **Alternativas.** (a) Lista doble + iterador (la anterior, correcta) sin
+  exponer la vista ordenada en la interfaz ni en la consola; (b) array con
+  índices. Descartada (b) por el costo de soltar en el medio.
+- **Decisión.** `ListaDoble` con cursor para el recorrido; soltar desenlaza
+  el nodo actual O(1); equipar mueve al frente O(1); la vista ordenada la
+  produce el mergesort de C1 inyectado (`orden_fn`) sobre una copia. La
+  consola expone `inventario [nombre|peso|valor]` y la vista cicla criterios
+  (C) y marca "E" las equipadas.
+- **Complejidad.** Recorrer O(1) por paso; soltar/equipar O(1); vista
+  ordenada O(n log n) sobre copia (n ≤ inventario_max).
+- **Evidencia.** `inventario_recorre` = 12 µs (100 objetos, ida y vuelta);
+  `inventario_suelta_equipar` = 4 µs (soltar en el medio + recoger +
+  equipar).
+- **Límites.** La vista ordenada depende de `peso`/`valor` presentes en la
+  ficha; fichas sin esos campos ordenan al final (documentado en `orden`).
+
+### §4.6 Pergaminos de retroceso e historial reversible
+
+- **Problema.** Volver al estado anterior a la última acción incluyendo los
+  eventos ejecutados después; prohibido guardar copias completas; tope 5
+  acciones; el pergamino queda consumido y excluido del estado reversible.
+- **Alternativas.** (a) Snapshot completo del estado por acción (prohibido
+  y O(estado) por acción); (b) reversión por inversas (implementada).
+- **Decisión.** Cada acción del jugador apila una inversa mínima
+  (`{"op", "datos", "eventos"}`) en `PilaDeshacer` (lista doble, tope 5,
+  descarta lo más antiguo); deshacer aplica la inversa, cancela los eventos
+  agendados por seq O(1) y restaura reloj/rastro/vida/inventario/puertas/
+  trampas. El pergamino usado se descuenta aparte del historial.
+- **Complejidad.** Apilar O(1); deshacer O(eventos de la acción) por las
+  cancelaciones O(1) (antes O(agenda) cada una). No hay copias completas.
+- **Evidencia.** `retroceso_200` = 0.0002 s (200 apilar+desapilar).
+  Pruebas de inversas por operación en `test_controlador.py`
+  (regeneración, oleadas, trampas, equipo, torretas).
+- **Límites.** La garantía es "una acción atrás por deshacer" (§2.11); si
+  dos acciones se entrelazaran con drenajes parciales el historial asume
+  que el drenaje completo ocurre entre acciones (así lo hace la Sesión).
+
+### §4.7 El rastro del jugador
+
+- **Problema.** La decisión de un rastreador cuesta proporcional a las
+  salidas de su sala (no al tamaño de la cripta ni al recorrido); rastro
+  caduca a 400; trabajo total por ciclo lineal en los enemigos que actúan.
+- **Alternativas.** (a) Caducar activamente (recorrer la cripta limpiando
+  marcas viejas): paga O(cripta) aunque nadie rastree; (b) detectar la
+  caducidad al consultar (implementada): cero trabajo si no hay
+  rastreadores actuando.
+- **Decisión.** `sala.ultima_visita` (timestamp por sala) + umbral 400 al
+  consultar; el rastreador compara sus salidas abiertas y elige la más
+  fresca (empate menor id). Errantes usan azar reproducible; guardianes
+  esperan.
+- **Complejidad.** O(salidas de la sala) por decisión de rastreador; total
+  por ciclo lineal en rastreadores activos.
+- **Evidencia.** Cubierto por el ciclo completo (`ciclo_completo_s`, las
+  sombras rastreadoras del mapa fake cruzan entre salas) y las pruebas de
+  determinismo del errante/rastreador; sin bench aislado.
+- **Límite conocido.** La localización del enemigo dentro de `decidir_destino`
+  hoy barre las salas del estado (`_sala_de`): con mapas muy grandes y
+  muchos rastreadores ese barrido domina. Mejora pendiente: registrar la
+  ubicación de cada instancia al moverla.
+
+### §4.8 Bitácora en pantalla
+
+- **Problema.** Mostrar solo los últimos 20 mensajes con memoria constante,
+  sin desplazar físicamente los 19 anteriores al agregar.
+- **Alternativas.** (a) Lista con `pop(0)`/corte `[-20:]`: copia o
+  desplazamiento por mensaje; (b) deque con tope: no propia y opaca;
+  (c) buffer circular propio (implementado).
+- **Decisión.** `BufferCircular(20)` en la fachada: arreglo fijo de 20
+  posiciones con índice de escritura módulo 20; `ultimos(k)` reconstruye
+  los últimos k en orden. La consola imprime los 20; (la vista mantiene su
+  decisión 49: toast + resaltes, sin panel de bitácora).
+- **Complejidad.** Agregar O(1) sin desplazamientos; memoria O(1) (20
+  posiciones fijas sin importar la partida).
+- **Evidencia.** `buffer_100k_agrega` = 0.027 s por 100 000 mensajes
+  (≈0.3 µs por mensaje); `buffer_largo` = 20 tras 100 000 altas.
+- **Límites.** El tope 20 es fijo por §10.2; si se quisiera una ventana
+  histórica mayor habría que parametrizar el buffer.
+
+### §4.9 Ordenamiento
+
+- **Problema.** Ordenar puntajes, vistas de inventario, índice del guardado
+  y listas auxiliares (vecinas, agenda reconstruida). Prohibido `sorted`/
+  `list.sort` para los ordenamientos evaluados. Tamaños reales: inventario
+  ≤ 10-100, índices de guardado ≤ salas, puntajes de la tabla local (decenas
+  a miles), datos casi ordenados en reconstrucción de agenda.
+- **Alternativas.** (a) Solo mergesort: correcto pero paga O(n log n) aun
+  con datos casi ordenados; (b) solo inserción: O(n²) en datos mezclados.
+  Descartadas individualmente.
+- **Decisión.** Dos algoritmos propios con `clave` (estables, sin mutar):
+  mergesort estable para tamaños grandes/mezclados e inserción para n ≤ 32
+  o casi ordenado; `orden_auto` elige por propiedades medibles (n y
+  desorden). C2 no importa C1: usa su inserción local (`orden_local`) para
+  la agenda reconstruida y el padrón de salas; la Sesión inyecta
+  `vista_ordenada` (mergesort de C1) en la fachada.
+- **Complejidad.** O(n log n) mezclado; O(n) casi ordenado con inserción.
+- **Evidencia.** `insertsort_casi_2000` = 0.00036 s vs
+  `mergesort_casi_2000` = 0.0035 s (10× a favor de inserción en
+  casi-ordenado); `orden_auto_500` 0.0016 s vs `mergesort_500` 0.0017 s
+  (empate a tamaño chico); `orden_auto_8000` 0.023 s vs `mergesort_8000`
+  0.020 s. Las alternativas descartadas quedan medidas en el propio bench.
+- **Límites.** El umbral 32/razón de desorden está fijado por mediciones
+  locales; con claves de comparación muy costosas el punto de corte se
+  correría hacia la inserción.
+
+### §4.10 Guardado binario de la partida
+
+- **Problema.** Formato binario propio, cargar una sala sin leer todo el
+  archivo, detectar incompatibilidad de versión y comparar contra JSON.
+- **Alternativas.** (a) JSON manual por clase (volumen y sin salto
+  aleatorio); (b) pickle completo del estado (sin índice, sin formato
+  propio).
+- **Decisión.** v2 con magia + versión de formato + índice de salas
+  (offset/largo por sala, ordenado con mergesort); cargar una sala lee solo
+  su blob; v1 solo lectura. `comparar_json` mide tamaño y tiempo contra el
+  JSON equivalente.
+- **Complejidad.** Guardar O(salas); cargar 1 sala O(1) búsqueda en índice
+  + O(blob); cargar todo O(archivo).
+- **Evidencia.** `guardado_bin_bytes` 600 vs `guardado_json_bytes` 595;
+  carga completa `guardado_bin_carga_s` 44 µs vs `guardado_json_carga_s`
+  11 µs. Honesto: en un estado tan chico el JSON es más rápido de cargar
+  entero; la ventaja del binario es el acceso por sala (una sala de un
+  archivo grande sin parsear el resto) y la validación de formato.
+- **Límites.** Con el estado actual el binario no gana en tamaño; ganaría
+  con muchas instancias repetidas (pickle comparte referencias) o si se
+  midiera carga de una sala en archivos de cientos de salas.
+
+### §4.11 Bitácora de partida y reproducción
+
+- **Problema.** Registrar cada acción en un archivo de solo anexado con
+  header (cripta, versiones, semilla); `--replay` reproduce sin
+  interacción; si la versión no está disponible, avisar y no reproducir
+  contra datos distintos.
+- **Alternativas.** (a) Sin header: imposible validar; (b) reproducir
+  silenciosamente contra la versión actual: resultados falsos.
+- **Decisión.** K3: header `#cripta <id> <ver> <vercat> <semilla>` +
+  líneas `t|accion|...` de solo append; el replay valida header contra el
+  backend (o el paquete offline) y reconstruye con la misma semilla; si la
+  versión no está disponible, error amable.
+- **Complejidad.** Escribir O(1) por acción; reproducir O(líneas) + el
+  costo normal del motor.
+- **Evidencia.** `ciclo_completo_s` juega con `log_ruta` desactivado para
+  medir el motor; `--replay partida.log` sobre la bitácora real del repo
+  funciona offline (`paquete_demo/`); pruebas de header inválido/versión
+  distinta en `test_sesion.py`.
+- **Límites.** La reproducción fiel depende de que el backend o el paquete
+  offline conserven las versiones listadas; si no, solo avisa.
+
+## B. Bitácora de decisiones (qué / por qué / descartado)
 
 1. **Contar toda petición (reintentos y versiones descuentan).**
    Sin respuesta del profe (pregunta 1), lo seguro es asumir el peor caso y nunca sobregirar.
@@ -46,7 +321,7 @@ Formato: qué / por qué / descartado.
 15. **Veneno 80x5=400, rearme 300 default, regen 200 capada.** Doc §2.10. Descartado: ticks genéricos.
 16. **Victoria con puerta abierta, tabla sin fórmula.** Doc §2.12. Descartado: puntaje `salas*100...` y victoria con llave en bolsillo.
 17. **Pergamino por intervalo + exclusión + tope 5, sin copias.** Doc §2.11/§4.6. Descartado: una entrada por evento (revierte de a uno).
-18. **Bitácora header + validación, pantalla 20 circular.** Doc §4.11/§4.8. Descartado: sin header y `mensajes[-50:]`.
+18. **Bitácora header + validación, pantalla 20 circular.** Doc §4.11/§4.8. Descartado: sin header y `mensajes[-50:]`. (Nota: el "circular" real llegó en la decisión 56; hasta entonces la fachada recortaba una lista.)
 19. **Presupuesto cuenta todo incl lista; offline no cuenta.** Doc §5.1. Descartado: lista gratis.
 20. **Caché 25 + pin en-uso + disco.** Doc §4.4. Descartado: LRU puro sin pin.
 21. **Guardado v2 con índice por sala + comparativa JSON.** Doc §4.10. Descartado: secuencial completo.
@@ -133,3 +408,30 @@ Formato: qué / por qué / descartado.
 53. **Botones de menú también con ratón: hover + clic = la misma tecla.**
     Todos los menús publican sus hotspots `(rect, tecla)` desde `pantallas` (inicio, selección por tarjeta, pausa, fin, error y versión) y `VistaApp.dibujar` los guarda en `self.hotspots`; `manejar_clic(pos)` busca el rect y despacha `manejar_tecla(tecla)`, así el ratón reusa TODA la lógica de teclado (nada de acciones duplicadas) y respeta los deshabilitados (Continuar sin guardado no tiene hotspot). `boton(...)`/`_tarjeta_cripta` aceptan `resaltado` (ratón encima) y aclaran el panel (naranja más claro en el primario, crema en el resto). Error y versión, que solo tenían el pie "Esc vuelve al menú", ahora muestran un botón real "Volver al menú" (insignia Esc) para que el jugador de ratón no quede atrapado. `ejecutar` atiende MOUSEMOTION (hover) y MOUSEBUTTONDOWN de botón izquierdo, con el mismo try/except que las teclas. Prueba: `test_raton_interactua_con_botones_de_menu` (hover cambia píxel, clics en inicio/selección/pausa/error; Continuar deshabilitado sin hotspot).
     Descartado: sintetizar eventos de teclado (frágil para las pruebas) y un mapa de acciones paralelo al de teclas (doble mantenimiento).
+54. **Almacén de fichas en disco (`almacen_fichas.py`): desalojar de la LRU ya no pierde la ficha (§4.4).**
+    Archivo append-only con magia `CRIPTAFX\0` + versión de formato + registros largos pickleables; índice hash propio id→offset (offset al inicio del registro). `obtener` lee solo esa ficha; el RoomLoader recupera de memoria→almacén→red y reinserta en la LRU; la versión de catálogo invalida y trunca al próximo guardado. En tests/offline sin ruta no hay almacén (no se inventa caché en disco).
+    Descartado: releer de red al desalojar (gastaba presupuesto con fichas ya conocidas) y archivo con pickle completo reescrito entero (O(catálogo) por ficha nueva).
+55. **Pin de caché acotado al estado real de la partida (§4.4).**
+    `ProveedorSesion._armar` ya no fija todo lo que arma: la Sesión recalcula `_fijar_fichas_en_uso` (enemigos vivos, suelo, trampas e inventario de la sala actual + equipo) cada vez que el estado cambia. Antes el pin cubría el catálogo entero y con el tope de 25 la LRU no podía desalojar nada.
+    Descartado: pin por sala visitada (crecía sin tope y bloqueaba el desalojo legítimo).
+56. **Buffer circular propio de 20 mensajes (`buffer_circular.py`) (§4.8).**
+    Arreglo fijo con índice de escritura módulo 20: agregar O(1) sin desplazar nada y memoria constante; `ultimos(k)` para la foto/consola. La decisión 18 decía "20 circular" pero la implementación recortaba listas; esto la hace real.
+    Descartado: `collections.deque(maxlen=20)` (correcto pero ajeno a la restricción de estructuras propias) y recorte `[-20:]` en cada foto (copia por mensaje).
+57. **Equipar arma y armadura ya no anula la otra ranura (§2.7).**
+    `fachada.equipar` guardaba una sola ranura; ahora desequipa solo la del mismo tipo y ambas conviven, con las dos incluidas en el pin de equipo. Test `test_equipar_arma_y_armadura_conviven`.
+    Descartado: una ranura de equipo genérica (perdía el bonus de la otra pieza al alternar).
+58. **Vista ordenada del inventario también en consola y vista (§4.5/§10.2).**
+    `Sesion.inventario_ordenado(criterio)` delega en el mergesort inyectado; la consola acepta `inventario [nombre|peso|valor]` y la vista cicla criterios con C (orden real → nombre → peso → valor) marcando "E" las equipadas en cualquier orden. Antes `vista_ordenada` de C1 existía sin uso en la interfaz.
+    Descartado: ordenar en la vista/consola (violaría §4.9: el ordenamiento evaluado vive en C1, C2 lo recibe inyectado).
+59. **Agenda con doble enlace e índices propios; antídoto O(k) (§4.1/§4.8).**
+    Ver §4.1 de la parte A. `usar_antidoto` pasó de `cancelar_donde` (barrido) a `cancelar_tipo("veneno")`; `deshacer` cancela por seq en O(1). El bench `agenda_cancelar_barrido_20k` conserva la alternativa descartada medida.
+    Descartado: montículo binario (cancelaciones frecuentes) y mantener el barrido (3× más lento ya con 20k eventos).
+60. **Cero `sorted()`/`sort()` en `src/` para los ordenamientos evaluados (§4.9).**
+    Guardado (índice de salas), agenda reconstruida, padrón/vecinas de enemigos y salidas del mapa usan mergesort de C1 (C1/orquestador) o la inserción local de C2 (`orden_local`, sin importar C1). El único `sorted(` que queda en el repo es la mención en el docstring de `mergesort.py`.
+    Descartado: dejar `sorted()` en sitios "no evaluados" (el grep del evaluador no distingue).
+61. **Bench ampliado: almacén, buffer, cancelación indexada vs barrida y ciclo completo (§5.3/§8).**
+    `--bench` ahora mide recuperación del almacén, buffer de 100k mensajes, `cancelar_tipo` contra `cancelar_donde` y un ciclo de partida de punta a punta (iniciar + ruta de victoria con caché y almacén en disco) con backend sintético propio, sin depender de `paquete_demo/` (fixture de tests).
+    Descartado: medir el ciclo con la red real (no reproducible) y depender del paquete offline (el bench debe correr siempre).
+62. **SFX a volumen bajo y sprites de items por grupos de nombre (view).**
+    `sfx.VOLUMEN = 0.25` aplicado con `set_volume` al cargar el jingle (0.5 seguía fuerte: pygame mide amplitud lineal). `sprites.py` clasifica por palabras clave (`_CLAVES_POCION`, `_ARMA`, `_ARMADURA`, ...): poción de velocidad/antídoto reutilizan `pocion-salud.png`, protección (coraza, peto...) usa `escudo.png`, armas (mandoble, daga...) usan `espada.png`, `llamas-01` dejó de salir magenta (trampa). Se corrigió un "espada" duplicado en las claves.
+    Descartado: un PNG por id (imposible con el catálogo abierto de la API) y colores de respaldo por hash (el usuario pedía arte real por familia).

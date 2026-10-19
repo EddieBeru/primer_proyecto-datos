@@ -16,6 +16,7 @@ class BudgetAdapter:
         self.realizadas = 0
         self.hits = 0
         self.misses = 0
+        self.discos = 0  # fichas recuperadas del almacén persistente
 
     def get_presupuesto(self):
         return self.presupuesto
@@ -35,9 +36,13 @@ class BudgetAdapter:
     def miss(self):
         self.misses += 1
 
+    def disco(self):
+        self.discos += 1
+
     def reporte(self) -> dict:
         return {"realizadas": self.realizadas, "presupuesto": self.inicial,
-                "restantes": self.presupuesto, "hits": self.hits, "misses": self.misses}
+                "restantes": self.presupuesto, "hits": self.hits,
+                "misses": self.misses, "disco": self.discos}
 
     def reiniciar(self, presupuesto=14):
         if presupuesto < 0:
@@ -47,3 +52,4 @@ class BudgetAdapter:
         self.realizadas = 0
         self.hits = 0
         self.misses = 0
+        self.discos = 0

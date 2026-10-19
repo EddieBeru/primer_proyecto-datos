@@ -118,6 +118,30 @@ def test_mapa_acciones(app):
     assert intencion_para_tecla(pygame.K_g, foto, "N") == "@guardar"
     assert intencion_para_tecla(pygame.K_ESCAPE, foto, "N") == "@pausa"
     assert intencion_para_tecla(pygame.K_F5, foto, "N") is None
+    # Bloque §4.5/objetivo: X fija objetivo, C cicla el orden de la mochila.
+    assert intencion_para_tecla(pygame.K_x, foto, "N") == "@sel-enemigo"
+    assert intencion_para_tecla(pygame.K_c, foto, "N") == "@criterio-inv"
+    assert intencion_para_tecla(pygame.K_x, foto, "N",
+                                mods=pygame.KMOD_SHIFT) == "@sel-enemigo-prev"
+    assert intencion_para_tecla(pygame.K_TAB, foto, "N",
+                                mods=pygame.KMOD_SHIFT) == "@tab-inv-prev"
+
+
+def test_objetivo_con_x_y_space_ataca_al_fijado(app):
+    assert app.manejar_tecla(pygame.K_x) == "@sel-enemigo"
+    assert app.sel_enemigo_activo
+    assert app.manejar_tecla(pygame.K_SPACE) == "atacar e1-1"
+
+
+def test_cicla_criterio_de_mochila(app):
+    assert app.manejar_tecla(pygame.K_c) == "@criterio-inv"
+    assert app.criterio_inv == "nombre"
+    assert app.manejar_tecla(pygame.K_c) == "@criterio-inv"
+    assert app.criterio_inv == "peso"
+    assert app._accion_local("@criterio-inv-prev") == "@criterio-inv-prev"
+    assert app.criterio_inv == "nombre"
+    assert app._accion_local("@criterio-inv-prev") == "@criterio-inv-prev"
+    assert app.criterio_inv is None  # vuelve al orden real
 
 
 def test_manejar_tecla_mueve_libre_sin_cambiar_sala(app):
@@ -165,6 +189,19 @@ def test_sprites_cache_y_reemplazo():
 
 
 # ------------------------------------------------------- pantallas sin crashear
+def test_grupos_de_items_comparten_arte(app):
+    """Grupos similares reutilizan PNG: protección → escudo, armas → espada."""
+    from src.view.sprites import clase_de_id, png_para_id
+    assert clase_de_id("coraza-runica-01") == "armadura"
+    assert png_para_id("coraza-runica-01") == "escudo.png"
+    assert png_para_id("escudo-madera-01") == "escudo.png"
+    assert png_para_id("mandoble-01") == "espada.png"
+    assert png_para_id("antidoto-01") == "pocion-salud.png"
+    assert clase_de_id("llamas-01") == "trampa"
+    assert png_para_id("llamas-01") == "trampa.png"
+    assert clase_de_id("cosa-del-profe-99") == "desconocida"
+
+
 def test_pantallas(app):
     from src.view import pantallas
     sup, fuente = app.ventana, app.fuente

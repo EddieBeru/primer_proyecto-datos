@@ -7,9 +7,12 @@ partida completa, la fachada tiene todo lo que la vista necesitará (§7.2).
 
 from __future__ import annotations
 
+from src.controller1.mergesort import mergesort
+
 AYUDA = ("comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar · "
          "pisar <inst> · recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · "
-         "deshacer · foto · guardar [ruta] · cargar <ruta> · fin · salir · ayuda")
+         "inventario [nombre|peso|valor] · deshacer · foto · guardar [ruta] · "
+         "cargar <ruta> · fin · salir · ayuda")
 
 
 def _cierre_puerta(v) -> str:
@@ -28,7 +31,7 @@ def renderizar(foto, salida=print) -> None:
     salida(f"— sala {foto.sala_id} {foto.sala_nombre} [{foto.estado}]")
     puertas = ", ".join(
         f"{d}\u2192{v['destino']}{'\U0001f512' if v['cerrada'] else ''}{_cierre_puerta(v)}"
-        for d, v in sorted(foto.puertas.items()))
+        for d, v in mergesort(foto.puertas.items(), clave=lambda kv: kv[0]))
     salida(f"  puertas: {puertas or '—'}")
     salida(f"  enemigos: {', '.join(_etiqueta_enemigo(e) for e in foto.enemigos) or '—'}")
     salida(f"  suelo: {', '.join(foto.objetos_suelo) or '—'}")
@@ -45,7 +48,7 @@ def renderizar(foto, salida=print) -> None:
     salida(f"  vida {j['vida']}/{j['vida_max']} atk {j['ataque']} def {j['defensa']} "
            f"vel {j['velocidad']} efectos {j['efectos'] or '—'}")
     salida(f"  inv: {', '.join(foto.inventario) or '—'} (pergaminos: {foto.pergaminos})")
-    for m in foto.mensajes[-5:]:
+    for m in foto.mensajes[-20:]:  # §4.8: se conservan los últimos 20
         salida(f"  · {m}")
     if foto.error:
         salida(f"  ! {foto.error}")
@@ -83,6 +86,12 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
             continue
         if cmd == "foto":
             renderizar(sesion.foto(), salida)
+            continue
+        if cmd in ("inventario", "inv"):
+            partes = texto.split()
+            criterio = partes[1] if len(partes) > 1 else "nombre"
+            orden = sesion.inventario_ordenado(criterio)
+            salida(f"inv ({criterio}): {', '.join(orden) or '—'}")
             continue
         if cmd == "guardar":
             partes = texto.split()

@@ -42,10 +42,23 @@ class FakeBackend:
         return {i: self.fake.ficha(i) for i in dict.fromkeys(ids)}
 
 
+class FakeBackendContando(FakeBackend):
+    """Cuenta lotes de catálogo: distingue red real de almacén en disco."""
+
+    def __init__(self):
+        super().__init__()
+        self.lotes = 0
+
+    def lote_catalogo_auto(self, ids, budget=None):
+        self.lotes += 1
+        return super().lote_catalogo_auto(ids, budget)
+
+
 def nueva_sesion(tmp_path, **kw):
     kw.setdefault("log_ruta", str(tmp_path / "p.log"))
     kw.setdefault("puntajes_ruta", str(tmp_path / "puntajes.jsonl"))
-    return Sesion(backend=FakeBackend(), **kw)
+    kw.setdefault("backend", FakeBackend())
+    return Sesion(**kw)
 
 
 RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n", "abrir S",
@@ -144,6 +157,70 @@ def test_victoria_completa_y_finalizar(tmp_path):
     res = ses.finalizar()
     assert res["terminada"] is True and res["estado"] == "victoria"
     assert "red" in res and os.path.isfile(str(tmp_path / "puntajes.jsonl"))
+
+
+def test_ficha_desalojada_se_recupera_sin_red(tmp_path):
+    """§4.4: si la LRU desaloja una ficha, el almacén la devuelve sin red."""
+    be = FakeBackendContando()
+    ses = nueva_sesion(tmp_path, backend=be, cache_size=2,
+                       cache_ruta=str(tmp_path / "cache.pkl"))
+    ses.iniciar(CRIPTA_ID, semilla=3)
+    lotes = be.lotes
+    assert lotes >= 1 and ses.almacen is not None
+
+    ses.estado.salas.clear()  # fuerza rearmar salas y pedir fichas de nuevo
+    ses.proveedor.catalogo.clear()
+    ses.loader._contenido.clear()
+    ses.loader.sala_lista(1)
+
+    assert be.lotes == lotes            # ninguna ficha volvió a la red
+    assert ses.budget.reporte()["disco"] > 0
+
+
+def test_almacen_sobrevive_al_cierre_de_sesion(tmp_path):
+    """§4.3: reabrir no re-pide el catálogo si la versión no cambió."""
+    ruta_cache = str(tmp_path / "cache.pkl")
+    ses = nueva_sesion(tmp_path, cache_ruta=ruta_cache)
+    ses.iniciar(CRIPTA_ID, semilla=3)
+
+    os.remove(ruta_cache)  # la caché en memoria se perdió al "cerrar"
+    be2 = FakeBackendContando()
+    ses2 = nueva_sesion(tmp_path, backend=be2, cache_ruta=ruta_cache)
+    ses2.iniciar(CRIPTA_ID, semilla=3)
+
+    assert be2.lotes == 0
+    assert os.path.isfile(ruta_cache + ".fichas")
+    assert ses2.budget.reporte()["disco"] > 0
+
+
+def test_inventario_ordenado_por_criterio(tmp_path):
+    """§4.5: copia ordenada con los sorts de C1; el inventario real no se toca."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID)
+    real = ["espada-hierro-01", "antorcha-01", "pocion-roja-01"]
+    ses.fachada.estado.jugador.inventario = list(real)
+    ses._recargar_catalogo()
+
+    assert ses.inventario_ordenado() == real
+    assert ses.inventario_ordenado("peso") == ["pocion-roja-01", "antorcha-01",
+                                               "espada-hierro-01"]
+    assert ses.inventario_ordenado("valor") == ["antorcha-01", "pocion-roja-01",
+                                                "espada-hierro-01"]
+    assert ses.fachada.estado.jugador.inventario == real  # sin mutar
+
+
+def test_consola_lista_inventario_ordenado(tmp_path):
+    from src.orchestrator import consola
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID)
+    ses.fachada.estado.jugador.inventario = ["espada-hierro-01", "pocion-roja-01"]
+    ses._recargar_catalogo()
+    lineas: list[str] = []
+    entradas = iter(["inventario peso", "salir"])
+    codigo = consola.bucle(ses, entrada=lambda _p="": next(entradas),
+                           salida=lineas.append)
+    assert codigo == 0
+    assert "inv (peso): pocion-roja-01, espada-hierro-01" in lineas
 
 
 def test_guardar_cargar_roundtrip(tmp_path):

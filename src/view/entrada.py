@@ -27,38 +27,46 @@ def mover_para_tecla(key: int) -> str | None:
 
 def intencion_para_tecla(key: int, foto, facing: str,
                          sel_enemigo: int = 0, sel_suelo: int = 0,
-                         sel_inv: int = 0) -> str | None:
+                         sel_inv: int = 0, mods: int = 0,
+                         inventario: list | None = None) -> str | None:
     """Traduce una tecla a intención `ses.paso()` o acción local.
 
     Movimiento (WASD/flechas), Espacio (atacar) y F (recoger) los resuelve
     el App por proximidad (`_paso_libre`, `atacar_cercano`, `recoger_cercano`);
     aquí solo van intenciones sin posición. Retorna texto de intención o
     acción local "@...". `None` = tecla sin uso.
+
+    `inventario`: copia ordenada que muestra la vista (criterio §4.5); si es
+    None se usa el orden real de la foto. `mods`: pygame.key.get_mods(); con
+    Shift, Tab/X/C van hacia atrás (selección o criterio anterior).
     """
+    atras = bool(mods & pygame.KMOD_SHIFT)
+    inv = list(inventario if inventario is not None else (foto.inventario or []))
     direccion = MOVER.get(key)
     if direccion is not None:
         return "@paso"
     if key == pygame.K_e:
         return f"abrir {facing}"
     if key == pygame.K_r:
-        inv = list(foto.inventario or [])
         if not inv:
             return None
         return f"usar {inv[sel_inv % len(inv)]}"
     if key == pygame.K_RETURN or key == pygame.K_KP_ENTER:
-        inv = list(foto.inventario or [])
         if not inv:
             return None
         return f"equipar {inv[sel_inv % len(inv)]}"
     if key == pygame.K_q:
-        inv = list(foto.inventario or [])
         if not inv:
             return None
         return f"soltar {inv[sel_inv % len(inv)]}"
     if key == pygame.K_u:
         return "deshacer"
+    if key == pygame.K_x:
+        return "@sel-enemigo-prev" if atras else "@sel-enemigo"
+    if key == pygame.K_c:
+        return "@criterio-inv-prev" if atras else "@criterio-inv"
     if key == pygame.K_TAB:
-        return "@tab-inv"
+        return "@tab-inv-prev" if atras else "@tab-inv"
     if key == pygame.K_t:
         return "@tab-suelo"
     if key == pygame.K_F1:

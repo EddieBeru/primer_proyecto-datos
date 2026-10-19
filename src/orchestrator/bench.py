@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 
+from src.controller1.fake_provider import FakeProvider
 from src.controller1.lista_doble import ListaDoble, Nodo
 from src.controller1.lru_cache import CacheLRU
 from src.controller1.mergesort import mergesort
@@ -139,6 +140,133 @@ def bench_guardado():
             "guardado_bin_carga_s": comp["bin_carga_s"], "guardado_json_carga_s": comp["json_carga_s"]}
 
 
+class _BackendSintetico:
+    """Backend forma-endpoints sobre FakeProvider: ciclo completo sin red.
+
+    El bench no puede depender de `paquete_demo/` (fixture de tests): se
+    construye aquí el mínimo del protocolo de la Sesión.
+    """
+
+    def __init__(self) -> None:
+        self.fake = FakeProvider()
+
+    def info_cripta(self, cripta_id, budget=None):
+        return self.fake.preparar_cripta(cripta_id)
+
+    def version_catalogo(self, budget=None):
+        from src.models.catalog import CatalogVersion
+        return CatalogVersion(version="bench-cat-v1")
+
+    def esqueleto_completo(self, cripta_id, budget=None, info=None):
+        return dict(self.fake._salas)
+
+    def contenido(self, cripta_id, salas, budget=None):
+        from src.models.roomContents import ContenidoResponse
+        return ContenidoResponse(contenido=[self.fake._contenido[s] for s in salas])
+
+    def lote_catalogo_auto(self, ids, budget=None):
+        return {i: self.fake.ficha(i) for i in dict.fromkeys(ids)}
+
+
+def bench_buffer(n: int = 100000):
+    """§4.8: la bitácora en pantalla es circular: memoria constante."""
+    from src.controller2.buffer_circular import BufferCircular
+    b = BufferCircular(20)
+
+    def carga():
+        for i in range(n):
+            b.agregar(f"m{i}")
+
+    return {"buffer_100k_agrega": _mide(carga), "buffer_largo": len(b)}
+
+
+def bench_cancelacion(n: int = 20000):
+    """§4.1/§8: cancelar por tipo indexado vs barrer toda la agenda."""
+
+    def arma():
+        # t creciente (patrón real del reloj): el alta entra por el camino
+        # rápido O(1); el costo que se mide es solo el de cancelar.
+        ag = Agenda()
+        for i in range(n):
+            ag.programar(i, "veneno" if i % 50 == 0 else "turno", {})
+        return ag
+
+    def cronometra(fn):
+        mejor = None
+        for _ in range(3):
+            ag = arma()
+            t0 = time.perf_counter()
+            fn(ag)
+            dt = time.perf_counter() - t0
+            mejor = dt if mejor is None else min(mejor, dt)
+        return mejor
+
+    return {
+        "agenda_cancelar_tipo_20k": cronometra(lambda ag: ag.cancelar_tipo("veneno")),
+        "agenda_cancelar_barrido_20k": cronometra(
+            lambda ag: ag.cancelar_donde(lambda e: e.tipo == "veneno")),
+    }
+
+
+def bench_almacen(n: int = 200):
+    """§4.4: recuperar una ficha desalojada del almacén en disco es O(1)."""
+    import os
+    import tempfile
+    from src.controller1.almacen_fichas import AlmacenFichas
+    ruta = os.path.join(tempfile.gettempdir(), "bench_almacen.fichas")
+    try:
+        os.unlink(ruta)
+    except OSError:
+        pass
+    alm = AlmacenFichas(ruta=ruta)
+    alm.guardar_lote((f"f{i}", {"id": f"f{i}", "cuerpo": "x" * 60}) for i in range(n))
+
+    def recupera():
+        for i in range(n):
+            alm.obtener(f"f{i}")
+
+    out = {"almacen_recupera_200": _mide(recupera),
+           "almacen_carga_disco": _mide(lambda: AlmacenFichas.cargar_disco(ruta))}
+    try:
+        os.unlink(ruta)
+    except OSError:
+        pass
+    return out
+
+
+RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n", "abrir S",
+                 "s", "s", "o", "recoger llave-salida-01", "abrir E", "e"]
+
+
+def bench_ciclo_completo(repeticiones: int = 3):
+    """Ciclo de partida de punta a punta sin red ni vista (§5.3).
+
+    Iniciar (esqueleto + sala inicial + vecinas dormidas) y jugar la ruta
+    de victoria con caché y almacén en disco reales.
+    """
+    import os
+    import tempfile
+    from src.controller1.fake_provider import CRIPTA_ID
+    from src.orchestrator.sesion import Sesion
+    with tempfile.TemporaryDirectory() as d:
+        cache_ruta = os.path.join(d, "bench_cache.pkl")
+        pasos = 0
+
+        def ciclo():
+            nonlocal pasos
+            ses = Sesion(backend=_BackendSintetico(), cache_ruta=cache_ruta,
+                         log_ruta=None, puntajes_ruta=os.path.join(d, "p.jsonl"),
+                         jugador="bench")
+            ses.iniciar(CRIPTA_ID, semilla=1)
+            pasos = 0
+            for cmd in RUTA_VICTORIA:
+                ses.paso(cmd, grabar=False)
+                pasos += 1
+
+        t = _mide(ciclo, repeticiones)
+        return {"ciclo_completo_s": t, "ciclo_pasos": pasos}
+
+
 def correr_todo() -> dict:
     out = {}
     out.update(bench_agenda())
@@ -148,4 +276,8 @@ def correr_todo() -> dict:
     out.update(bench_retroceso())
     out.update(bench_ordenamientos())
     out.update(bench_guardado())
+    out.update(bench_almacen())
+    out.update(bench_buffer())
+    out.update(bench_cancelacion())
+    out.update(bench_ciclo_completo())
     return out

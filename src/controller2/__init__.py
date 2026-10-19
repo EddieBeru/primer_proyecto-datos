@@ -9,6 +9,7 @@ from src.controller2.modelo import (
 )
 from src.controller2.agenda import Agenda, Evento
 from src.controller2.azar import Azar
+from src.controller2.buffer_circular import BufferCircular
 from src.controller2.reloj import (
     BASE_TURNO,
     COSTOS,
@@ -111,6 +112,7 @@ __all__ = [
     "BitacoraMemoria",
     "DEFAULTS",
     "Agenda",
+    "BufferCircular",
     "EnemigoInstancia",
     "EntradaPuntaje",
     "EstadoPartida",

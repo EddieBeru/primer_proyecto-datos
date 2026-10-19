@@ -3,22 +3,27 @@
 `sala_lista(n)` retorna la sala ya armada (mismo `SalaLista` del falso):
 contenido en lote de 10 (N + vecinas del plano), fichas desde la LRU
 y solo lo faltante vía `lote_catalogo_auto` (incluye `suelta`).
+Si una ficha fue desalojada de la LRU, se recupera del `AlmacenFichas`
+persistente (disco) antes de tocar la red (§4.3/§4.4 doc oficial).
 C2 cambia el import del falso a este cargador sin tocar el motor.
 """
 
 from src.controller1.fake_provider import EnemigoListo, ObjetoListo, SalaLista, TrampaLista
 from src.controller1 import endpoints
+from src.controller1.mergesort import mergesort
 from src.models.catalog import Enemy, Trap
 from src.models.errors import NotFoundError, UnexpectedResponseError
 
 
 class RoomLoader:
-    def __init__(self, cripta_id, plano, budget=None, cache=None, backend=None):
+    def __init__(self, cripta_id, plano, budget=None, cache=None, backend=None,
+                 almacen=None):
         self.cripta_id = cripta_id
         self.plano = plano
         self.budget = budget
         self.cache = cache
         self.backend = backend or endpoints
+        self.almacen = almacen
         self._contenido = {}
         self._fichas = {}  # solo si no hay caché (con caché, ella es el almacén)
 
@@ -96,10 +101,11 @@ class RoomLoader:
     def _asegurar_contenido(self, n):
         if n in self._contenido:
             return
-        vecinas = sorted(
-            s.sala
-            for s in self.plano[n].salidas.values()
-            if s.sala in self.plano and s.sala not in self._contenido
+        vecinas = mergesort(
+            [s.sala
+             for s in self.plano[n].salidas.values()
+             if s.sala in self.plano and s.sala not in self._contenido],
+            clave=int,
         )
         lote = [n] + vecinas[:9]
         resp = self.backend.contenido(self.cripta_id, lote, self.budget)
@@ -108,25 +114,51 @@ class RoomLoader:
 
     def _asegurar_fichas(self, ids):
         unicos = list(dict.fromkeys(ids))
-        faltantes = [i for i in unicos if not self._tiene(i)]
-        if self.budget is not None:
-            try:
-                for i in unicos:
-                    if i in faltantes:
-                        self.budget.miss()
-                    else:
-                        self.budget.hit()
-            except Exception:
-                pass
+        faltantes = []
+        for entidad_id in unicos:
+            if self.cache is not None:
+                en_lru = self.cache.obtener(entidad_id) is not None
+            else:
+                en_lru = entidad_id in self._fichas
+            if en_lru:
+                self._contar("hit")
+                continue
+            ficha = self._recuperar_del_almacen(entidad_id)
+            if ficha is not None:
+                # Falló la LRU en memoria, pero el almacén evita la red y
+                # la ficha vuelve a quedar "caliente" en RAM (§4.4).
+                self._contar("miss")
+                self._contar("disco")
+                self._guardar_ficha(entidad_id, ficha)
+                continue
+            faltantes.append(entidad_id)
+            self._contar("miss")
         if not faltantes:
             return
         traidas = self.backend.lote_catalogo_auto(faltantes, self.budget)
         for fid, ficha in traidas.items():
             self._guardar_ficha(fid, ficha)
 
+    def _contar(self, nombre):
+        if self.budget is not None:
+            try:
+                getattr(self.budget, nombre)()
+            except Exception:
+                pass
+
+    def _recuperar_del_almacen(self, entidad_id):
+        if self.almacen is None:
+            return None
+        try:
+            return self.almacen.obtener(entidad_id)
+        except Exception:
+            return None
+
     def _tiene(self, entidad_id):
-        if self.cache is not None:
-            return self.cache.obtener(entidad_id) is not None
+        if self.cache is not None and self.cache.obtener(entidad_id) is not None:
+            return True
+        if self.almacen is not None and self.almacen.contiene(entidad_id):
+            return True
         return entidad_id in self._fichas
 
     def _guardar_ficha(self, entidad_id, ficha):
@@ -134,11 +166,19 @@ class RoomLoader:
             self.cache.guardar(entidad_id, ficha)
         else:
             self._fichas[entidad_id] = ficha
+        if self.almacen is not None:
+            try:
+                self.almacen.guardar(entidad_id, ficha)
+            except Exception:
+                pass
 
     def _ficha(self, entidad_id):
+        ficha = None
         if self.cache is not None:
             ficha = self.cache.obtener(entidad_id)
-        else:
+        if ficha is None:
+            ficha = self._recuperar_del_almacen(entidad_id)
+        if ficha is None:
             ficha = self._fichas.get(entidad_id)
         if ficha is None:
             raise UnexpectedResponseError(f"ficha sin traer: {entidad_id}")

@@ -25,8 +25,12 @@ ZOOM_FRAMES = 18  # frames del zoom menú -> caja del juego al empezar partida
 VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
 VECTOR_DIRECCION = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
-         "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
+         "F recoger (cerca) · X objetivo (Shift+X atrás) · R usar · Enter equipar · "
+         "Q soltar · Tab/U/T · C orden mochila (Shift+C atrás) · "
          "pisar trampas las dispara · F1 dev · G guardar · Esc pausa")
+
+# §4.5: órdenes de vista de la mochila que ofrece la UI (None = orden real).
+CRITERIOS_INV: tuple = (None, "nombre", "peso", "valor")
 
 
 class VistaApp:
@@ -56,8 +60,11 @@ class VistaApp:
         self.puede_continuar = False
         self.facing = "N"
         self.sel_enemigo = 0
+        self.sel_enemigo_activo = False  # X fija objetivo manual (Space lo ataca)
         self.sel_suelo = 0
         self.sel_inv = 0
+        self.criterio_inv: str | None = None  # §4.5: orden de vista de la mochila
+        self.inv_orden: list = []  # copia ordenada que dibuja la mochila
         self.ref_vida: dict[str, int] = {}
         self.memoria_spots: dict = {}  # (sala, tipo, id) -> puesto estable
         self.ultimo_error: str | None = None
@@ -153,6 +160,9 @@ class VistaApp:
     def _reset_vista(self) -> None:
         self.facing = "N"
         self.sel_enemigo = self.sel_suelo = self.sel_inv = 0
+        self.sel_enemigo_activo = False
+        self.criterio_inv = None
+        self.inv_orden = list(self.foto.inventario or []) if self.foto else []
         self.ref_vida = {}
         self.ultimo_error = None
         self.reporte = None
@@ -176,6 +186,26 @@ class VistaApp:
         self.trampas_fuego = {}
         self.golpes = {}
         self._memorizar_vida()
+
+    def _refrescar_inv(self) -> None:
+        """Recalcula la copia ordenada de la mochila (§4.5) vía la Sesión."""
+        try:
+            self.inv_orden = list(self.ses.inventario_ordenado(self.criterio_inv))
+        except Exception:
+            self.inv_orden = list(self.foto.inventario or []) if self.foto else []
+        total = len(self.inv_orden)
+        self.sel_inv = self.sel_inv % total if total else 0
+
+    def _vivos(self) -> list:
+        return [e for e in (self.foto.enemigos or []) if e.get("vida", 0) > 0]
+
+    def atacar_objetivo(self) -> str | None:
+        """`atacar <inst>` del objetivo fijado con X; sin objetivo, el cercano."""
+        vivos = self._vivos()
+        if self.sel_enemigo_activo and vivos:
+            self.sel_enemigo %= len(vivos)
+            return f"atacar {vivos[self.sel_enemigo]['instancia']}"
+        return self.atacar_cercano()
 
     def _memorizar_vida(self) -> None:
         """Primera vida vista por instancia (barras proporcionales, guía §8)."""
@@ -228,6 +258,7 @@ class VistaApp:
             if previo is not None:
                 self.aviso, self.aviso_ttl = previo
         self.foto = foto
+        self._refrescar_inv()  # la mochila pudo cambiar (recoger/usar/soltar/equipar)
         self.ultimo_error = None if ok else msg
         if ok:
             # Chispazo: el motor anota `efecto|trampa|<inst>` en la bitácora
@@ -473,7 +504,7 @@ class VistaApp:
             if direccion is not None:
                 return self._paso_libre(direccion)
             if key == pygame.K_SPACE:
-                accion = self.atacar_cercano()
+                accion = self.atacar_objetivo()
                 if accion is None:
                     return None
                 ok, _, _ = self.enviar(accion)
@@ -484,9 +515,14 @@ class VistaApp:
                     return None
                 ok, _, _ = self.enviar(accion)
                 return accion if ok else None
+            try:
+                mods = pygame.key.get_mods()
+            except Exception:
+                mods = 0
             accion = entrada.intencion_para_tecla(
                 key, self.foto, self.facing,
-                self.sel_enemigo, self.sel_suelo, self.sel_inv)
+                self.sel_enemigo, self.sel_suelo, self.sel_inv,
+                mods=mods, inventario=self.inv_orden)
             if accion is None:
                 return None
             if accion.startswith("@"):
@@ -536,8 +572,31 @@ class VistaApp:
         if accion == "@pausa":
             self.pantalla = "pausa"
         elif accion == "@tab-inv":
-            total = max(len(self.foto.inventario or []), 1)
+            total = max(len(self.inv_orden or []), 1)
             self.sel_inv = (self.sel_inv + 1) % total
+        elif accion == "@tab-inv-prev":
+            total = max(len(self.inv_orden or []), 1)
+            self.sel_inv = (self.sel_inv - 1) % total
+        elif accion in ("@sel-enemigo", "@sel-enemigo-prev"):
+            vivos = self._vivos()
+            if not vivos:
+                self._avisar("No hay enemigos a la vista.")
+                return accion
+            paso = 1 if accion == "@sel-enemigo" else -1
+            self.sel_enemigo = (self.sel_enemigo + paso) % len(vivos)
+            self.sel_enemigo_activo = True
+            self._avisar(f"Objetivo: {vivos[self.sel_enemigo]['instancia']}", ttl=60)
+        elif accion in ("@criterio-inv", "@criterio-inv-prev"):
+            paso = 1 if accion == "@criterio-inv" else -1
+            try:
+                idx = CRITERIOS_INV.index(self.criterio_inv)
+            except ValueError:
+                idx = 0
+            self.criterio_inv = CRITERIOS_INV[(idx + paso) % len(CRITERIOS_INV)]
+            self.sel_inv = 0
+            self._refrescar_inv()
+            nombre = self.criterio_inv or "orden real"
+            self._avisar(f"Mochila: {nombre}", ttl=60)
         elif accion == "@tab-suelo":
             total = max(len(self.foto.objetos_suelo or []), 1)
             self.sel_suelo = (self.sel_suelo + 1) % total
@@ -722,7 +781,9 @@ class VistaApp:
                                      espejo=self.espejo,
                                      trampas_fuego=self._fases_trampas(),
                                      golpes=self._fases_golpes(),
-                                     mostrar_canvas=self.zoom_ttl is None)
+                                     mostrar_canvas=self.zoom_ttl is None,
+                                     orden_inv=self.inv_orden,
+                                     criterio_inv=self.criterio_inv)
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,

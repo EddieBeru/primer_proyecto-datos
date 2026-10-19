@@ -36,8 +36,9 @@ DAMERO_FONDO = (250, 233, 209)  # damero sutil del fondo de menús
 
 # Tamaños fijos (registro producto: escala consistente, no fluida).
 T_DISPLAY, T_TITULO, T_BOTON, T_CUERPO, T_NOTA = 64, 40, 24, 18, 14
-CONTROLES = ("WASD/flechas mover · E abrir · Espacio atacar · F recoger · "
-             "Tab mochila · Enter equipar · R usar · Esc pausa")
+CONTROLES = ("WASD/flechas mover · E abrir · Espacio atacar · X objetivo · "
+             "F recoger · Tab mochila (Shift atrás) · C orden · Enter equipar · "
+             "R usar · Esc pausa")
 
 
 def _fuente(tam: int, negrita: bool = False) -> pygame.Font:
@@ -399,8 +400,13 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    espejo: bool | None = None,
                    trampas_fuego: dict[str, float] | None = None,
                    golpes: dict[str, float] | None = None,
-                   mostrar_canvas: bool = True) -> None:
+                   mostrar_canvas: bool = True,
+                   orden_inv: list | None = None,
+                   criterio_inv: str | None = None) -> None:
     """1.4 Sala + actores + HUD. Toda la lectura sale de la foto.
+
+    `orden_inv`/`criterio_inv`: copia ordenada de la mochila ya calculada
+    por la Sesión (§4.5); la vista solo la dibuja, nunca ordena.
 
     Distribución: canvas arriba centrado (4 partes) y banda de información
     abajo (1 parte): contadores en una línea y mochila horizontal debajo.
@@ -430,7 +436,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     ui.dibujar_contadores(sup, fuente, zona, foto, dev)
     ui.dibujar_mochila(sup, fuente,
                        pygame.Rect(zona.x, zona.y + 30, zona.w, zona.h - 30),
-                       foto, sprites, sel_inv)
+                       foto, sprites, sel_inv, orden=orden_inv,
+                       sufijo_orden=f" (por {criterio_inv})" if criterio_inv else None)
     controles = _fuente(T_NOTA).render(CONTROLES, True, GRIS)
     sup.blit(controles,
              controles.get_rect(midbottom=(zona.centerx, zona.bottom - 2)))

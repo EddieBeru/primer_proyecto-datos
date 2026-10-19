@@ -65,10 +65,29 @@ CAJA_ZONA_X, CAJA_ZONA_Y, CAJA_ZONA_ANCHO = 110, 110, 290
 ENEMIGO_PNG = {"errante": "enemigo-errante.png"}
 ENEMIGO_ESCALA = 3  # el arte del errante se dibuja 3x el mosaico base
 
-# Subcadenas del id que identifican cada efecto (reutilizable: vale para
-# cualquier `pocion-*-NN` futuro sin tocar el gestor).
+# Grupos de ítems similares: todo id del grupo comparte arte (el PNG exacto
+# `<id>.png` siempre tiene prioridad). Vale para ids futuros sin tocar código.
+_CLAVES_POCION = ("pocion", "potion", "elixir", "brebaje", "frasco")
 _CLAVES_POCION_VELOCIDAD = ("veloz", "velocidad", "rapidez", "speed", "swift")
-_CLAVES_POCION_SALUD = ("roja", "salud", "vida", "cura", "health", "heal")
+_CLAVES_POCION_SALUD = ("roja", "salud", "vida", "cura", "health",
+                        "heal", "curativa", "restauradora")
+_CLAVES_ANTIDOTO = ("antidoto", "antidote", "triaca")
+_CLAVES_LLAVE = ("llave", "key")
+_CLAVES_ANTORCHA = ("antorcha", "torch")
+_CLAVES_PERGAMINO = ("pergamino", "scroll", "retroceso")
+_CLAVES_ARMA = ("espada", "arma", "daga", "cuchillo", "arco",
+                "ballesta", "maza", "hacha", "martillo", "garrote", "baston",
+                "lanza", "alabarda", "tridente", "estoque", "sable",
+                "mandoble", "guadana", "arpon")
+_CLAVES_ARMADURA = ("escudo", "broquel", "rodela", "adarga", "armadura",
+                    "coraza", "peto", "pechera", "cota", "malla", "casco",
+                    "yelmo", "capacete", "botas", "grebas", "guantes",
+                    "guanteletes", "capa", "manto", "tunica", "proteccion")
+_CLAVES_TRAMPA = ("pinchos", "veneno", "trampa", "dardos", "llamas",
+                  "fuego", "foso", "sierra")
+_CLAVES_ENEMIGO = ("esqueleto", "murcielago", "sombra", "jefe", "rata",
+                   "goblin", "lobo", "orco", "fantasma", "vampiro", "zombie",
+                   "golem", "arana", "espectro", "troll")
 
 TAM = 36  # lado del mosaico base
 
@@ -99,27 +118,23 @@ def _mosaico(color, tam: int = TAM, borde=(20, 20, 20)) -> pygame.Surface:
 def clase_de_id(item_id: str) -> str:
     """Adivina la clase por el id (solo para elegir dibujo; nada de reglas)."""
     bajo = item_id.lower()
-    if "pocion" in bajo:
+    if any(k in bajo for k in _CLAVES_POCION):
         return "pocion"
-    if "antidoto" in bajo:
+    if any(k in bajo for k in _CLAVES_ANTIDOTO):
         return "antidoto"
-    if "llave" in bajo:
+    if any(k in bajo for k in _CLAVES_LLAVE):
         return "llave"
-    if "antorcha" in bajo:
+    if any(k in bajo for k in _CLAVES_ANTORCHA):
         return "antorcha"
-    if "pergamino" in bajo:
+    if any(k in bajo for k in _CLAVES_PERGAMINO):
         return "pergamino_retroceso"
-    if any(k in bajo for k in ("espada", "arma", "daga", "cuchillo", "arco",
-                               "maza", "hacha", "baston", "lanza")):
+    if any(k in bajo for k in _CLAVES_ARMA):
         return "arma"
-    if any(k in bajo for k in ("escudo", "armadura", "casco", "yelmo", "botas",
-                               "guantes", "cota", "capa")):
+    if any(k in bajo for k in _CLAVES_ARMADURA):
         return "armadura"
-    if any(k in bajo for k in ("pinchos", "veneno", "trampa", "dardos")):
+    if any(k in bajo for k in _CLAVES_TRAMPA):
         return "trampa"
-    if any(k in bajo for k in ("esqueleto", "murcielago", "sombra", "jefe",
-                               "rata", "goblin", "lobo", "orco", "fantasma",
-                               "vampiro", "zombie", "golem", "arana")):
+    if any(k in bajo for k in _CLAVES_ENEMIGO):
         return "enemigo"
     if bajo.startswith("ent_"):
         return "enemigo"
@@ -135,17 +150,21 @@ def png_para_id(item_id: str) -> str | None:
 
     Prioridad: `assets/sprites/<id>.png` exacto (override sin código),
     luego alias por efecto de poción (vale para `pocion-*-NN` futuros)
-    y alias por clase (llave, pergamino, antorcha, trampa, armadura, arma).
+    y alias por grupo de ítems similares: protección → escudo, armas →
+    espada, llave/pergamino/antorcha/trampa por clase, y antidoto al
+    frasco de poción. Cualquier id del grupo reutiliza el mismo PNG.
     """
     if (ASSETS_DIR / f"{item_id}.png").is_file():
         return f"{item_id}.png"
     bajo = item_id.lower()
-    if "pocion" in bajo or "potion" in bajo:
+    if any(k in bajo for k in _CLAVES_POCION):
         if any(k in bajo for k in _CLAVES_POCION_VELOCIDAD):
             return POCION_VELOCIDAD_PNG
         if any(k in bajo for k in _CLAVES_POCION_SALUD):
             return POCION_SALUD_PNG
     clase = clase_de_id(item_id)
+    if clase == "antidoto":
+        return POCION_SALUD_PNG  # mismo frasco del grupo de consumibles
     if clase == "llave":
         return LLAVE_PNG
     if clase == "pergamino_retroceso":

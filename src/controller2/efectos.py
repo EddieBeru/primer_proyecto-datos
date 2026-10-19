@@ -223,7 +223,8 @@ def usar_antidoto(estado: EstadoPartida, agenda: Agenda, antidoto_id: str) -> tu
     veneno_antes = estado.jugador.efectos.get("veneno", 0)
     _consumir(estado, antidoto_id)
     estado.jugador.efectos.pop("veneno", None)
-    n = agenda.cancelar_donde(lambda e: e.tipo == "veneno")
+    # §4.1: cancelación por tipo O(k) vía índice de la agenda, sin barrerla.
+    n = agenda.cancelar_tipo("veneno")
     inversa = {"op": "antidoto", "datos": {"item": antidoto_id, "veneno_antes": veneno_antes}, "eventos": []}
     return ResultadoEfecto(True, f"Veneno curado ({n} ticks cancelados)."), inversa
 

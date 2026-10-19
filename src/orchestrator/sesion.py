@@ -14,9 +14,11 @@ no la pide: info_cripta ya trae version (ahorra 1 solicitud).
 
 from __future__ import annotations
 
+from src.controller1.almacen_fichas import AlmacenFichas
 from src.controller1.budget import BudgetAdapter
 from src.controller1.gamelog import Bitacora
 from src.controller1.lru_cache import CacheLRU
+from src.controller1.mergesort import mergesort
 from src.controller1.orden import vista_ordenada
 from src.controller1.room_loader import RoomLoader
 from src.controller2.bitacora import (
@@ -55,11 +57,9 @@ class ProveedorSesion:
         return sv
 
     def _armar(self, n: int) -> SalaViva:
-        if self.loader.cache is not None:
-            try:
-                self.loader.cache.fijar_en_uso(list(self.catalogo.keys()))
-            except Exception:
-                pass
+        # §4.4: el fijado de fichas en uso lo hace la Sesión con el estado
+        # real (vivos, suelo, inventario); antes se fijaba todo el catálogo
+        # y la LRU no podía desalojar nada.
         sl = self.loader.sala_lista(n)
         for e in sl.enemigos:
             self.catalogo[e.ficha.id] = e.ficha
@@ -70,11 +70,6 @@ class ProveedorSesion:
             self.catalogo[o.ficha.id] = o.ficha
         for t in sl.trampas:
             self.catalogo[t.ficha.id] = t.ficha
-        if self.loader.cache is not None:
-            try:
-                self.loader.cache.fijar_en_uso(list(self.catalogo.keys()))
-            except Exception:
-                pass
         sv = SalaViva.desde_esqueleto(sl.room)
         sv.enemigos = [EnemigoInstancia(e.instancia, e.ficha.id, e.vida_actual, n)
                        for e in sl.enemigos]
@@ -99,11 +94,11 @@ class ProveedorSesion:
             room = self.loader.plano.get(n)
             if room is None:
                 return
-            vecinas = sorted({
+            vecinas = mergesort({
                 s.sala for s in room.salidas.values()
                 if s.sala != n and s.sala in self.loader.plano
                 and s.sala not in self._armadas
-            })
+            }, clave=int)
             if not vecinas:
                 return
             self.loader.asegurar_salas(vecinas)
@@ -128,7 +123,8 @@ class Sesion:
 
     def __init__(self, backend=None, cache_size: int = 25, jugador: str = "jugador",
                  log_ruta: str | None = None, puntajes_ruta: str = "puntajes.jsonl",
-                 cache_ruta: str | None = None) -> None:
+                 cache_ruta: str | None = None,
+                 almacen_ruta: str | None = None) -> None:
         if backend is None:
             from src.controller1 import endpoints as backend
         self.backend = backend
@@ -137,8 +133,10 @@ class Sesion:
         self.log_ruta = log_ruta
         self.puntajes_ruta = puntajes_ruta
         self.cache_ruta = cache_ruta
+        self.almacen_ruta = almacen_ruta
         self.budget: BudgetAdapter | None = None
         self.cache: CacheLRU | None = None
+        self.almacen: AlmacenFichas | None = None
         self.loader: RoomLoader | None = None
         self.proveedor: ProveedorSesion | None = None
         self.estado: EstadoPartida | None = None
@@ -164,11 +162,14 @@ class Sesion:
         # aparte cuesta 1 solicitud por 43 bytes idénticos. Se omite.
         ver_cat = self.backend.version_catalogo(budget)
         self.cache = self._abrir_cache(ver_cat.version)
+        self.almacen = self._abrir_almacen(ver_cat.version)
         plano = self.backend.esqueleto_completo(cripta_id, budget, info=info)
-        self.loader = RoomLoader(cripta_id, plano, budget, self.cache, backend=self.backend)
+        self.loader = RoomLoader(cripta_id, plano, budget, self.cache,
+                                 backend=self.backend, almacen=self.almacen)
         self.proveedor = ProveedorSesion(self.loader, registrador=self._registrar_vecinas)
         self.estado = EstadoPartida.nueva_partida(info, ver_cat.version, semilla=int(semilla))
         self.estado.registrar_sala(self.proveedor.sala_lista(info.sala_inicial))
+        self._fijar_fichas_en_uso()
         self._guardar_cache()
         self.fachada = Fachada(self.estado, self.proveedor, self.proveedor.catalogo,
                                self._mem, semilla=int(semilla), orden_fn=vista_ordenada)
@@ -206,6 +207,7 @@ class Sesion:
             sala_ahora = self.fachada.estado.sala_actual
             if sala_ahora != sala_antes:
                 self.proveedor.precargar_vecinas(sala_ahora)
+            self._fijar_fichas_en_uso()
         else:
             # Guía §6: todo rechazo deja foto.error (incl. comando desconocido).
             self.fachada.error = msg
@@ -217,6 +219,17 @@ class Sesion:
     def foto(self) -> FotoEstado:
         assert self.fachada is not None, "llamar iniciar() primero"
         return self.fachada.foto()
+
+    def inventario_ordenado(self, criterio: str | None = None) -> list:
+        """Copia ordenada del inventario para la vista (§4.5), sin mutar nada.
+
+        Delega en la fachada, que usa los sorts de C1 inyectados (mergesort/
+        inserción); la vista jamás ordena. `criterio` None = orden real.
+        """
+        assert self.fachada is not None, "llamar iniciar() primero"
+        if not criterio:
+            return list(self.fachada.estado.jugador.inventario)
+        return self.fachada.vista_ordenada(str(criterio))
 
     def _abrir_cache(self, version_cat: str) -> CacheLRU:
         """Reusa fichas de partidas anteriores si la versión sigue válida."""
@@ -232,6 +245,56 @@ class Sesion:
         cache = CacheLRU(self.cache_size)
         cache.invalida_si_cambia(version_cat)
         return cache
+
+    def _abrir_almacen(self, version_cat: str) -> AlmacenFichas | None:
+        """Almacén persistente de fichas (§4.4): sobrevive al tope de la LRU.
+
+        Sin ruta (tests/offline) no hay almacén: no inventamos caché de
+        disco en modos que no la piden. Cripta/catálogo nuevos invalidan.
+        """
+        ruta = self.almacen_ruta
+        if ruta is None and self.cache_ruta:
+            ruta = self.cache_ruta + ".fichas"
+        if not ruta:
+            return None
+        almacen = None
+        try:
+            import os
+            if os.path.isfile(ruta):
+                almacen = AlmacenFichas.cargar_disco(ruta)
+        except Exception:
+            almacen = None
+        if almacen is None:
+            almacen = AlmacenFichas(ruta=ruta)
+        almacen.invalida_si_cambia(version_cat)
+        return almacen
+
+    def _fijar_fichas_en_uso(self) -> None:
+        """Re-fija en la LRU solo lo que la partida usa de verdad (§4.4).
+
+        Incluye enemigos/trampas/suelo de la sala actual (la única cuyas
+        fichas se están mostrando) y todo el inventario. El resto queda
+        desalojable; si se desaloja, se recupera del almacén sin red.
+        """
+        if self.cache is None or self.estado is None:
+            return
+        ids: list[str] = []
+        sala = self.estado.salas.get(self.estado.sala_actual)
+        if sala is not None:
+            ids += [e.tipo_id for e in sala.enemigos]
+            ids += [t.tipo_id for t in sala.trampas]
+            ids += list(sala.objetos_suelo)
+        jugador = self.estado.jugador
+        ids += list(jugador.inventario)
+        if jugador.arma_equipada:
+            ids.append(jugador.arma_equipada)
+        if jugador.armadura_equipada:
+            ids.append(jugador.armadura_equipada)
+        catalogo = self.proveedor.catalogo if self.proveedor else {}
+        try:
+            self.cache.fijar_en_uso([i for i in dict.fromkeys(ids) if i in catalogo])
+        except Exception:
+            pass
 
     def _guardar_cache(self) -> None:
         if not self.cache_ruta or self.cache is None:
@@ -354,6 +417,7 @@ class Sesion:
         self.fachada.cargar(data)
         self.estado = self.fachada.estado
         self._recargar_catalogo()
+        self._fijar_fichas_en_uso()
         restantes = int(data.get("presupuesto_restante", self.budget.get_presupuesto()))
         try:
             self.budget.presupuesto = restantes
@@ -384,14 +448,42 @@ class Sesion:
         ids = [i for i in dict.fromkeys(ids) if i not in self.proveedor.catalogo]
         if not ids:
             return
-        traidas = self.backend.lote_catalogo_auto(ids, self.budget)
-        for fid, ficha in traidas.items():
-            self.proveedor.catalogo[fid] = ficha
+        faltan = []
+        for fid in ids:
+            ficha = None
             try:
                 if self.cache is not None:
-                    self.cache.guardar(fid, ficha)
+                    ficha = self.cache.obtener(fid)
             except Exception:
-                pass
+                ficha = None
+            if ficha is None and self.almacen is not None:
+                try:
+                    ficha = self.almacen.obtener(fid)
+                except Exception:
+                    ficha = None
+                if ficha is not None and self.cache is not None:
+                    try:
+                        self.cache.guardar(fid, ficha)
+                    except Exception:
+                        pass
+            if ficha is not None:
+                self.proveedor.catalogo[fid] = ficha
+            else:
+                faltan.append(fid)
+        if faltan:
+            traidas = self.backend.lote_catalogo_auto(faltan, self.budget)
+            for fid, ficha in traidas.items():
+                self.proveedor.catalogo[fid] = ficha
+                try:
+                    if self.cache is not None:
+                        self.cache.guardar(fid, ficha)
+                except Exception:
+                    pass
+                try:
+                    if self.almacen is not None:
+                        self.almacen.guardar(fid, ficha)
+                except Exception:
+                    pass
         self._guardar_cache()
 
     # -- replay --

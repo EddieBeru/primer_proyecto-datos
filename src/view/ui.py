@@ -125,15 +125,23 @@ def dibujar_contadores(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Re
 
 def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
                     foto: "FotoEstado", sprites: SpriteManager,
-                    sel_inv: int = 0) -> None:
-    """Objetos en fila horizontal; [0] equipado (E), seleccionado con marco."""
-    etiqueta = fuente.render("Mochila:", True, DORADO)
+                    sel_inv: int = 0, orden: list | None = None,
+                    sufijo_orden: str | None = None) -> None:
+    """Objetos en fila horizontal; equipado con "E", seleccionado con marco.
+
+    `orden` es la copia ordenada por la Sesión (§4.5): solo cambia el dibujo
+    y el mapeo de la selección, jamás el inventario real. Sin `orden` se
+    mantiene el orden real ([0] = equipado, marca "E" como siempre).
+    """
+    etiqueta = fuente.render("Mochila:" + (sufijo_orden or ""), True, DORADO)
     sup.blit(etiqueta, (rect.x, rect.y + 12))
     x = rect.x + etiqueta.get_width() + 12
-    inv = list(foto.inventario or [])
+    inv = list(orden) if orden is not None else list(foto.inventario or [])
     if not inv:
         sup.blit(fuente.render("(vacía)", True, GRIS), (x, rect.y + 12))
         return
+    equipados = {i for i in (getattr(foto, "arma_equipada", None),
+                             getattr(foto, "armadura_equipada", None)) if i}
     lado = TAM + 4
     for i, item_id in enumerate(inv):
         caja = pygame.Rect(x, rect.y, lado, lado)
@@ -142,7 +150,7 @@ def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
         sup.blit(icono, icono.get_rect(center=caja.center))
         pygame.draw.rect(sup, DORADO if i == sel_inv % len(inv) else GRIS,
                          caja, 2)
-        if i == 0:
+        if item_id in equipados or (orden is None and i == 0):
             sup.blit(fuente.render("E", True, DORADO), (caja.x + 2, caja.y))
         x += lado + 8
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 from src.controller2.agenda import Agenda
 from src.controller2.efectos import REGENERACION_PERIODO
 from src.controller2.modelo import EnemigoInstancia, EstadoPartida
+from src.controller2.orden_local import insercion
 from src.controller2.reloj import RelojVirtual
 
 COMPORTAMIENTOS = ("guardián", "errante", "rastreador")
@@ -53,7 +54,7 @@ def _vecinas_abiertas(estado: EstadoPartida, sala_id: int) -> list[int]:
             continue
         if salida.destino in estado.salas:
             out.append(salida.destino)
-    return sorted(set(out))
+    return insercion(set(out))
 
 
 def _sala_de(estado: EstadoPartida, instancia_id: str):
@@ -70,9 +71,9 @@ def activar_sala(estado: EstadoPartida, agenda: Agenda, ahora: int,
     sala = estado.salas.get(sala_id)
     if sala is None:
         return []
-    dormidos = sorted(
+    dormidos = insercion(
         [e for e in sala.enemigos if e.vivo and not e.activa],
-        key=lambda e: e.instancia,
+        clave=lambda e: e.instancia,
     )
     evs = []
     for e in dormidos:
@@ -128,7 +129,7 @@ def decidir_destino(estado: EstadoPartida, instancia_id: str,
         estado.azar_llamadas = int(getattr(estado, "azar_llamadas", 0)) + 1
     except Exception:
         pass
-    return azar.choice(sorted(vecinas))
+    return azar.choice(vecinas)  # ya vienen ordenadas por _vecinas_abiertas
 
 
 def mover_enemigo(estado: EstadoPartida, instancia_id: str, destino: int) -> bool:
