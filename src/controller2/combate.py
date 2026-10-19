@@ -17,7 +17,7 @@ def calcular_dano(ataque_total: int, defensa_total: int, azar=None) -> int:
 
 
 def bonus_arma(catalogo: dict, arma_id: str | None) -> int:
-    # TODO(C1-6/C1-7): la ficha debe venir de la cache LRU o del lote de 10; si falta, C1 la precarga.
+    # La ficha la precarga C1 (cache LRU o lote de 10); aca solo se lee.
     if not arma_id:
         return 0
     ficha = catalogo.get(arma_id)
@@ -25,7 +25,7 @@ def bonus_arma(catalogo: dict, arma_id: str | None) -> int:
 
 
 def bonus_armadura(catalogo: dict, armadura_id: str | None) -> int:
-    # TODO(C1-6/C1-7): igual que bonus_arma pero con defensa_bonus.
+    # Igual que bonus_arma pero con defensa_bonus.
     if not armadura_id:
         return 0
     ficha = catalogo.get(armadura_id)

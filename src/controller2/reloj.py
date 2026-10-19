@@ -83,7 +83,6 @@ class RelojVirtual:
 
     def avanzar(self, agenda: Agenda) -> Evento | None:
         """Salta al siguiente evento y lo devuelve. None si agenda vacia."""
-        # TODO(C2-12): la fachada debe convertir el ValueError en error amable, no cierre brusco.
         proximo = agenda.ver_proximo()
         if proximo is None:
             return None

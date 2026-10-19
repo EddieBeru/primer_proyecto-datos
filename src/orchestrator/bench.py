@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 
 from src.controller1.fake_provider import FakeProvider
+from src.controller1.unicos import unicos
 from src.controller1.lista_doble import ListaDoble, Nodo
 from src.controller1.lru_cache import CacheLRU
 from src.controller1.mergesort import mergesort
@@ -165,7 +166,7 @@ class _BackendSintetico:
         return ContenidoResponse(contenido=[self.fake._contenido[s] for s in salas])
 
     def lote_catalogo_auto(self, ids, budget=None):
-        return {i: self.fake.ficha(i) for i in dict.fromkeys(ids)}
+        return {i: self.fake.ficha(i) for i in unicos(ids)}
 
 
 def bench_buffer(n: int = 100000):

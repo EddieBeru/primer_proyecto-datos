@@ -34,8 +34,6 @@ def _ficha(catalogo: dict | None, tipo_id: str):
 
 
 def _consumir(estado: EstadoPartida, item_id: str) -> bool:
-    # TODO(C2-9): guardar la posicion consumida como inversa (tope 5).
-    # TODO(C2-11): anotar consumo a bitacora (K3).
     if item_id in estado.jugador.inventario:
         estado.jugador.inventario.remove(item_id)
         return True
@@ -193,7 +191,6 @@ def aplicar_cambio_velocidad(estado: EstadoPartida, agenda: Agenda, reloj: Reloj
 def usar_pocion(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                 pocion_id: str, catalogo: dict | None = None) -> tuple[ResultadoEfecto, dict | None]:
     """Cura de inmediato; si trae modificador+duracion programa su fin."""
-    # TODO(profe pregunta 3): confirmar que cura/mod/duracion vacios = sin efecto (DEFAULTS).
     ficha = _ficha(catalogo, pocion_id)
     if ficha is None and catalogo:
         return ResultadoEfecto(False, "Poción desconocida."), None

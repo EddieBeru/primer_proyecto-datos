@@ -21,6 +21,7 @@ from src.controller1.lru_cache import CacheLRU
 from src.controller1.mergesort import mergesort
 from src.controller1.orden import vista_ordenada
 from src.controller1.room_loader import RoomLoader
+from src.controller1.unicos import unicos
 from src.controller2.bitacora import (
     BitacoraIncompatibleError,
     BitacoraMemoria,
@@ -292,7 +293,7 @@ class Sesion:
             ids.append(jugador.armadura_equipada)
         catalogo = self.proveedor.catalogo if self.proveedor else {}
         try:
-            self.cache.fijar_en_uso([i for i in dict.fromkeys(ids) if i in catalogo])
+            self.cache.fijar_en_uso([i for i in unicos(ids) if i in catalogo])
         except Exception:
             pass
 
@@ -445,7 +446,7 @@ class Sesion:
             ids += [t.tipo_id for t in s.trampas]
             ids += list(s.objetos_suelo)
         ids += list(self.estado.jugador.inventario)
-        ids = [i for i in dict.fromkeys(ids) if i not in self.proveedor.catalogo]
+        ids = [i for i in unicos(ids) if i not in self.proveedor.catalogo]
         if not ids:
             return
         faltan = []

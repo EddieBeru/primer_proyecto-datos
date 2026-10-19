@@ -24,6 +24,7 @@ from src.models.dungeons import CriptasResponse, DungeonGeneral, DungeonVersion
 from src.models.errors import NotFoundError
 from src.models.roomContents import ContenidoResponse
 from src.models.rooms import SkeletonPage
+from src.controller1.unicos import unicos
 
 
 def _leer_json(ruta: str):
@@ -73,12 +74,16 @@ class OfflineBackend:
         if os.path.isfile(cand):
             return ContenidoResponse.from_dict(_leer_json(cand))
         todo = _leer_json(self._ruta(f"contenido_{cripta_id}.json"))
-        por_sala = {e["sala"]: e for e in todo.get("contenido", [])}
-        faltan = [s for s in lote if s not in por_sala]
-        if faltan:
-            raise NotFoundError(f"offline sin contenido salas {faltan}")
-        return ContenidoResponse.from_dict(
-            {"contenido": [por_sala[s] for s in lote]})
+        entradas = todo.get("contenido", [])
+        sel = []
+        for sala in lote:
+            for e in entradas:
+                if e["sala"] == sala:
+                    sel.append(e)
+                    break
+            else:
+                raise NotFoundError(f"offline sin contenido de la sala {sala}")
+        return ContenidoResponse.from_dict({"contenido": sel})
 
     def version_catalogo(self, budget=None) -> CatalogVersion:
         return CatalogVersion.from_dict(_leer_json(self._ruta("version_catalogo.json")))
@@ -89,17 +94,21 @@ class OfflineBackend:
         if isinstance(fichas, dict):
             sel = [fichas[i] for i in ids if i in fichas]
         else:
-            por_id = {e["id"]: e for e in fichas}
-            sel = [por_id[i] for i in ids if i in por_id]
+            sel = []
+            for i in ids:
+                for e in fichas:
+                    if e["id"] == i:
+                        sel.append(e)
+                        break
         if len(sel) != len(list(ids)):
             raise NotFoundError("offline sin alguna ficha del lote")
         return CatalogoResponse.from_dict({"entidades": sel})
 
     def lote_catalogo_auto(self, ids, budget=None):
-        unicos = list(dict.fromkeys(ids))
+        ids_unicos = unicos(ids)
         out = {}
-        for i in range(0, len(unicos), 10):
-            lote = self.lote_catalogo(unicos[i:i + 10])
+        for i in range(0, len(ids_unicos), 10):
+            lote = self.lote_catalogo(ids_unicos[i:i + 10])
             for e in lote.entidades:
                 out[e.id] = e
         return out

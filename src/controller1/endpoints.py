@@ -2,6 +2,7 @@ from collections.abc import Sequence
 import time
 
 from src.controller1.client import Client
+from src.controller1.unicos import unicos
 from src.models.catalog import CatalogVersion, CatalogoResponse, Enemy, Trap
 from src.models.dungeons import CriptasResponse, DungeonGeneral, DungeonVersion
 from src.models.errors import RateLimitedError, UnexpectedResponseError
@@ -155,12 +156,12 @@ def lote_catalogo_auto(ids: Sequence[str], budget=None) -> dict[str, Entidad]:
     - Parte en grupos de 10, una petición por grupo (cada una descuenta 1).
     - Retorna dict {id: ficha}. Lista vacía → {} sin peticiones.
     """
-    unicos = list(dict.fromkeys(ids))
-    if not unicos:
+    ids_unicos = unicos(ids)
+    if not ids_unicos:
         return {}
     fichas: dict[str, Entidad] = {}
-    for i in range(0, len(unicos), 10):
-        lote = lote_catalogo(unicos[i:i + 10], budget)
+    for i in range(0, len(ids_unicos), 10):
+        lote = lote_catalogo(ids_unicos[i:i + 10], budget)
         for entidad in lote.entidades:
             fichas[entidad.id] = entidad
     return fichas

@@ -11,6 +11,7 @@ C2 cambia el import del falso a este cargador sin tocar el motor.
 from src.controller1.fake_provider import EnemigoListo, ObjetoListo, SalaLista, TrampaLista
 from src.controller1 import endpoints
 from src.controller1.mergesort import mergesort
+from src.controller1.unicos import unicos
 from src.models.catalog import Enemy, Trap
 from src.models.errors import NotFoundError, UnexpectedResponseError
 
@@ -113,9 +114,8 @@ class RoomLoader:
             self._contenido[entry.sala] = entry
 
     def _asegurar_fichas(self, ids):
-        unicos = list(dict.fromkeys(ids))
         faltantes = []
-        for entidad_id in unicos:
+        for entidad_id in unicos(ids):
             if self.cache is not None:
                 en_lru = self.cache.obtener(entidad_id) is not None
             else:

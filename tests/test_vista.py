@@ -16,6 +16,8 @@ import pathlib
 import pygame
 import pytest
 
+from src.controller1.unicos import unicos
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------- backend falso
@@ -52,7 +54,7 @@ class FakeBackend:
             contenido=[self.fake._contenido[s] for s in salas])
 
     def lote_catalogo_auto(self, ids, budget=None):
-        return {i: self.fake.ficha(i) for i in dict.fromkeys(ids)}
+        return {i: self.fake.ficha(i) for i in unicos(ids)}
 
 
 @pytest.fixture()

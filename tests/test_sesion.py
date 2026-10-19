@@ -4,6 +4,8 @@ import os
 
 import pytest
 
+from src.controller1.unicos import unicos
+
 from src.controller1.fake_provider import CRIPTA_ID, FakeProvider
 from src.controller2.bitacora import BitacoraIncompatibleError
 from src.orchestrator.sesion import Sesion
@@ -39,7 +41,7 @@ class FakeBackend:
             contenido=[self.fake._contenido[s] for s in salas])
 
     def lote_catalogo_auto(self, ids, budget=None):
-        return {i: self.fake.ficha(i) for i in dict.fromkeys(ids)}
+        return {i: self.fake.ficha(i) for i in unicos(ids)}
 
 
 class FakeBackendContando(FakeBackend):

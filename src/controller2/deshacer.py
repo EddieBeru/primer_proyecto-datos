@@ -39,7 +39,7 @@ class PilaDeshacer:
 
     TOPE = 5
 
-    # TODO(C1-8/K2): a_lista/desde_lista es lo que se guarda en EstadoPartida.pila_deshacer.
+    # a_lista/desde_lista es lo que se guarda en EstadoPartida.pila_deshacer (K2).
     def __init__(self, inversas: list[dict[str, Any]] | None = None) -> None:
         self._cima: _NodoPila | None = None
         self._len = 0

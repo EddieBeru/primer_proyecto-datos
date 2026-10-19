@@ -304,7 +304,7 @@ class Agenda:
         self._por_seq = nueva
 
     # -- K2: la agenda se guarda como list[dict] dentro de EstadoPartida --
-    # TODO(C1-8): C1 escribe/lee esta lista a bytes; no cambiar sus claves sin regla 6.3.
+    # C1 escribe/lee esta lista a bytes; no cambiar sus claves sin regla 6.3.
     def a_lista(self) -> list[dict[str, Any]]:
         return [e.a_dict() for e in self]
 

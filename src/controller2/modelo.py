@@ -12,10 +12,7 @@ Direccion = Literal["N", "S", "E", "O"]
 EstadoJuego = Literal["jugando", "victoria", "derrota"]
 
 # Valores por defecto para campos que el API puede traer vacios.
-# Acordados en Fase 0; marcados como pendientes de confirmar con el profe.
 # (docs: "separacion vista controlador.md" 2.7, "vista y flujos api.md" Parte 4).
-# TODO(profe pregunta 3): confirmar que "vacio" significa estos defaults y no "no aplica".
-# TODO(profe pregunta 1): confirmar si version/reintentos descuentan; afecta presupuesto_restante.
 DEFAULTS: dict[str, Any] = {
     # Exit.cerrada ausente -> puerta abierta.
     "cerrada": False,
@@ -32,12 +29,9 @@ DEFAULTS: dict[str, Any] = {
     "cura": 0,
     "modificador_velocidad": 0,
     "duracion": 0,
-    # Key.abre ausente o vacio -> PENDIENTE profe (preguntas 2 y 8).
-    # Supuesto temporal: la llave vale si su id == salida.llave.
-    # TODO(profe pregunta 2): confirmar si manda salida.llave o Key.abre cuando hay conflicto.
+    # Key.abre ausente o vacio -> la llave vale si su id == salida.llave.
     "abre": None,
-    # Rastro fresco para rastreador (C2-8): 0 = sin rastro.
-    # TODO(profe pregunta 7 + C2-8): confirmar regla de frescura/duracion del rastro.
+    # Rastro fresco para rastreador: 0 = sin rastro.
     "rastro": 0,
 }
 
@@ -53,17 +47,13 @@ class JugadorVivo:
     """Estado cambiante del jugador.
 
     El inventario es ``list[str]`` con ids de catalogo EN ORDEN; la posicion 0
-    es el frente (equipo resaltado, segun guia). C2-5 reemplazara la lista por
-    su lista doblemente enlazada propia sin cambiar este contrato: el orden
-    visible y las operaciones (recoger/soltar/equipar/recorrer) se mantienen.
+    es el frente (equipo resaltado, segun guia). Es la forma que C1 guarda a
+    bytes; el `Inventario` enlazado la produce/consume con a_lista/desde_lista.
 
-    ``efectos`` es ``{nombre: turnos_restantes}`` para no congelar el contrato
-    antes de C2-7. Ej: {"veneno": 3, "veloz": 5, "antorcha": 10}.
+    ``efectos`` es ``{nombre: turnos_restantes}``. Ej: {"veneno": 3,
+    "veloz": 5, "antorcha": 10}.
     """
 
-    # TODO(C2-5): sincronizar este orden con el Inventario enlazado (a_lista/desde_jugador).
-    # TODO(C1-8): esta lista en orden es lo que se guarda a bytes (K2).
-    # TODO(C2-7): veneno/pocion/antorcha/antidoto consumen `efectos` + agenda.
     vida_max: int
     vida_actual: int
     ataque: int
@@ -294,11 +284,8 @@ class EstadoPartida:
     salas_visitadas: list[int] = field(default_factory=list)
     reloj: int = 0
     presupuesto_restante: int = 0
-    # Placeholders con forma minima para no bloquear a C1-8:
-    # agenda C2-2: [{t, seq, tipo, datos}]; pila C2-9: [{inversa, datos}].
-    # TODO(C2-2 hecho): Agenda.a_lista/desde_lista ya produce esta forma; falta cablear reloj<->EstadoPartida.
-    # TODO(C2-9): definir forma final de cada entrada de pila_deshacer (accion inversa, no copia total).
-    # TODO(C1-8): C1 serializa estos dos campos a bytes con struct; avisar si cambia su forma (regla 6.3).
+    # Forma serializada: agenda [{t, seq, tipo, datos}]; pila [{inversa, datos}].
+    # C1 los guarda a bytes con struct: no cambiar su forma sin la regla 6.3.
     agenda: list[dict[str, Any]] = field(default_factory=list)
     pila_deshacer: list[dict[str, Any]] = field(default_factory=list)
     estado: EstadoJuego = "jugando"
