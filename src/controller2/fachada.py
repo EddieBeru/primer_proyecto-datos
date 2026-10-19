@@ -411,6 +411,12 @@ class Fachada:
             return self.usar_antidoto(item_id)
         if clase == "antorcha" or (ficha is None and "antorcha" in item_id):
             return self.usar_antorcha(item_id)
+        if clase == "pergamino_retroceso" or (
+            ficha is None and ("pergamino" in item_id or "retroceso" in item_id)
+        ):
+            # §2.11: "usar el pergamino" y "deshacer" son la misma acción;
+            # la tecla R sobre el pergamino delega en el retroceso.
+            return self.deshacer()
         return self._fail("No se puede usar así.")
 
     # -- efectos (C2-7 §2.10) --

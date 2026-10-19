@@ -750,6 +750,21 @@ def test_deshacer_regeneracion_corta_pulsos():
     assert not any(ev.tipo == "regeneracion" for ev in fac.agenda)
 
 
+def test_usar_pergamino_delega_en_deshacer():
+    """§10.2: "usar un pergamino" y "deshacer" son la misma acción."""
+    fac, _ = fachada_fake()
+    fac.estado.jugador.inventario.append("pergamino-01")
+    reloj0, acciones0 = fac.reloj.ahora, fac.estado.acciones_jugador
+    assert fac.esperar()[0]
+    assert fac.estado.acciones_jugador == acciones0 + 1
+    ok, _ = fac.usar("pergamino-01")
+    assert ok
+    assert "pergamino-01" not in fac.estado.jugador.inventario  # consumido
+    assert fac.estado.reloj == reloj0  # intervalo revertido
+    assert fac.estado.acciones_jugador == acciones0
+    assert not fac.usar("pergamino-01")[0]  # sin pergamino ya no hay retroceso
+
+
 def test_turno_reprograma_y_decae_rastro():
     est, cat = _mundo_ia()
     est.salas[1].ultima_visita = 0
