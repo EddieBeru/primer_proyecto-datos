@@ -146,10 +146,8 @@ class Agenda:
         return self._cabeza is None
 
     # -- alta / baja --
-    def programar(self, t: int, tipo: str, datos: dict[str, Any] | None = None) -> Evento:
-        """Inserta ordenado por (t, seq) y devuelve el evento."""
-        ev = Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=self._seq)
-        self._seq += 1
+    def _insertar(self, ev: Evento) -> Evento:
+        """Inserta ordenado por (t, seq) sin tocar el contador de secuencias."""
         nodo = _Nodo(ev)
         cola = self._cola
         if cola is None or (ev.t, ev.seq) >= (cola.evento.t, cola.evento.seq):
@@ -182,6 +180,29 @@ class Agenda:
         self._tipos.agregar(nodo)
         self._registrar_seq(nodo)
         return ev
+
+    def programar(self, t: int, tipo: str, datos: dict[str, Any] | None = None) -> Evento:
+        """Inserta ordenado y devuelve el evento (ya con seq)."""
+        ev = Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=self._seq)
+        self._seq += 1
+        return self._insertar(ev)
+
+    def reinsertar(self, t: int, tipo: str, datos: dict[str, Any] | None = None,
+                   seq: int = -1) -> Evento:
+        """Reinserta un evento ya disparado conservando su ``(t, seq)`` (C2-9).
+
+        Lo usa el deshacer para devolver a la agenda los turnos enemigos que
+        el intervalo revertido consumio: el replay vuelve a ver los mismos
+        eventos. No reasigna seq (los seq se asignan una sola vez) y si ese
+        seq ya estuviera en la agenda devuelve el existente sin duplicar
+        (consulta O(1) con el índice). `seq = -1` es el marcador del turno
+        del jugador del deshacer: no entra al índice.
+        """
+        if 0 <= seq < len(self._por_seq):
+            nodo = self._por_seq[seq]
+            if nodo is not None:
+                return nodo.evento
+        return self._insertar(Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=seq))
 
     def ver_proximo(self) -> Evento | None:
         """Mira sin sacar. None si vacia."""
@@ -258,6 +279,10 @@ class Agenda:
 
     def _registrar_seq(self, nodo: _Nodo) -> None:
         seq = nodo.evento.seq
+        if seq < 0:
+            # Marcador sintético (turno del jugador tras deshacer, seq -1):
+            # fuera del índice para no corromper la última posición.
+            return
         if seq >= len(self._por_seq):
             self._por_seq.extend([None] * (seq + 1 - len(self._por_seq)))
         self._por_seq[seq] = nodo

@@ -147,6 +147,81 @@ def test_rastreadora_sigue_el_rastro_entre_salas(tmp_path):
     assert sombra.sala_actual == 1
 
 
+def test_pergamino_devuelve_a_la_sala_anterior(tmp_path):
+    """§2.11: el retroceso deja el estado justo antes de la ultima accion."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=1)
+    ses.fachada.estado.jugador.inventario.append("pergamino-01")
+    for cmd in ("s", "s"):  # 1 -> 3 -> 5 (a la sala 5 se baja a recogerlo)
+        ok, msg, _ = ses.paso(cmd)
+        assert ok, msg
+    assert ses.estado.sala_actual == 5
+    antes = (ses.estado.sala_actual, ses.estado.jugador.vida_actual,
+             int(ses.estado.reloj), dict(ses.estado.jugador.efectos))
+    ok, msg, _ = ses.paso("n")  # 5 -> 3: la trampa de veneno vuelve a morder
+    assert ok and ses.estado.sala_actual == 3
+    assert ses.estado.jugador.vida_actual < antes[1]
+    ok, msg, foto = ses.paso("deshacer")
+    assert ok, msg
+    assert foto.sala_id == antes[0] == 5
+    assert ses.estado.jugador.vida_actual == antes[1]
+    assert int(ses.estado.reloj) == antes[2]
+    assert dict(ses.estado.jugador.efectos) == antes[3]
+    assert foto.pergaminos == 0  # el pergamino usado quedo consumido (§2.11)
+
+
+def _retrato_comparable(ses):
+    """Estado observable para comparar partidas: sin azar, pila ni marcadores."""
+    est = ses.estado
+    marcador = lambda ev: ev.tipo == "turno" and (ev.datos or {}).get("kind") == "jugador"
+    salas = {}
+    for sid in est.salas_visitadas:
+        s = est.salas[sid]
+        salas[sid] = (
+            tuple(s.objetos_suelo),
+            tuple((t.instancia, t.tipo_id, bool(t.armada)) for t in s.trampas),
+            tuple(sorted((e.instancia, e.tipo_id, e.sala_actual, e.vida_actual,
+                          bool(e.activa)) for e in s.enemigos)),
+            s.ultima_visita, bool(s.visitada), bool(s.oscura),
+        )
+    return (
+        est.estado, est.sala_actual, bool(est.puerta_salida_abierta),
+        est.jugador.vida_actual, dict(est.jugador.efectos),
+        sorted(i for i in est.jugador.inventario if "pergamino" not in i),
+        est.jugador.arma_equipada, est.jugador.armadura_equipada,
+        int(est.reloj), est.acciones_jugador, est.enemigos_derrotados,
+        tuple(est.salas_visitadas), salas,
+        tuple(sorted((ev.t, ev.tipo, repr(sorted((ev.datos or {}).items())))
+                     for ev in ses.fachada.agenda if not marcador(ev))),
+    )
+
+
+def test_seis_acciones_deshacer_cinco_vuelve_al_estado_de_la_primera(tmp_path):
+    """C2-9: tras 6 acciones y 5 retrocesos el estado coincide con el de la 1.ª."""
+    for sub in ("dirigir", "quedarse"):
+        (tmp_path / sub).mkdir()
+    a = nueva_sesion(tmp_path / "dirigir")
+    b = nueva_sesion(tmp_path / "quedarse")
+    a.iniciar(CRIPTA_ID, semilla=1)
+    b.iniciar(CRIPTA_ID, semilla=1)
+    # El objeto del test es la reversión, no la supervivencia: vida holgada.
+    for ses in (a, b):
+        ses.estado.jugador.vida_max = ses.estado.jugador.vida_actual = 300
+    for _ in range(5):
+        a.fachada.estado.jugador.inventario.append("pergamino-01")
+    for i, cmd in enumerate(["s", "n", "s", "n", "s", "n"]):  # 1 <-> 3
+        ok, msg, _ = a.paso(cmd)
+        assert ok, (cmd, msg)
+        if i == 0:
+            ok, msg, _ = b.paso(cmd)
+            assert ok, (cmd, msg)
+    for _ in range(5):
+        ok, msg, _ = a.paso("deshacer")
+        assert ok, msg
+    assert a.fachada.foto().pergaminos == 0  # los 5 usados, consumidos
+    assert _retrato_comparable(a) == _retrato_comparable(b)
+
+
 def test_victoria_completa_y_finalizar(tmp_path):
     ses = nueva_sesion(tmp_path)
     ses.iniciar(CRIPTA_ID)

@@ -39,6 +39,14 @@ LUZ_SIN_ANTORCHA = 84
 LUZ_PENUMBRA = 130
 ALFA_OSCURIDAD = 232
 
+# Rebobina del pergamino (mejoras 2026-10): anillos que se expanden hacia
+# afuera (el tiempo retrocede), velo violáceo y chispas girando al revés.
+# Todo determinista (sin azar) para que la vista siga siendo testeable.
+REBOBINA_ANILLOS = 3
+REBOBINA_CHISPAS = 8
+REBOBINA_RUMBOS = ((1.0, 0.0), (0.7071, 0.7071), (0.0, 1.0), (-0.7071, 0.7071),
+                   (-1.0, 0.0), (-0.7071, -0.7071), (0.0, -1.0), (0.7071, -0.7071))
+
 # Equipo a un lado del cuerpo: el lado lo decide el espejo persistente del
 # jugador (se conserva al subir/bajar), no el facing crudo. Antes los
 # offsets por dirección hacían saltar el arma y el escudo de lado al
@@ -460,6 +468,44 @@ def dibujar_oscuridad(sup: pygame.Surface, area: pygame.Rect, foto,
     pygame.draw.circle(velo, (6, 5, 12, 150), (cx, cy), LUZ_PENUMBRA)
     pygame.draw.circle(velo, (6, 5, 12, 0), (cx, cy), LUZ_SIN_ANTORCHA)
     sup.blit(velo, (area.x, area.y))
+
+
+def dibujar_rebobina(sup: pygame.Surface, area: pygame.Rect, fase: float) -> None:
+    """Capa 3.6: destello de rebobinado tras usar el pergamino (mejoras 2026-10).
+
+    `fase` va de 1.0 (recién usado) a 0.0 (apagado): anillos que se expanden
+    hacia afuera, velo violáceo y chispas girando en sentido inverso, como si
+    el tiempo del intervalo se enrollara de vuelta. Determinista (sin azar):
+    dos llamadas con la misma fase pintan exactamente lo mismo. Se recorta a
+    la zona de la sala: el HUD de abajo queda legible.
+    """
+    fase = max(0.0, min(1.0, float(fase)))
+    if fase <= 0.0:
+        return
+    caja = rect_caja(area)
+    avance = 1.0 - fase  # 0 -> 1 mientras el destello se apaga
+    capa = pygame.Surface(caja.size, pygame.SRCALPHA)
+    capa.fill((*paleta.MAGIA, int(42 * fase)))
+    cx, cy = caja.centerx - caja.x, caja.centery - caja.y
+    radio_max = min(capa.get_width(), capa.get_height()) // 2
+    for i in range(REBOBINA_ANILLOS):
+        t = (avance + i / REBOBINA_ANILLOS) % 1.0
+        radio = int(radio_max * (0.16 + 0.84 * t))
+        alfa = min(255, int(150 * fase * (1.0 - t)) + 40)
+        pygame.draw.circle(capa, (*paleta.MAGIA, alfa), (cx, cy), radio, 3)
+    # Aro exterior: el "borde" del instante que se rebobina.
+    pygame.draw.circle(capa, (*paleta.MAGIA, int(90 * fase)), (cx, cy),
+                       radio_max, 2)
+    # Chispas girando al revés (el índice baja a medida que avanza el flash).
+    base = int(avance * REBOBINA_CHISPAS * 2) % REBOBINA_CHISPAS
+    radio_chispa = int(radio_max * 0.72)
+    for i in range(REBOBINA_CHISPAS):
+        dx, dy = REBOBINA_RUMBOS[(base - i) % REBOBINA_CHISPAS]
+        x = cx + int(radio_chispa * dx)
+        y = cy + int(radio_chispa * dy)
+        pygame.draw.circle(capa, (255, 250, 240, int(200 * fase)), (x, y),
+                           2 + i % 2)
+    sup.blit(capa, caja.topleft)
 
 
 def rect_caja(area: pygame.Rect) -> pygame.Rect:

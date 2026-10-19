@@ -1,13 +1,24 @@
 """Deshacer con pergamino de retroceso: pila de acciones inversas (tope 5).
 
-Cada accion guarda QUE cambio (no copia total). Al deshacer tambien se
-cancelan los eventos de agenda que esa accion creo (por sus seqs).
-El pergamino se consume (uno del inventario por cada deshacer).
+Cada accion guarda QUE cambio (no copia total). Al deshacer se revierte la
+ultima accion del jugador y TODO su intervalo (lo ocurrido despues de ella
+antes de la siguiente accion): acciones enemigas, efectos, reloj, eventos
+programados/cancelados, rastro, vida, inventario, puertas y trampas (§2.11).
+El tope de 5 se aplica a acciones del jugador (intervalos), no a eventos:
+al superar 5 se olvida el intervalo mas viejo completo.
+El pergamino se consume (uno del inventario por cada deshacer) y su cantidad
+queda excluida de la reversion (§2.11).
 """
 
 from __future__ import annotations
 
 from typing import Any, Iterator
+
+# Ops de accion del jugador: cada una abre un intervalo reversible. Deshacer
+# revierte hasta una de estas inclusive (§2.11). "trampa" NO esta aqui: pisar
+# una trampa es parte del intervalo de la accion con la que se disparo.
+ACCIONES_JUGADOR = {"mover", "abrir", "esperar", "dano_enemigo", "recoger",
+                    "soltar", "equipar", "pocion", "antidoto", "antorcha"}
 
 
 class _NodoPila:
@@ -19,7 +30,12 @@ class _NodoPila:
 
 
 class PilaDeshacer:
-    """Pila propia sobre lista enlazada. Tope 5: al llenarse se olvida la mas vieja."""
+    """Pila propia sobre lista enlazada. Tope 5 intervalos: al llenarse se olvida el mas viejo.
+
+    Un "intervalo" empieza en la accion del jugador y termina justo antes de
+    la siguiente; los eventos intermedios (veneno, rearme, turnos enemigos...)
+    viven dentro de su intervalo y no gastan tope.
+    """
 
     TOPE = 5
 
@@ -27,6 +43,7 @@ class PilaDeshacer:
     def __init__(self, inversas: list[dict[str, Any]] | None = None) -> None:
         self._cima: _NodoPila | None = None
         self._len = 0
+        self._intervalos = 0
         for inv in inversas or []:
             self.apilar(inv)
 
@@ -37,18 +54,50 @@ class PilaDeshacer:
     def vacia(self) -> bool:
         return self._cima is None
 
+    @property
+    def intervalos(self) -> int:
+        """Acciones del jugador que aun se pueden deshacer."""
+        return self._intervalos
+
+    def hay_accion(self) -> bool:
+        """True si queda alguna accion del jugador en la pila."""
+        return self._intervalos > 0
+
     def apilar(self, inversa: dict[str, Any]) -> None:
         nodo = _NodoPila(dict(inversa))
         nodo.siguiente = self._cima
         self._cima = nodo
         self._len += 1
-        if self._len > self.TOPE:
-            # olvida la mas vieja (fondo): recorre hasta el penultimo
-            actual = self._cima
-            while actual.siguiente is not None and actual.siguiente.siguiente is not None:
-                actual = actual.siguiente
-            actual.siguiente = None
-            self._len = self.TOPE
+        if nodo.inversa.get("op") in ACCIONES_JUGADOR:
+            self._intervalos += 1
+            if self._intervalos > self.TOPE:
+                self._olvidar_mas_vieja()
+
+    def _olvidar_mas_vieja(self) -> None:
+        """Descarta la accion mas vieja y todo lo anterior (su intervalo entero)."""
+        conservar = self._intervalos - 1
+        if conservar <= 0:
+            self._cima = None
+            self._len = 0
+            self._intervalos = 0
+            return
+        actual = self._cima
+        vistos = 0
+        encontradas = 0
+        while actual is not None:
+            vistos += 1
+            if actual.inversa.get("op") in ACCIONES_JUGADOR:
+                encontradas += 1
+                if encontradas == conservar:  # la accion mas vieja que se conserva
+                    actual.siguiente = None
+                    self._len = vistos
+                    self._intervalos = conservar
+                    return
+            actual = actual.siguiente
+        # Defensivo: no habia tantas acciones como decia el contador.
+        self._cima = None
+        self._len = 0
+        self._intervalos = 0
 
     def desapilar(self) -> dict[str, Any] | None:
         if self._cima is None:
@@ -56,6 +105,8 @@ class PilaDeshacer:
         inv = self._cima.inversa
         self._cima = self._cima.siguiente
         self._len -= 1
+        if inv.get("op") in ACCIONES_JUGADOR:
+            self._intervalos -= 1
         return inv
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
@@ -85,19 +136,59 @@ def _es_pergamino(item_id: str) -> bool:
     return "pergamino" in str(item_id) or "retroceso" in str(item_id)
 
 
+def _reinsertar_turno(agenda, ta: dict[str, Any] | None) -> None:
+    """Devuelve a la agenda un turno ya disparado, con su ``(t, seq)`` original."""
+    if not ta:
+        return
+    agenda.reinsertar(int(ta["t"]), str(ta.get("tipo") or "turno"),
+                      dict(ta.get("datos") or {}), int(ta["seq"]))
+
+
 def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
     """Revierte UNA entrada y cancela sus eventos. §2.11: pergaminos excluidos."""
     for seq in (inversa.get("eventos") or []):
         agenda.cancelar_por_seq(seq)
     op = inversa.get("op")
     d = inversa.get("datos") or {}
+    # Bloque comun a toda accion del jugador (§2.11/§4.6): reloj, contador
+    # de acciones y rastro vuelven al instante anterior a la accion.
+    if op in ACCIONES_JUGADOR:
+        if "reloj_antes" in d:
+            estado.reloj = int(d["reloj_antes"])
+        if "acciones_antes" in d:
+            estado.acciones_jugador = int(d["acciones_antes"])
+        sid = d.get("sala_rastro")
+        if sid is not None and "rastro_antes" in d:
+            sala_r = estado.salas.get(sid)
+            if sala_r is not None:
+                sala_r.ultima_visita = d["rastro_antes"]
     if op == "mover":
+        # La sala recien despertada vuelve a dormir: sin turno pendiente (ni el
+        # de activacion ni los reprogramados durante el intervalo).
+        for inst in (d.get("activados") or []):
+            agenda.cancelar_donde(
+                lambda e, i=inst: e.tipo == "turno" and (e.datos or {}).get("actor") == i)
+            for sala in estado.salas.values():
+                for e in sala.enemigos:
+                    if e.instancia == inst:
+                        e.activa = False
+                        e.tiempo_siguiente = 0
+        destino_id = d.get("sala_destino")
+        if destino_id is not None:
+            sala_d = estado.salas.get(destino_id)
+            if sala_d is not None and "visitada_antes" in d:
+                sala_d.visitada = bool(d["visitada_antes"])
+            if (not d.get("estaba_visitada", True)
+                    and destino_id in estado.salas_visitadas):
+                estado.salas_visitadas.remove(destino_id)
         estado.sala_actual = d["origen"]
         if d.get("abrio"):
             s = estado.salas.get(d["sala_puerta"])
             if s and d.get("direccion") in s.salidas:
                 s.salidas[d["direccion"]].cerrada = True
         return True
+    if op == "esperar":
+        return True  # sin estado propio: basta el bloque comun
     if op == "abrir":
         s = estado.salas.get(d.get("sala"))
         if s and d.get("direccion") in s.salidas:
@@ -106,6 +197,10 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
                 estado.puerta_salida_abierta = False
         return True
     if op == "dano_enemigo":
+        if "derrotados_antes" in d:
+            estado.enemigos_derrotados = int(d["derrotados_antes"])
+        # Si el golpe letal cancelo el turno pendiente, vuelve tal cual estaba.
+        _reinsertar_turno(agenda, d.get("turno_antes"))
         for sala in estado.salas.values():
             for e in sala.enemigos:
                 if e.instancia == d["instancia"]:
@@ -118,6 +213,15 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
         return False
     if op in ("dano_jugador", "veneno_tick"):
         estado.jugador.vida_actual = d["vida_antes"]
+        # El pulso consumido tambien devuelve duracion al efecto (§4.6).
+        for nombre, clave in (("veneno", "veneno_antes"), ("quemadura", "quemadura_antes")):
+            if clave in d:
+                antes = d[clave]
+                if antes is None:
+                    estado.jugador.efectos.pop(nombre, None)
+                else:
+                    estado.jugador.efectos[nombre] = antes
+        _reinsertar_turno(agenda, d.get("turno_antes"))
         if estado.jugador.vivo and estado.estado == "derrota":
             estado.estado = "jugando"
         return True
@@ -197,11 +301,13 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
         return False
     if op == "aparece":
         inst = d.get("instancia")
-        for sala in estado.salas.values():
-            sala.enemigos = [e for e in sala.enemigos if e.instancia != inst]
-        agenda.cancelar_donde(lambda ev: (ev.datos or {}).get("actor") == inst)
-        for seq in (d.get("eventos") or []):
-            agenda.cancelar_por_seq(seq)
+        if inst:
+            for sala in estado.salas.values():
+                sala.enemigos = [e for e in sala.enemigos if e.instancia != inst]
+            agenda.cancelar_donde(lambda ev: (ev.datos or {}).get("actor") == inst)
+        # La oleada consumida vuelve a la agenda (su reprogramada ya se cancelo
+        # en el preludio generico via "eventos").
+        _reinsertar_turno(agenda, d.get("oleada_antes"))
         return True
     if op == "mover_enemigo":
         origen, destino = d.get("origen"), d.get("destino")
@@ -212,19 +318,35 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
                     e.sala_actual = origen
                     if origen in estado.salas:
                         estado.salas[origen].enemigos.append(e)
+                    ta = d.get("turno_antes")
+                    if ta is not None:
+                        e.tiempo_siguiente = int(ta.get("t", e.tiempo_siguiente))
+                        _reinsertar_turno(agenda, ta)
                     return True
         return False
+    if op == "turno_enemigo":
+        # Turno enemigo que no movio al actor: solo devuelve su programacion.
+        inst = d.get("instancia")
+        ta = d.get("turno_antes")
+        for sala in estado.salas.values():
+            for e in sala.enemigos:
+                if e.instancia == inst:
+                    if ta is not None:
+                        e.tiempo_siguiente = int(ta.get("t", e.tiempo_siguiente))
+                    break
+        _reinsertar_turno(agenda, ta)
+        return True
     return False
 
 
-# Ops de acción del jugador: deshacer sigue hasta revertir una de estas (§2.11 intervalo).
-_OPS_JUGADOR = {"mover", "abrir", "dano_enemigo", "recoger", "soltar", "equipar",
-                "trampa", "pocion", "antidoto", "antorcha"}
-
-
 def deshacer_una(estado, agenda, pila: PilaDeshacer, catalogo: dict | None = None) -> tuple[bool, str]:
-    """Usa 1 pergamino: revierte última acción jugador + todo su intervalo posterior."""
+    """Usa 1 pergamino: revierte ultima accion jugador + todo su intervalo posterior."""
     if pila.vacia:
+        return False, "Nada que deshacer."
+    # §2.11: sin ninguna accion en la pila no hay nada que revertir y no se
+    # consume pergamino (los eventos sueltos de un intervalo ya olvidado no
+    # cuentan: solo se revierte junto a su accion).
+    if not pila.hay_accion():
         return False, "Nada que deshacer."
     pergamino = None
     for item in estado.jugador.inventario:
@@ -246,6 +368,6 @@ def deshacer_una(estado, agenda, pila: PilaDeshacer, catalogo: dict | None = Non
             break
         ok = aplicar_inversa(estado, agenda, inversa)
         ok_any = ok_any or ok
-        if (inversa.get("op") in _OPS_JUGADOR):
+        if (inversa.get("op") in ACCIONES_JUGADOR):
             break
     return ok_any, "" if ok_any else "No se pudo revertir."

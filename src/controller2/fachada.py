@@ -167,6 +167,26 @@ class Fachada:
                     return e.tipo_id
         return None
 
+    def _inversa_accion(self, op: str, datos: dict | None = None,
+                        eventos: list[int] | None = None) -> dict:
+        """Entrada de pila para una accion del jugador (C2-9).
+
+        Adjunta lo comun del intervalo: reloj y contador de acciones en el
+        momento de la accion, y el rastro de la sala actual (aun el anterior:
+        ``_tras_accion`` lo actualiza despues del apilado).
+        """
+        base: dict = {
+            "reloj_antes": int(self.reloj.ahora),
+            "acciones_antes": int(getattr(self.estado, "acciones_jugador", 0)),
+        }
+        sala = self.estado.salas.get(self.estado.sala_actual)
+        if sala is not None:
+            base["sala_rastro"] = sala.id
+            base["rastro_antes"] = sala.ultima_visita
+        if datos:
+            base.update(datos)
+        return {"op": op, "datos": base, "eventos": list(eventos or [])}
+
     def _tras_accion(self, costo_key: str) -> None:
         """Común tras acción exitosa que consume tiempo: rastro + turno + contador."""
         try:
@@ -179,10 +199,24 @@ class Fachada:
         self._programar_turno_jugador(COSTOS[costo_key])
 
     def _programar_turno_jugador(self, costo: int, inicial: bool = False) -> None:
+        """Programa el turno del jugador (invariante: a lo sumo uno pendiente).
+
+        §2.3: cada accion fija la proxima accion del jugador a
+        ``ahora + intervalo(costo)``; el marcador anterior se cancela para que
+        el drenaje corte exactamente en el turno recien programado. Con una
+        carga, el turno guardado se respeta tal cual (K2).
+        """
+        hay = any(ev.tipo == "turno" and (ev.datos or {}).get("kind") == "jugador"
+                  for ev in self.agenda)
+        if hay and inicial:
+            return
         try:
             vel = int(self.estado.jugador.velocidad)
         except Exception:
             vel = 100
+        if hay:
+            self.agenda.cancelar_donde(
+                lambda e: e.tipo == "turno" and (e.datos or {}).get("kind") == "jugador")
         self.reloj.programar_turno(self.agenda, "jugador", vel,
                                     {"kind": "jugador", "costo": int(costo)}, costo=int(costo))
 
@@ -209,9 +243,9 @@ class Fachada:
             if res.mensaje == "Ya estaba abierta.":
                 return self._ok(res.mensaje)
             return self._fail(res.mensaje)
-        self.pila.apilar({"op": "abrir", "datos": {"sala": self.estado.sala_actual,
-                          "direccion": direccion}, "eventos":
-                          [res.evento_cierre_seq] if res.evento_cierre_seq is not None else []})
+        self.pila.apilar(self._inversa_accion(
+            "abrir", {"sala": self.estado.sala_actual, "direccion": direccion},
+            eventos=[res.evento_cierre_seq] if res.evento_cierre_seq is not None else []))
         self._anotar("abrir", "jugador", direccion)
         self._tras_accion("abrir")
         return self._ok()
@@ -222,14 +256,22 @@ class Fachada:
                              self.reloj, self.catalogo)
         if not res.ok:
             return self._fail(res.mensaje)
-        self.pila.apilar({"op": "mover", "datos": {"origen": origen, "abrio": False,
-                          "sala_puerta": origen, "direccion": direccion}, "eventos": []})
+        self.pila.apilar(self._inversa_accion(
+            "mover",
+            {"origen": origen, "abrio": False, "sala_puerta": origen,
+             "direccion": direccion, "sala_destino": res.sala,
+             "activados": list(res.activados),
+             "rastro_antes": res.rastro_antes,
+             "visitada_antes": bool(res.visitada_antes),
+             "estaba_visitada": bool(res.estaba_visitada)},
+            eventos=res.eventos_activacion))
         self._anotar("mover", "jugador", direccion)
         self._disparar_trampas_sala()
         self._tras_accion("mover")
         return self._ok()
 
     def esperar(self) -> tuple[bool, str]:
+        self.pila.apilar(self._inversa_accion("esperar", {"costo": COSTOS["mover"]}))
         self._anotar("mover", "jugador", "esperar")
         self._tras_accion("mover")
         return self._ok()
@@ -244,19 +286,32 @@ class Fachada:
         sala = self.estado.salas.get(self.estado.sala_actual)
         objetivo = next((e for e in (sala.enemigos if sala else []) if e.instancia == instancia_id), None)
         vida_antes = objetivo.vida_actual if objetivo else 0
+        # Turno pendiente del enemigo: si el golpe es letal, ataque_jugador lo
+        # cancela; deshacer debe devolverlo con su (t, seq) original (§4.6).
+        turno_antes = None
+        for ev in self.agenda:
+            if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id:
+                turno_antes = {"t": ev.t, "seq": ev.seq, "tipo": ev.tipo,
+                               "datos": dict(ev.datos)}
+                break
+        derrotados_antes = int(getattr(self.estado, "enemigos_derrotados", 0))
         res = ataque_jugador(self.estado, instancia_id, atk_e, def_e, suelta,
                              self.catalogo, azar=self.azar, agenda=self.agenda)
         if res.dano == 0 and res.mensaje:
             return self._fail(res.mensaje)
-        self.pila.apilar({"op": "dano_enemigo", "datos": {"instancia": instancia_id,
-                          "vida_antes": vida_antes, "botin": res.botin}, "eventos": []})
+        datos = {"instancia": instancia_id, "vida_antes": vida_antes,
+                 "botin": res.botin, "derrotados_antes": derrotados_antes}
+        if turno_antes is not None and res.mato:
+            datos["turno_antes"] = turno_antes
+        self.pila.apilar(self._inversa_accion("dano_enemigo", datos))
         self._anotar("atacar", "jugador", instancia_id)
         if res.mato:
             self._anotar("muerte", instancia_id, "jugador")
         self._tras_accion("atacar")
         return self._ok(f"Daño {res.dano}.")
 
-    def ataque_enemigo(self, instancia_id: str) -> tuple[bool, str]:
+    def ataque_enemigo(self, instancia_id: str, eventos: list[int] | None = None,
+                       turno_antes: dict | None = None) -> tuple[bool, str]:
         tipo = self._tipo_de(instancia_id)
         ficha = self.catalogo.get(tipo) if tipo else None
         atk = int(getattr(ficha, "ataque", 0) or 0)
@@ -264,7 +319,11 @@ class Fachada:
         res = ataque_enemigo(self.estado, instancia_id, atk, self.catalogo, azar=self.azar)
         if res.dano == 0 and res.mensaje:
             return self._fail(res.mensaje)
-        self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes}, "eventos": []})
+        datos = {"vida_antes": vida_antes}
+        if turno_antes is not None:
+            datos["turno_antes"] = turno_antes
+        self.pila.apilar({"op": "dano_jugador", "datos": datos,
+                          "eventos": list(eventos or [])})
         self._anotar("dano", instancia_id, str(res.dano))
         return self._ok()
 
@@ -281,8 +340,8 @@ class Fachada:
         pos = sala.objetos_suelo.index(item_id)
         sala.objetos_suelo.remove(item_id)
         self.estado.jugador.inventario = inv.a_lista()
-        self.pila.apilar({"op": "recoger", "datos": {"item": item_id,
-                          "sala": sala.id, "pos_suelo": pos}, "eventos": []})
+        self.pila.apilar(self._inversa_accion("recoger", {"item": item_id,
+                          "sala": sala.id, "pos_suelo": pos}))
         self._anotar("recoger", "jugador", item_id)
         self._tras_accion("recoger")
         return self._ok()
@@ -303,9 +362,9 @@ class Fachada:
             return self._fail("Sala desconocida.")
         sala.objetos_suelo.append(item)
         self.estado.jugador.inventario = inv.a_lista()
-        self.pila.apilar({"op": "soltar", "datos": {"item": item,
-                          "sala": sala.id, "pos_inv": min(pos, len(self.estado.jugador.inventario))},
-                          "eventos": []})
+        self.pila.apilar(self._inversa_accion("soltar", {"item": item,
+                          "sala": sala.id,
+                          "pos_inv": min(pos, len(self.estado.jugador.inventario))}))
         self._anotar("soltar", "jugador", item)
         self._tras_accion("soltar")
         return self._ok()
@@ -327,9 +386,8 @@ class Fachada:
             self.estado.jugador.arma_equipada = item
         elif getattr(ficha, "clase", "") == "armadura":
             self.estado.jugador.armadura_equipada = item
-        self.pila.apilar({"op": "equipar", "datos": {"orden_antes": orden_antes,
-                          "arma_antes": arma_antes, "armadura_antes": armadura_antes},
-                          "eventos": []})
+        self.pila.apilar(self._inversa_accion("equipar", {"orden_antes": orden_antes,
+                          "arma_antes": arma_antes, "armadura_antes": armadura_antes}))
         self._anotar("equipar", "jugador", item)
         self._tras_accion("equipar")
         return self._ok()
@@ -391,7 +449,8 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(inversa)
+            self.pila.apilar(self._inversa_accion(
+                inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         ficha = self.catalogo.get(pocion_id)
         mod = int(getattr(ficha, "modificador_velocidad", 0) or 0) if ficha else 0
         if mod:
@@ -409,7 +468,8 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(inversa)
+            self.pila.apilar(self._inversa_accion(
+                inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         self._anotar("efecto", "jugador", f"antidoto:{antidoto_id}")
         self._tras_accion("usar")
         return self._ok(res.mensaje)
@@ -419,22 +479,35 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(inversa)
+            self.pila.apilar(self._inversa_accion(
+                inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         self._anotar("efecto", "jugador", f"antorcha:{antorcha_id}")
         self._tras_accion("usar")
         return self._ok()
 
     # -- enemigos (C2-8) y reloj (C2-3) --
-    def turno_enemigo(self, instancia_id: str) -> tuple[bool, str]:
+    def turno_enemigo(self, instancia_id: str, turno_antes: dict | None = None) -> tuple[bool, str]:
         origen = next((e.sala_actual for s in self.estado.salas.values()
                        for e in s.enemigos if e.instancia == instancia_id), None)
+        previos = {ev.seq for ev in self.agenda
+                   if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id}
         msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id,
                              self.catalogo, azar=self.azar)
         destino = next((e.sala_actual for s in self.estado.salas.values()
                         for e in s.enemigos if e.instancia == instancia_id), None)
+        datos = {"instancia": instancia_id, "origen": origen, "destino": destino}
+        eventos: list[int] = []
+        if turno_antes is not None:
+            datos["turno_antes"] = turno_antes
+            # Seq del turno reprogramado por el modulo: deshacer lo cancela.
+            eventos = [ev.seq for ev in self.agenda
+                       if ev.tipo == "turno"
+                       and (ev.datos or {}).get("actor") == instancia_id
+                       and ev.seq not in previos]
         if origen is not None and destino is not None and origen != destino:
-            self.pila.apilar({"op": "mover_enemigo", "datos": {"instancia": instancia_id,
-                              "origen": origen, "destino": destino}, "eventos": []})
+            self.pila.apilar({"op": "mover_enemigo", "datos": datos, "eventos": eventos})
+        elif turno_antes is not None:
+            self.pila.apilar({"op": "turno_enemigo", "datos": datos, "eventos": eventos})
         self._anotar("mover", instancia_id, msg)
         self._sync()
         return True, msg
@@ -446,16 +519,22 @@ class Fachada:
             return "agenda vacía"
         d = ev.datos or {}
         if ev.tipo == "oleada":
+            oleada_antes = {"t": ev.t, "seq": ev.seq, "tipo": ev.tipo,
+                            "datos": dict(ev.datos)}
             inst, turno_seq = ejecutar_oleada(self.estado, self.agenda, self.reloj,
                                               self.catalogo, self.azar, ev.seq)
+            siguiente = programar_oleada(self.agenda, self.reloj,
+                                         int(d.get("cada", self.oleada_cada)))
+            eventos = ([turno_seq] if turno_seq is not None else []) + [siguiente.seq]
+            # La inversa devuelve la oleada consumida y corta la reprogramada:
+            # deshacer restaura la cadena entera (§4.6).
+            self.pila.apilar({"op": "aparece",
+                               "datos": {"instancia": inst,
+                                         "sala": self.estado.sala_actual,
+                                         "oleada_antes": oleada_antes},
+                               "eventos": eventos})
             if inst is not None:
-                self.pila.apilar({"op": "aparece",
-                                   "datos": {"instancia": inst,
-                                             "sala": self.estado.sala_actual},
-                                   "eventos": [turno_seq] if turno_seq is not None else []})
                 self._anotar("efecto", "oleada", inst)
-            programar_oleada(self.agenda, self.reloj,
-                             int(d.get("cada", self.oleada_cada)))
         elif ev.tipo == "cierre_puerta":
             sala = self.estado.salas.get(d.get("sala"))
             antes = sala.salidas[d["direccion"]].cerrada if sala and d.get("direccion") in (sala.salidas if sala else {}) else None
@@ -469,14 +548,17 @@ class Fachada:
                              "eventos": []})
         elif ev.tipo == "veneno":
             vida_antes = self.estado.jugador.vida_actual
+            veneno_antes = self.estado.jugador.efectos.get("veneno")
             ejecutar_veneno(self.estado, int(d.get("dano", 1)))
             self.pila.apilar({"op": "veneno_tick", "datos": {"vida_antes": vida_antes,
+                             "veneno_antes": veneno_antes,
                              "dano": int(d.get("dano", 1))}, "eventos": []})
         elif ev.tipo == "quemadura":
             vida_antes = self.estado.jugador.vida_actual
+            quemadura_antes = self.estado.jugador.efectos.get("quemadura")
             ejecutar_quemadura(self.estado, int(d.get("dano", 1)))
-            self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes},
-                              "eventos": []})
+            self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes,
+                              "quemadura_antes": quemadura_antes}, "eventos": []})
         elif ev.tipo == "fin_efecto":
             nombre = d.get("efecto", "")
             tenia = self.estado.jugador.efectos.get(nombre)
@@ -522,19 +604,22 @@ class Fachada:
             if obj is None or not obj.vivo:
                 self._sync()
                 return ev.tipo
+            turno_antes = {"t": ev.t, "seq": ev.seq, "tipo": ev.tipo,
+                           "datos": dict(ev.datos)}
             if sala_a is not None and sala_a.id == self.estado.sala_actual:
-                vida_antes = self.estado.jugador.vida_actual
-                self.ataque_enemigo(actor)
-                # ataque_enemigo ya apiló dano_jugador; quita doble conteo de turno:
+                # Reprograma el siguiente turno ANTES del ataque: asi su seq
+                # viaja en la inversa y deshacer cancela el turno nuevo (§4.6).
+                from src.controller2.enemigos import velocidad_de
+                nuevo = self.reloj.programar_turno(self.agenda, actor,
+                                                   velocidad_de(self.catalogo, obj.tipo_id),
+                                                   {"kind": "enemigo", "tipo": obj.tipo_id},
+                                                   costo=100)
+                self.ataque_enemigo(actor, eventos=[nuevo.seq], turno_antes=turno_antes)
+                # ataque_enemigo ya apiló dano_jugador (con el turno consumido).
                 self._sync()
                 actualizar_estado(self.estado)
-                # Reprograma siguiente turno enemigo.
-                from src.controller2.enemigos import velocidad_de
-                self.reloj.programar_turno(self.agenda, actor,
-                                            velocidad_de(self.catalogo, obj.tipo_id),
-                                            {"kind": "enemigo", "tipo": obj.tipo_id}, costo=100)
                 return ev.tipo
-            self.turno_enemigo(actor)
+            self.turno_enemigo(actor, turno_antes=turno_antes)
         self._sync()
         actualizar_estado(self.estado)
         return ev.tipo
@@ -544,8 +629,21 @@ class Fachada:
         ok, msg = deshacer_una(self.estado, self.agenda, self.pila, self.catalogo)
         if not ok:
             return self._fail(msg)
+        # §2.11: usar el pergamino no consume tiempo virtual. El reloj vuelve
+        # al instante previo a la acción deshecha y se deja un turno del
+        # jugador en ese mismo instante, con seq -1 para ganar cualquier
+        # empate: el drenaje de la Sesión lo consume sin disparar eventos
+        # "del mismo instante" (el estado queda congelado justo ahí).
+        self.reloj.ahora = int(self.estado.reloj)
+        try:
+            self.agenda.cancelar_donde(
+                lambda e: e.tipo == "turno" and (e.datos or {}).get("kind") == "jugador")
+            self.agenda.reinsertar(self.reloj.ahora, "turno",
+                                   {"actor": "jugador", "kind": "jugador", "costo": 1},
+                                   -1)
+        except Exception:
+            self._asegurar_cierre_drenaje()
         self._anotar("deshacer", "jugador", "")
-        self._asegurar_cierre_drenaje()
         return self._ok("Deshecho.")
 
     def pausar(self) -> None:
