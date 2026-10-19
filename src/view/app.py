@@ -24,6 +24,11 @@ FPS = 60
 ZOOM_FRAMES = 18  # frames del zoom menú -> caja del juego al empezar partida
 VELOCIDAD = 0.008  # fracción del área por frame (movimiento libre, solo vista)
 VECTOR_DIRECCION = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "o": (-1, 0)}
+REBOBINA_FRAMES = 18  # frames del destello al usar el pergamino (solo vista)
+OPUESTA = {"N": "S", "S": "N", "E": "O", "O": "E"}
+# Puesto a un paso adentro del muro que tiene esa puerta (solo vista).
+JUNTO_A_PUERTA = {"N": (0.5, 0.10), "S": (0.5, 0.90),
+                  "E": (0.90, 0.5), "O": (0.10, 0.5)}
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
          "F recoger (cerca) · R usar · Enter equipar · Q soltar · Tab/U/T · "
          "pisar trampas las dispara · F1 dev · G guardar · Esc pausa")
@@ -82,6 +87,7 @@ class VistaApp:
         self.paso_push = [0.0, 0.0]  # desplazamiento del paso, suavizado
         self.trampas_fuego = {}  # {instancia: ttl} trampas recién disparadas
         self.golpes = {}  # {instancia enemiga: ttl} embestidas enemigas recién vistas
+        self.rebobina_ttl = 0  # destello de rebobinado tras usar el pergamino
         self.cripta_actual: str | None = None  # para "jugar de nuevo" en fin
 
     # -- ciclo de vida (guía §1/§9) --
@@ -175,6 +181,7 @@ class VistaApp:
         self.paso_push = [0.0, 0.0]
         self.trampas_fuego = {}
         self.golpes = {}
+        self.rebobina_ttl = 0
         self._memorizar_vida()
 
     def _memorizar_vida(self) -> None:
@@ -265,6 +272,13 @@ class VistaApp:
                 # con arma se añade ADEMÁS la estela de espada.
                 self.ataque_ttl, self.ataque_dir = 12, self.facing
                 self.ataque_espada = capas.arma_visible(foto)
+            if partes and partes[0].lower() == "deshacer":
+                # Rebobinado visible (guía §7: la UI redibuja TODO). Si la
+                # acción devolvió a otra sala, el prota reaparece del lado de
+                # la puerta por la que había entrado (solo vista).
+                self.rebobina_ttl = REBOBINA_FRAMES
+                if sala_antes is not None and foto.sala_id != sala_antes:
+                    self._aparecer_tras_retroceso(sala_antes)
             # Mejoras 2026-10: feedback visible al perder vida (trampas,
             # contraataques, veneno/quemadura…).
             try:
@@ -410,16 +424,30 @@ class VistaApp:
         sala_antes = self.foto.sala_id
         ok, msg, _ = self.enviar(direccion)
         if ok and self.foto is not None and self.foto.sala_id != sala_antes:
-            # Aparece en la puerta paralela (por donde entra), pegado al
-            # marco. en_puerta=True evita recruzar al instante; al alejarse
-            # del radio la bandera se limpia sola (cerca is None).
-            entra = {"N": (0.5, 0.90), "S": (0.5, 0.10),
-                     "E": (0.10, 0.5), "O": (0.90, 0.5)}
-            self.pos_jugador = list(entra[direccion])
+            # Aparece del otro lado del vano (la puerta paralela del nuevo
+            # cuarto, pegada al marco). en_puerta=True evita recruzar al
+            # instante; al alejarse del radio la bandera se limpia sola.
+            self.pos_jugador = list(JUNTO_A_PUERTA[OPUESTA[direccion]])
             self.en_puerta = True
         elif not ok:
             self._avisar(msg)
             self.en_puerta = True
+
+    def _aparecer_tras_retroceso(self, sala_antes: int) -> None:
+        """Reaparece junto a la puerta que da a la sala recién abandonada.
+
+        El pergamino devuelve la sala pero no la posición: buscar la puerta
+        actual cuyo destino es la sala de la que venimos y plantar al prota
+        de ese lado del vano (solo vista; el modelo no guarda posiciones).
+        """
+        direccion = next(
+            (d for d, p in (self.foto.puertas or {}).items()
+             if p.get("destino") == sala_antes and d in JUNTO_A_PUERTA), None)
+        self.pos_jugador = list(JUNTO_A_PUERTA[direccion]) if direccion else [0.5, 0.5]
+        self.en_puerta = True  # evita recruzar al instante por proximidad
+        self.anim_pasos = 0
+        self.paso_dir = (0.0, 0.0)
+        self.paso_push = [0.0, 0.0]
 
     def _cercano(self, puntos: list[tuple[float, float, str]],
                  radio: int, que: str) -> str | None:
@@ -723,6 +751,12 @@ class VistaApp:
                                      trampas_fuego=self._fases_trampas(),
                                      golpes=self._fases_golpes(),
                                      mostrar_canvas=self.zoom_ttl is None)
+            if self.rebobina_ttl > 0:
+                # Destello de rebobinado sobre la sala (expira solo).
+                if self.zoom_ttl is None:
+                    capas.dibujar_rebobina(self.ventana, self.area_sala(),
+                                           self.rebobina_ttl / REBOBINA_FRAMES)
+                self.rebobina_ttl -= 1
             if self.dano_ttl > 0:
                 # Destello rojo al perder vida (mejoras 2026-10).
                 pygame.draw.rect(self.ventana, paleta.PELIGRO,

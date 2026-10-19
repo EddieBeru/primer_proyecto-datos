@@ -56,10 +56,8 @@ class Agenda:
     def vacia(self) -> bool:
         return self._cabeza is None
 
-    def programar(self, t: int, tipo: str, datos: dict[str, Any] | None = None) -> Evento:
-        """Inserta ordenado y devuelve el evento (ya con seq)."""
-        ev = Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=self._seq)
-        self._seq += 1
+    def _insertar(self, ev: Evento) -> Evento:
+        """Inserta ordenado por (t, seq) sin tocar el contador de secuencias."""
         nodo = _Nodo(ev)
         # Insercion ordenada: avanza mientras (t, seq) del nodo actual <= nuevo.
         # Como seq siempre crece, basta comparar t y luego seq.
@@ -77,6 +75,26 @@ class Agenda:
             actual.siguiente = nodo
         self._len += 1
         return ev
+
+    def programar(self, t: int, tipo: str, datos: dict[str, Any] | None = None) -> Evento:
+        """Inserta ordenado y devuelve el evento (ya con seq)."""
+        ev = Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=self._seq)
+        self._seq += 1
+        return self._insertar(ev)
+
+    def reinsertar(self, t: int, tipo: str, datos: dict[str, Any] | None = None,
+                   seq: int = -1) -> Evento:
+        """Reinserta un evento ya disparado conservando su ``(t, seq)`` (C2-9).
+
+        Lo usa el deshacer para devolver a la agenda los turnos enemigos que
+        el intervalo revertido consumio: el replay vuelve a ver los mismos
+        eventos. No reasigna seq (los seq se asignan una sola vez) y si ese
+        seq ya estuviera en la agenda devuelve el existente sin duplicar.
+        """
+        for actual in self:
+            if actual.seq == seq:
+                return actual
+        return self._insertar(Evento(t=t, tipo=tipo, datos=dict(datos or {}), seq=seq))
 
     def ver_proximo(self) -> Evento | None:
         """Mira sin sacar. None si vacia."""

@@ -694,6 +694,7 @@ def test_deshacer_regeneracion_corta_pulsos():
     jefe = EnemigoInstancia("e-jefe", "jefe-cripta-01", 5, 1)
     fac.estado.salas[1].enemigos.append(jefe)
     activar_sala(fac.estado, fac.agenda, fac.reloj.ahora, 1, fac.catalogo)
+    fac.esperar()  # accion del jugador: abre el intervalo que deshacer revierte
     for _ in range(300):
         if jefe.vida_actual > 5:
             break
@@ -742,6 +743,86 @@ def test_seis_acciones_deshacer_cinco():
     for _ in range(5):
         assert aplicar_inversa(est, ag, pila.desapilar())
     assert est.jugador.inventario == ["pergamino", "a", "b"]
+
+
+def test_agenda_reinsertar_conserva_t_y_seq():
+    ag = Agenda()
+    e1 = ag.programar(50, "veneno", {"dano": 2})
+    e2 = ag.programar(80, "rearme_trampa", {"instancia": "t1"})
+    e3 = ag.programar(90, "turno", {"actor": "e1"})
+    assert ag.cancelar_por_seq(e2.seq)
+    devuelto = ag.reinsertar(80, "rearme_trampa", {"instancia": "t1"}, e2.seq)
+    assert devuelto.seq == e2.seq
+    assert [(ev.t, ev.seq) for ev in ag] == [(50, e1.seq), (80, e2.seq), (90, e3.seq)]
+    # Reinsertar un seq ya presente no lo duplica (idempotente).
+    ag.reinsertar(80, "rearme_trampa", {"instancia": "t1"}, e2.seq)
+    assert len(ag) == 3
+
+
+def test_pila_tope_por_intervalos_descarta_solo_el_mas_viejo():
+    pila = PilaDeshacer()
+    for i in range(7):
+        pila.apilar({"op": "equipar", "datos": {"marca": i}, "eventos": []})
+        pila.apilar({"op": "veneno_tick", "datos": {}, "eventos": []})
+    # Los eventos del intervalo no gastan tope: quedan las 5 acciones mas nuevas
+    # (se olvido tambien el intervalo entero de la mas vieja).
+    marcas = [inv["datos"]["marca"] for inv in pila if inv["op"] == "equipar"]
+    assert marcas == [6, 5, 4, 3, 2]
+    assert pila.intervalos == PilaDeshacer.TOPE and pila.hay_accion()
+    copia = PilaDeshacer.desde_lista(pila.a_lista())
+    assert copia.a_lista() == pila.a_lista()
+    assert copia.intervalos == PilaDeshacer.TOPE
+
+
+def test_deshacer_sin_accion_no_consume_pergamino():
+    est = estado_chico()
+    est.registrar_sala(sala_simple())
+    est.jugador.inventario = ["pergamino-01"]
+    cat = {"pergamino-01": SimpleNamespace(clase="pergamino_retroceso")}
+    pila = PilaDeshacer([{"op": "veneno_tick", "datos": {"vida_antes": 30},
+                          "eventos": []}])
+    ok, msg = deshacer_una(est, Agenda(), pila, cat)
+    assert not ok and "nada" in msg.lower()
+    assert est.jugador.inventario == ["pergamino-01"]  # sin gasto
+    assert not pila.vacia
+
+
+def test_deshacer_esperar_es_accion_y_restaura_reloj():
+    fac, _ = fachada_fake()
+    fac.estado.jugador.inventario.append("pergamino-01")
+    reloj0, acciones0 = fac.reloj.ahora, fac.estado.acciones_jugador
+    assert fac.esperar()[0]
+    assert fac.pila.hay_accion()  # "esperar" abre intervalo
+    assert fac.estado.acciones_jugador == acciones0 + 1
+    assert fac.deshacer()[0]
+    assert fac.pila.vacia and not fac.pila.hay_accion()
+    assert fac.estado.reloj == reloj0
+    assert fac.reloj.ahora == reloj0
+    assert fac.estado.acciones_jugador == acciones0
+
+
+def test_deshacer_devuelve_sala_y_restaura_intervalo():
+    fac, _ = fachada_fake()
+    fac.estado.jugador.inventario.append("pergamino-01")
+    vida0 = fac.estado.jugador.vida_actual
+    assert fac.mover("S")[0]  # 1 -> 3: trampa de veneno y sombra despiertan
+    sala3 = fac.estado.salas[3]
+    assert fac.estado.sala_actual == 3
+    assert not sala3.trampas[0].armada
+    assert any(e.activa for e in sala3.enemigos)
+    for _ in range(8):  # intervalo posterior: pulsos, rearmes y turnos
+        fac.avanzar()
+    assert fac.estado.jugador.vida_actual < vida0
+    ok, msg = fac.deshacer()
+    assert ok, msg
+    assert fac.estado.sala_actual == 1
+    assert fac.estado.jugador.vida_actual == vida0
+    assert "veneno" not in fac.estado.jugador.efectos
+    assert not any(e.activa for e in sala3.enemigos)
+    assert sala3.trampas[0].armada
+    assert sala3.ultima_visita is None
+    assert 3 not in fac.estado.salas_visitadas
+    assert fac.estado.reloj == 0 and fac.reloj.ahora == 0
 
 
 def test_deshacer_combate_restaura_y_quita_botin():
@@ -1041,9 +1122,10 @@ def test_oleada_respeta_tope_y_reprograma():
 
 def test_oleada_deshacer_la_retira():
     fac, _ = _fachada_oleada()
+    fac.estado.jugador.inventario.append('pergamino-01')
+    fac.esperar()  # accion del jugador: abre el intervalo que deshacer revierte
     assert _avanzar_hasta(fac, lambda: len(_oleadas_vivas(fac)) > 0)
     inst = _oleadas_vivas(fac)[0].instancia
-    fac.estado.jugador.inventario.append('pergamino-01')
     ok, _ = fac.deshacer()
     assert ok
     assert inst not in [e.instancia for s in fac.estado.salas.values() for e in s.enemigos]

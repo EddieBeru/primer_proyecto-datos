@@ -410,6 +410,59 @@ def test_deshacer_y_pergaminos(app):
     assert app.manejar_tecla(pygame.K_u) is None  # rechazado sin crash
 
 
+# ------------------------------------------------------- rebobina del pergamino
+def test_rebobina_anillos_violeta_y_apagado():
+    from src.view import capas
+    area = pygame.Rect(60, 60, 200, 180)
+    caja = capas.rect_caja(area)
+    sup = pygame.Surface((480, 480), pygame.SRCALPHA)
+    puntos = [(x, y) for x in range(0, 480, 24) for y in range(0, 480, 24)
+              if caja.collidepoint(x, y)]
+    assert puntos
+    capas.dibujar_rebobina(sup, area, 1.0)
+    pintados = [p for p in puntos if sup.get_at(p)[3] > 0]
+    assert pintados  # el destello cubre la sala...
+    morados = [p for p in pintados if sup.get_at(p)[2] > sup.get_at(p)[0]]
+    assert morados  # ... en tonos violeta (magia)
+    # Apagado (fase 0) no pinta nada.
+    apagado = pygame.Surface((480, 480), pygame.SRCALPHA)
+    capas.dibujar_rebobina(apagado, area, 0.0)
+    assert all(apagado.get_at(p)[3] == 0 for p in puntos)
+    # Determinista: misma fase -> mismos píxeles (nada de azar en la vista).
+    otra = pygame.Surface((480, 480), pygame.SRCALPHA)
+    capas.dibujar_rebobina(otra, area, 1.0)
+    assert all(otra.get_at(p) == sup.get_at(p) for p in puntos)
+
+
+def test_deshacer_rebobina_y_reaparece_en_la_puerta(app):
+    from src.view.app import REBOBINA_FRAMES
+    app.ses.estado.jugador.inventario.append("pergamino-01")
+    ok, _, _ = app.enviar("s")  # 1 -> 3
+    assert ok and app.foto.sala_id == 3
+    assert app.rebobina_ttl == 0
+    ok, _, _ = app.enviar("deshacer")
+    assert ok and app.foto.sala_id == 1
+    assert app.rebobina_ttl == REBOBINA_FRAMES  # arranca el destello
+    assert app.pos_jugador == [0.5, 0.9]  # del lado de la puerta S (la de 3)
+    assert app.en_puerta  # no recruza al instante por proximidad
+    for _ in range(REBOBINA_FRAMES):
+        app.dibujar()
+    assert app.rebobina_ttl == 0  # el destello expira solo
+    # Deshacer dentro de la misma sala conserva la posición del prota.
+    app.ses.estado.jugador.inventario.append("pergamino-01")
+    ok, _, _ = app.enviar("esperar")
+    assert ok
+    antes = list(app.pos_jugador)
+    ok, _, _ = app.enviar("deshacer")
+    assert ok and app.foto.sala_id == 1 and app.rebobina_ttl == REBOBINA_FRAMES
+    assert app.pos_jugador == antes
+    # Un retroceso rechazado (sin pergaminos) no dispara el destello.
+    assert app.foto.pergaminos == 0
+    app.rebobina_ttl = 0  # ya consumido el del retroceso anterior
+    ok, msg, _ = app.enviar("deshacer")
+    assert not ok and app.rebobina_ttl == 0
+
+
 # ------------------------------------------------------- CLI --vista (C1-10)
 def test_cli_vista():
     from src.controller1.cli import parse_args

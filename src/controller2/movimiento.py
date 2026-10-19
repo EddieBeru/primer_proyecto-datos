@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from src.controller2.modelo import EstadoPartida, SalaViva
@@ -21,6 +21,13 @@ class ResultadoMovimiento:
     sala: int | None = None
     abrio_puerta: bool = False
     evento_cierre_seq: int | None = None
+    # Datos para el inverso (C2-9): despertar de enemigos y rastro de la sala
+    # destino al momento de entrar, para que el pergamino devuelva todo.
+    eventos_activacion: list[int] = field(default_factory=list)
+    activados: list[str] = field(default_factory=list)
+    rastro_antes: int | None = None
+    visitada_antes: bool = False
+    estaba_visitada: bool = False
 
 
 @dataclass
@@ -91,17 +98,28 @@ def intentar_mover(
             return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
     # Idempotente: registra si es nueva y marca la visita (las vecinas
     # precargadas ya están en el modelo, pero aún no cuentan como visitadas).
+    visitada_antes = bool(destino.visitada)
+    estaba_visitada = destino.id in estado.salas_visitadas
+    rastro_antes = destino.ultima_visita
     estado.registrar_sala(destino)
     destino.visitada = True
     estado.sala_actual = destino.id
     # §2.9: destino recibe tiempo actual; activa dormidos §2.4.
     destino.ultima_visita = reloj.ahora
+    eventos_activacion: list[int] = []
+    activados: list[str] = []
     try:
         from src.controller2.enemigos import activar_sala
-        activar_sala(estado, agenda, reloj.ahora, destino.id, catalogo)
+        for ev in activar_sala(estado, agenda, reloj.ahora, destino.id, catalogo):
+            eventos_activacion.append(ev.seq)
+            if ev.tipo == "turno" and (ev.datos or {}).get("actor"):
+                activados.append(str(ev.datos["actor"]))
     except Exception:
-        pass
-    return ResultadoMovimiento(True, "", destino.id, False, None)
+        eventos_activacion = []
+        activados = []
+    return ResultadoMovimiento(True, "", destino.id, False, None,
+                               eventos_activacion, activados, rastro_antes,
+                               visitada_antes, estaba_visitada)
 
 
 def ejecutar_cierre(estado: EstadoPartida, sala_id: int, direccion: str) -> bool:
