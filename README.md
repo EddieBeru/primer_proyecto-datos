@@ -17,6 +17,11 @@ La configuración, las plantillas y los scripts de Spec Kit se versionan en
 `.specify/`; las habilidades de su integración con Codex se versionan en
 `.agents/skills/speckit-*/`.
 
+Las especificaciones de las cuatro capacidades están en `specs/`, con su
+[índice y flujo de trabajo](docs/capacidades-parte-2.md). Cada capacidad tiene
+un `spec.md` y una revisión de calidad; `plan.md` y `tasks.md` se generarán
+después de revisar y confirmar su especificación.
+
 ## Requisitos
 
 - Python 3.11+

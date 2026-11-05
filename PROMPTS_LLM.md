@@ -44,3 +44,19 @@ Registro del uso de modelos de lenguaje (LLM) durante el proyecto, según §10.3
 | 2026-10-18 | deepseek-v4.1-flash-free (opencode) | "haz que todos los enemigos compartan el mismo sprite. asegúrate de que toda poción comparta el mismo, igual que las curaciones como el antídoto" | Sprite único de enemigo y frasco único de consumibles en `sprites.py`; pruebas y DECISIONES 62 |
 | 2026-10-18 | deepseek-v4.1-flash-free (opencode) | (paráfrasis) quitar los `TODO`/notas pendientes que quedaban en el controlador 2 | Limpieza de 26 marcadores conservando los invariantes reales como comentarios |
 | 2026-10-18 | deepseek-v4.1-flash-free (opencode) | "crea una bitácora más seria integrando la planificación inicial y la conversación sobre make_request, y normaliza el formato para que los prompts queden concisos y directos" | Reescritura de este documento |
+
+
+## Parte 2 — Codex y GitHub Spec Kit
+
+Fechas aproximadas de la sesión; los textos extensos se resumen como paráfrasis.
+El modelo se identifica como Codex sin atribuir una variante no confirmada.
+Los resultados indicados son documentales, sin ejecución de pruebas del juego.
+
+| Fecha | Modelo | Prompt | Uso |
+| --- | --- | --- | --- |
+| 2026-11-04 | Codex | (paráfrasis) Fijar @v1.0.0, registrar que parte 2 usará Codex y GitHub Spec Kit y versionar su configuración. | README, etiqueta local e incorporación de archivos de Spec Kit. |
+| 2026-11-04 | Codex | (paráfrasis) Generar un prompt y luego usar $speckit-constitution para redactar la constitución de CRIPTA en español, con siete principios y gobernanza, modificando solo la constitución. | Constitución inicial 1.0.0; registro diferido por el alcance autorizado entonces. |
+| 2026-11-05 | Codex | (paráfrasis) Capacidad terreno y cazador: costos de tránsito, persecución por costo mínimo, desempate por id, equivalencia observable y límites de rendimiento; sin detalles de implementación. | Entrada conservada en specs/001-terreno-cazador/spec.md. |
+| 2026-11-05 | Codex | (paráfrasis) Capacidad niebla de guerra e ir a: conocimiento y memoria de puertas, antorcha, viaje paso a paso, retroceso y rendimiento; sin detalles de implementación. | Entrada conservada en specs/002-niebla-ir-a/spec.md. |
+| 2026-11-05 | Codex | (paráfrasis) Capacidad verificación de resolubilidad: llaves obtenibles, diagnóstico determinista, --forzar, --verificar y rendimiento; sin detalles de implementación. | Entrada conservada en specs/003-resolubilidad/spec.md. |
+| 2026-11-05 | Codex | «lee CRIPTA Parte II para más contexto» / (paráfrasis) Verificar las carpetas y la integración con Spec Kit / «ajustalos para que coinciden». | Conversión separada de las cuatro capacidades de la guía a specs/001–004, con plantilla resuelta, requisitos identificados, escenarios, supuestos y checklists. Línea de tiempo se tomó del bloque 004 de la guía. Actualización del índice y README. |
