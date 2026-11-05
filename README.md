@@ -2,6 +2,11 @@
 
 Motor de mazmorra dirigido por eventos. Reglas según doc oficial del profe.
 
+## Versión
+
+Versión actual: **`@v1.0.0`**. Esta versión está identificada por la etiqueta Git
+`@v1.0.0`.
+
 ## Requisitos
 
 - Python 3.11+
