@@ -7,6 +7,16 @@ Motor de mazmorra dirigido por eventos. Reglas según doc oficial del profe.
 Versión actual: **`@v1.0.0`**. Esta versión está identificada por la etiqueta Git
 `@v1.0.0`.
 
+## Parte 2: Codex y GitHub Spec Kit
+
+Para la parte 2 del proyecto se usará **Codex** junto con **GitHub Spec Kit**
+para definir las especificaciones, planificar el trabajo, generar tareas e
+implementar los cambios.
+
+La configuración, las plantillas y los scripts de Spec Kit se versionan en
+`.specify/`; las habilidades de su integración con Codex se versionan en
+`.agents/skills/speckit-*/`.
+
 ## Requisitos
 
 - Python 3.11+
