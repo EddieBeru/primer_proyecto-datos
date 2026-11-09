@@ -41,6 +41,12 @@ def parsear(linea: str) -> dict:
     """Linea -> {reloj, tipo, actor, detalle}. Lanza ValueError si es invalida."""
     if linea.startswith("#cripta"):
         return {"header": parsear_header(linea)}
+    if linea.startswith("#ir-a"):
+        import re
+        coincidencia = re.fullmatch(r"#ir-a (-?[0-9]+)", linea.rstrip("\n"))
+        if coincidencia is None:
+            raise ValueError("comentario ir-a inválido")
+        return {"comentario": "ir-a", "destino": int(coincidencia[1])}
     partes = linea.rstrip("\n").split("|")
     if len(partes) != 4:
         raise ValueError(f"linea invalida: {linea!r}")
@@ -96,7 +102,7 @@ def reproducir(fachada, lineas: list[str]) -> None:
         if not linea.strip():
             continue
         hecho = parsear(linea)
-        if "header" in hecho:
+        if "header" in hecho or "comentario" in hecho:
             continue
         tipo, detalle = hecho["tipo"], hecho["detalle"]
         if tipo == "mover":

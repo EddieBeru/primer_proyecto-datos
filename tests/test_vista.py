@@ -78,7 +78,7 @@ RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n",
 # ------------------------------------------------------- §12 checklist imports
 def test_solo_habla_con_sesion():
     permitidos = {"pygame", "src.view", "src.orchestrator.sesion",
-                  "__future__", "dataclasses", "os", "pathlib", "typing"}
+                  "__future__", "dataclasses", "math", "os", "pathlib", "typing"}
     for ruta in sorted((REPO / "src" / "view").glob("*.py")):
         arbol = ast.parse(ruta.read_text(encoding="utf-8"))
         for nodo in arbol.body:
@@ -818,17 +818,20 @@ def test_golpe_destella_y_barra_baja(app):
     from src.view.sprites import TAM
     area = app.area_sala()
     verde = paleta.VIDA
+    tam = app.sprites.tam
+    from src.view.medidas import medidas
+    p = medidas(app.ventana).px
 
     def verdes():
-        cx, cy = capas.pos_enemigo_animada(area, 0, app.tick_total)
+        cx, cy = capas.pos_enemigo_animada(area, 0, app.tick_total, app.escala)
         alto = app.sprites.enemigo("").get_height()  # arte compartido x3
-        bx, by = cx - TAM // 2, cy - alto // 2 - 10 + 3
-        return sum(1 for px in range(bx, bx + TAM)
+        bx, by = cx - tam // 2, cy - alto // 2 - p(10) + p(3)
+        return sum(1 for px in range(bx, bx + tam)
                    if app.ventana.get_at((px, by))[:3] == verde)
 
     app.dibujar()
     antes = verdes()
-    assert antes == TAM  # vida llena: barra completa
+    assert antes == tam  # vida llena: barra completa al tamaño dibujado
     for _ in range(3):
         ok, _, _ = app.enviar('atacar e1-1')
         assert ok
@@ -1052,3 +1055,222 @@ def test_raton_interactua_con_botones_de_menu(app):
     rect_esc = next(r for r, t in app.hotspots if t == pygame.K_ESCAPE)
     assert app.manejar_clic(rect_esc.center) == "@menu"
     assert app.pantalla == "inicio"
+
+
+# ------------------------------------------------------- ventana y UX adaptable
+def test_paneles_regresan_sin_tocar_partida(app, monkeypatch):
+    def prohibido(*args, **kwargs):
+        pytest.fail("Un ajuste visual no debe enviar intenciones al motor")
+
+    monkeypatch.setattr(app.ses, "paso", prohibido)
+    foto, posicion = app.foto, list(app.pos_jugador)
+    app.manejar_tecla(pygame.K_ESCAPE)
+    assert app.manejar_tecla(pygame.K_F10) == "@ajustes"
+    assert app.manejar_tecla(pygame.K_2) == "@resolucion"
+    assert app.display.tamano_ventana == (1280, 720)
+    assert app.manejar_tecla(pygame.K_h) == "@ayudas"
+    assert not app.mostrar_ayudas
+    app.manejar_tecla(pygame.K_F2)
+    assert app.pantalla == "controles"
+    app.manejar_tecla(pygame.K_ESCAPE)
+    assert app.pantalla == "ajustes"
+    app.manejar_tecla(pygame.K_ESCAPE)
+    assert app.pantalla == "pausa"
+    app.manejar_tecla(pygame.K_ESCAPE)
+    assert app.pantalla == "juego"
+    assert app.foto is foto and app.pos_jugador == posicion
+
+
+def test_menu_flechas_enter_omite_continuar_deshabilitado(app):
+    app.preparar_menu([{"id": CRIPTA_ID}], False)
+    app.dibujar()
+    app.manejar_evento(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DOWN))
+    assert app.hotspots[app.foco_menu][1] == pygame.K_1
+    app.manejar_evento(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    assert app.hotspots[app.foco_menu][1] == pygame.K_3
+    app.manejar_evento(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT))
+    app.manejar_evento(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+    assert app.pantalla == "seleccion"
+
+
+def test_redimensiona_y_restaura_pantalla_completa(app):
+    app.redimensionar((1280, 720))
+    assert app.ventana.get_width() / app.ventana.get_height() > 1.7
+    app.manejar_tecla(pygame.K_F11)
+    assert app.display.completa
+    app.redimensionar((640, 480))  # eventos de tamaño no cambian fullscreen
+    assert app.display.tamano_ventana == (1280, 720)
+    app.manejar_tecla(pygame.K_F11)
+    assert not app.display.completa
+    assert app.display.salida.get_size() == (1280, 720)
+
+
+def test_clic_fisico_nativo_sin_conversion_de_coordenadas(app):
+    app.redimensionar((640, 900))
+    app._abrir_panel("ajustes")
+    app.dibujar()
+    rect = next(r for r, t in app.hotspots if t == pygame.K_h)
+    destino = app.display.destino
+    pos = rect.center
+    app.manejar_evento(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
+    assert not app.mostrar_ayudas
+    assert app.display.coordenadas((0, 0)) == (0, 0)
+    assert app.display.coordenadas((640, 900)) is None
+    assert app.display.coordenadas(destino.center) == (
+        app.ventana.get_width() // 2, app.ventana.get_height() // 2)
+
+
+@pytest.mark.parametrize("tamano", [(1024, 800), (1280, 720), (1600, 900),
+                                   (1920, 1080), (640, 480), (640, 900),
+                                   (2560, 1080), (3840, 2160)])
+def test_layouts_hotspots_dentro_y_sala_sin_tapar_hud(app, tamano):
+    from src.view import capas
+    app.redimensionar(tamano)
+    for pantalla in ("inicio", "pausa", "ajustes", "controles", "juego"):
+        app.pantalla = pantalla
+        app.dibujar()
+        assert app.hotspots
+        assert all(app.ventana.get_rect().contains(rect) for rect, _ in app.hotspots)
+        if pantalla == "juego":
+            caja = capas.rect_caja(app.area_sala())
+            assert all(not caja.colliderect(rect) for rect, _ in app.hotspots)
+
+
+def test_resize_reasigna_spots_sin_indices_obsoletos(app):
+    for tamano in ((1920, 1080), (1024, 800), (640, 480), (1600, 900)):
+        app.redimensionar(tamano)
+        app.dibujar()
+        objetos, trampas = app._spots()
+        assert len(objetos) == len(app.foto.objetos_suelo)
+        assert len(trampas) == len(app.foto.trampas)
+        assert all(app.area_sala().collidepoint(p) for p in objetos + trampas)
+
+
+def test_mochila_larga_seleccion_visible_clic_y_rueda(app):
+    app.redimensionar((1280, 720))
+    app.inv_orden = [f"itm_objeto-{i}" for i in range(30)]
+    app.sel_inv = 29
+    app.dibujar()
+    slots = [(r, t) for r, t in app.hotspots if isinstance(t, tuple)]
+    assert slots[-1][1] == ("inventario", 29)
+    assert len(slots) < 30
+    assert app.manejar_clic(slots[0][0].center) == "@seleccionar-inventario"
+    assert app.sel_inv == slots[0][1][1]
+    antes = app.sel_inv
+    app.manejar_evento(pygame.event.Event(pygame.MOUSEWHEEL, y=-1))
+    assert app.sel_inv == (antes + 1) % 30
+    app.panel_mapa = True
+    assert app.manejar_clic(slots[-1][0].center) is None
+    app.manejar_evento(pygame.event.Event(pygame.MOUSEWHEEL, y=-1))
+    assert app.sel_inv == (antes + 1) % 30
+
+
+def test_pierde_foco_pausa_y_movimiento_keydown_no_duplica(app):
+    posicion = list(app.pos_jugador)
+    app.manejar_evento(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_d))
+    assert app.pos_jugador == posicion  # solo el bucle continuo aplica el paso
+    app.manejar_evento(pygame.event.Event(pygame.WINDOWFOCUSLOST))
+    assert app.pantalla == "pausa"
+
+
+def test_display_nativo_resize_fullscreen_y_presentacion(monkeypatch):
+    from src.view.display import Display
+    pygame.init()
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1920, 1080)])
+    display = Display((1280, 720))
+    assert display.salida.get_flags() & pygame.RESIZABLE
+    assert display.lienzo.get_size() == (1280, 720)
+    assert display.lienzo is pygame.display.get_surface()
+    assert not display.salida.get_flags() & pygame.SCALED
+    display.presentar()
+    display.cambiar(display.tamano_ventana, True)
+    assert display.lienzo is pygame.display.get_surface()
+    assert display.lienzo.get_size() == display.salida.get_size()
+    display.presentar()
+    display.cambiar(display.tamano_ventana, False)
+    assert display.salida.get_size() == (1280, 720)
+    display.redimensionar((960, 640))
+    display.presentar()
+    assert display.coordenadas(display.destino.center) == (480, 320)
+
+
+def test_resolucion_limitada_conserva_ratio(monkeypatch):
+    from src.view.display import Display
+    pygame.init()
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1024, 768)])
+    display = Display((1920, 1080))
+    assert display.salida.get_size() == (1024, 576)
+    assert display.lienzo.get_width() / display.lienzo.get_height() > 1.7
+
+
+@pytest.mark.parametrize("tamano", [(1280, 720), (1600, 900), (1920, 1080),
+                                   (2560, 1440), (3840, 2160)])
+def test_presentacion_conserva_pixeles_sin_colores_interpolados(monkeypatch, tamano):
+    """La salida a HD no debe difuminar los bordes que trae el lienzo."""
+    from src.view.display import Display
+    pygame.init()
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(3840, 2160)])
+    display = Display(tamano)
+    assert display.lienzo.get_size() == tamano
+    assert display.lienzo is display.salida
+    negro, blanco, magenta = (0, 0, 0), (255, 255, 255), (255, 0, 255)
+    display.lienzo.fill(negro)
+    centro = display.lienzo.get_rect().center
+    pygame.draw.rect(display.lienzo, blanco, (*centro, 13, 29))
+    pygame.draw.rect(display.lienzo, magenta, (centro[0] + 7, centro[1] + 9, 9, 17))
+    display.presentar()
+    muestra = pygame.Rect(0, 0, 100, 100)
+    muestra.center = display.destino.center
+    datos = pygame.image.tobytes(display.salida.subsurface(muestra), "RGB")
+    colores = {tuple(datos[i:i + 3]) for i in range(0, len(datos), 3)}
+    assert colores == {negro, blanco, magenta}
+
+
+def test_presentacion_no_reescala_ni_filtra_y_respeta_un_pixel(monkeypatch):
+    from src.view.display import Display
+    pygame.init()
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1920, 1080)])
+    display = Display((1920, 1080))
+    display.lienzo.fill((0, 0, 0))
+    display.lienzo.set_at((1001, 713), (255, 255, 255))
+
+    def prohibido(*args, **kwargs):
+        pytest.fail("La presentación no debe transformar el frame")
+
+    for nombre in ("scale", "smoothscale", "scale_by", "smoothscale_by", "rotozoom"):
+        monkeypatch.setattr(pygame.transform, nombre, prohibido)
+    display.presentar()
+    assert display.salida.get_at((1001, 713))[:3] == (255, 255, 255)
+    for vecino in ((1000, 713), (1002, 713), (1001, 712), (1001, 714)):
+        assert display.salida.get_at(vecino)[:3] == (0, 0, 0)
+
+
+def test_animacion_redimensiona_desde_png_original(app):
+    from src.view.sprites import ASSETS_DIR, JUGADOR_PNGS
+    frame, _ = app.sprites.jugador_frame(False, 0, "S", total=30)
+    original = pygame.image.load(str(ASSETS_DIR / JUGADOR_PNGS[0]))
+    esperado = pygame.transform.scale(original, frame.get_size())
+    assert pygame.image.tobytes(frame, "RGBA") == pygame.image.tobytes(esperado, "RGBA")
+
+
+def test_escala_proporcional_1080p_y_4k_sin_reescalar_frame(app):
+    muestras = []
+    for tamano in ((1920, 1080), (3840, 2160)):
+        app.redimensionar(tamano)
+        app.inv_orden = ["llave-hierro-01"]
+        app.dibujar()
+        atacar = next(r for r, tecla in app.hotspots if tecla == pygame.K_SPACE)
+        slot = next(r for r, tecla in app.hotspots if isinstance(tecla, tuple))
+        assert app.ventana is app.display.salida
+        muestras.append((atacar.size, slot.size, app.sprites.tam,
+                         app.sprites.jugador_frame(False, 0, total=30)[0].get_size(),
+                         app.fuente.size("Mochila")))
+    menor, mayor = muestras
+    for a, b in zip(menor, mayor):
+        pares = zip(a, b) if isinstance(a, tuple) else [(a, b)]
+        assert all(abs(y - 2 * x) <= 2 for x, y in pares)
+    app.pantalla = "ajustes"
+    app.dibujar()
+    rect = next(r for r, tecla in app.hotspots if tecla == pygame.K_h)
+    app.manejar_evento(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center))
+    assert not app.mostrar_ayudas

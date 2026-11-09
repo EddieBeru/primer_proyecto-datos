@@ -146,6 +146,9 @@ def _reinsertar_turno(agenda, ta: dict[str, Any] | None) -> None:
 
 def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
     """Revierte UNA entrada y cancela sus eventos. §2.11: pergaminos excluidos."""
+    from src.controller2.conocimiento import CambioConocimiento
+    for dato in reversed(inversa.get("cambios_conocimiento", [])):
+        estado.conocimiento.aplicar(CambioConocimiento.desde_dict(dato), adelante=False)
     for seq in (inversa.get("eventos") or []):
         agenda.cancelar_por_seq(seq)
     op = inversa.get("op")
@@ -274,6 +277,13 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
                 estado.jugador.efectos.pop("veloz", None)
         if op == "antidoto" and d.get("veneno_antes"):
             estado.jugador.efectos["veneno"] = d["veneno_antes"]
+        if op == "antorcha":
+            if d.get("antorcha_antes") is None:
+                estado.jugador.efectos.pop("antorcha", None)
+            else:
+                estado.jugador.efectos["antorcha"] = d["antorcha_antes"]
+            for evento in d.get("eventos_antes", []):
+                _reinsertar_turno(agenda, evento)
         return True
     if op == "cierre":
         s = estado.salas.get(d.get("sala"))

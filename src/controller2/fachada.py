@@ -31,6 +31,9 @@ from src.controller2.modelo import EstadoPartida
 from src.controller2.movimiento import abrir_puerta, ejecutar_cierre, intentar_mover
 from src.controller2.reloj import COSTOS, RelojVirtual, intervalo
 from src.controller2.victoria import actualizar_estado
+from src.controller2.viaje import ControlViaje, ContextoPaso
+from src.controller2.deshacer import ACCIONES_JUGADOR
+from src.models.conocimiento import DatosSala, DatosSalida
 
 MENSAJES_MAX = 20  # §10.2: la vista muestra hasta 20 mensajes
 
@@ -56,6 +59,8 @@ class FotoEstado:
     error: str | None = None
     en_pausa: bool = False
     sala_oscura: bool = False  # mejoras 2026-10: la vista pone el velo de oscuridad
+    viaje: dict = field(default_factory=lambda: {"activo": False, "destino": None, "motivo": None})
+    conocimiento_revision: int = 0
 
 
 class Fachada:
@@ -63,7 +68,7 @@ class Fachada:
 
     def __init__(self, estado: EstadoPartida, proveedor, catalogo: dict | None = None,
                  bitacora=None, semilla: int | None = None, orden_fn=None,
-                 oleada_cada: int | None = None) -> None:
+                 oleada_cada: int | None = None, receptor_cambios=None) -> None:
         self.estado = estado
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
@@ -93,6 +98,11 @@ class Fachada:
         self.mensajes = BufferCircular(MENSAJES_MAX)
         self.error: str | None = None
         self.en_pausa = False
+        self.viaje = ControlViaje()
+        self.receptor_cambios = receptor_cambios
+        self._orden_cambios = 0
+        if not any(True for _ in self.estado.conocimiento.salas()):
+            self._emitir_cambios(self._actualizar_conocimiento(), "inicio")
         # Activa sala inicial §2.4 (rastro 0 + enemigos activos orden instancia).
         try:
             if estado.sala_actual in estado.salas:
@@ -115,6 +125,74 @@ class Fachada:
             pass
 
     # -- internos --
+    def _datos_sala(self, sala_id):
+        if hasattr(self.proveedor, "datos_sala"):
+            return self.proveedor.datos_sala(sala_id)
+        # Adaptador para consumidores técnicos anteriores a002, sin hidratar.
+        sala = self.estado.salas[sala_id]
+        return DatosSala(sala.id, sala.nombre, tuple(DatosSalida(d, s.destino,
+            getattr(s, "costo", 100), (sala.id, d)) for d, s in sala.salidas.items()))
+
+    def _actualizar_conocimiento(self):
+        if self.estado.sala_actual not in self.estado.salas:
+            return []
+        sala = self.estado.sala_en_curso()
+        datos = self._datos_sala(sala.id)
+        mapa = self.estado.conocimiento
+        cambios = mapa.revelar(sala.id, self._datos_sala,
+            antorcha=bool(self.estado.jugador.efectos.get("antorcha", 0)))
+        for salida in datos.salidas:
+            if salida.direccion in sala.salidas:
+                cambios += mapa.observar(salida.puerta_id, sala.salidas[salida.direccion].cerrada)
+        return cambios
+
+    def _emitir_cambios(self, cambios, clase, accion=None):
+        if not cambios or self.receptor_cambios is None:
+            return
+        self._orden_cambios += 1
+        contexto = {"accion_jugador": self.estado.acciones_jugador if accion is None else accion,
+                    "reloj": self.reloj.ahora, "orden": self._orden_cambios, "clase": clase}
+        self.receptor_cambios.registrar_cambios(contexto, tuple(cambios))
+
+    def _apilar(self, inversa):
+        cambios = self._actualizar_conocimiento()
+        inversa["cambios_conocimiento"] = [c.a_dict() for c in cambios]
+        es_accion = inversa.get("op") in ACCIONES_JUGADOR
+        self._emitir_cambios(cambios, "accion" if es_accion else "evento",
+                            self.estado.acciones_jugador + int(es_accion))
+        self.pila.apilar(inversa)
+
+    def iniciar_viaje(self, destino):
+        ok, mensaje = self.viaje.iniciar(self.estado, destino)
+        self.error = None if ok else mensaje
+        return ok, mensaje
+
+    def cancelar_viaje(self):
+        if self.viaje.activo:
+            self.viaje.detener("cancelado")
+        return True, "Viaje cancelado." if self.viaje.ultimo_motivo == "cancelado" else "Sin viaje activo."
+
+    def preparar_paso_viaje(self):
+        # Observaciones defensivas pertenecen al último evento causal existente.
+        cambios = self._actualizar_conocimiento()
+        if cambios:
+            ultima = next(iter(self.pila), None)
+            if ultima is not None:
+                ultima.setdefault("cambios_conocimiento", []).extend(c.a_dict() for c in cambios)
+                self._emitir_cambios(cambios, "evento")
+        return self.viaje.ruta(self.estado)
+
+    def abrir_contexto_viaje(self):
+        contexto = ContextoPaso()
+        self.estado.jugador._contexto_paso = contexto
+        return contexto
+
+    def finalizar_paso_viaje(self, contexto):
+        self.estado.jugador._contexto_paso = None
+        self.viaje.finalizar(self.estado, contexto)
+        if not self.viaje.activo:
+            self.mensajes.agregar("Viaje detenido: " + self.viaje.ultimo_motivo)
+
     def _sync(self) -> None:
         self.estado.agenda = self.agenda.a_lista()
         self.estado.reloj = self.reloj.ahora
@@ -232,7 +310,7 @@ class Fachada:
                                         t.instancia, self.catalogo)
             if res.ok:
                 if inversa:
-                    self.pila.apilar(inversa)
+                    self._apilar(inversa)
                 self._anotar("efecto", "trampa", t.instancia)
 
     # -- puertas y movimiento §2.5 (abrir costo 50, mover costo 100) --
@@ -243,7 +321,7 @@ class Fachada:
             if res.mensaje == "Ya estaba abierta.":
                 return self._ok(res.mensaje)
             return self._fail(res.mensaje)
-        self.pila.apilar(self._inversa_accion(
+        self._apilar(self._inversa_accion(
             "abrir", {"sala": self.estado.sala_actual, "direccion": direccion},
             eventos=[res.evento_cierre_seq] if res.evento_cierre_seq is not None else []))
         self._anotar("abrir", "jugador", direccion)
@@ -256,7 +334,7 @@ class Fachada:
                              self.reloj, self.catalogo)
         if not res.ok:
             return self._fail(res.mensaje)
-        self.pila.apilar(self._inversa_accion(
+        self._apilar(self._inversa_accion(
             "mover",
             {"origen": origen, "abrio": False, "sala_puerta": origen,
              "direccion": direccion, "sala_destino": res.sala,
@@ -271,7 +349,7 @@ class Fachada:
         return self._ok()
 
     def esperar(self) -> tuple[bool, str]:
-        self.pila.apilar(self._inversa_accion("esperar", {"costo": COSTOS["mover"]}))
+        self._apilar(self._inversa_accion("esperar", {"costo": COSTOS["mover"]}))
         self._anotar("mover", "jugador", "esperar")
         self._tras_accion("mover")
         return self._ok()
@@ -303,7 +381,7 @@ class Fachada:
                  "botin": res.botin, "derrotados_antes": derrotados_antes}
         if turno_antes is not None and res.mato:
             datos["turno_antes"] = turno_antes
-        self.pila.apilar(self._inversa_accion("dano_enemigo", datos))
+        self._apilar(self._inversa_accion("dano_enemigo", datos))
         self._anotar("atacar", "jugador", instancia_id)
         if res.mato:
             self._anotar("muerte", instancia_id, "jugador")
@@ -322,7 +400,7 @@ class Fachada:
         datos = {"vida_antes": vida_antes}
         if turno_antes is not None:
             datos["turno_antes"] = turno_antes
-        self.pila.apilar({"op": "dano_jugador", "datos": datos,
+        self._apilar({"op": "dano_jugador", "datos": datos,
                           "eventos": list(eventos or [])})
         self._anotar("dano", instancia_id, str(res.dano))
         return self._ok()
@@ -340,7 +418,7 @@ class Fachada:
         pos = sala.objetos_suelo.index(item_id)
         sala.objetos_suelo.remove(item_id)
         self.estado.jugador.inventario = inv.a_lista()
-        self.pila.apilar(self._inversa_accion("recoger", {"item": item_id,
+        self._apilar(self._inversa_accion("recoger", {"item": item_id,
                           "sala": sala.id, "pos_suelo": pos}))
         self._anotar("recoger", "jugador", item_id)
         self._tras_accion("recoger")
@@ -362,7 +440,7 @@ class Fachada:
             return self._fail("Sala desconocida.")
         sala.objetos_suelo.append(item)
         self.estado.jugador.inventario = inv.a_lista()
-        self.pila.apilar(self._inversa_accion("soltar", {"item": item,
+        self._apilar(self._inversa_accion("soltar", {"item": item,
                           "sala": sala.id,
                           "pos_inv": min(pos, len(self.estado.jugador.inventario))}))
         self._anotar("soltar", "jugador", item)
@@ -386,7 +464,7 @@ class Fachada:
             self.estado.jugador.arma_equipada = item
         elif getattr(ficha, "clase", "") == "armadura":
             self.estado.jugador.armadura_equipada = item
-        self.pila.apilar(self._inversa_accion("equipar", {"orden_antes": orden_antes,
+        self._apilar(self._inversa_accion("equipar", {"orden_antes": orden_antes,
                           "arma_antes": arma_antes, "armadura_antes": armadura_antes}))
         self._anotar("equipar", "jugador", item)
         self._tras_accion("equipar")
@@ -444,7 +522,7 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(inversa)
+            self._apilar(inversa)
         self._anotar("efecto", "trampa", instancia_id)
         self._asegurar_cierre_drenaje()
         return self._ok(res.mensaje or f"Trampa: {res.dano} de daño.")
@@ -455,7 +533,7 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(self._inversa_accion(
+            self._apilar(self._inversa_accion(
                 inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         ficha = self.catalogo.get(pocion_id)
         mod = int(getattr(ficha, "modificador_velocidad", 0) or 0) if ficha else 0
@@ -474,7 +552,7 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(self._inversa_accion(
+            self._apilar(self._inversa_accion(
                 inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         self._anotar("efecto", "jugador", f"antidoto:{antidoto_id}")
         self._tras_accion("usar")
@@ -485,7 +563,7 @@ class Fachada:
         if not res.ok:
             return self._fail(res.mensaje)
         if inversa:
-            self.pila.apilar(self._inversa_accion(
+            self._apilar(self._inversa_accion(
                 inversa.get("op"), inversa.get("datos"), inversa.get("eventos")))
         self._anotar("efecto", "jugador", f"antorcha:{antorcha_id}")
         self._tras_accion("usar")
@@ -511,9 +589,9 @@ class Fachada:
                        and (ev.datos or {}).get("actor") == instancia_id
                        and ev.seq not in previos]
         if origen is not None and destino is not None and origen != destino:
-            self.pila.apilar({"op": "mover_enemigo", "datos": datos, "eventos": eventos})
+            self._apilar({"op": "mover_enemigo", "datos": datos, "eventos": eventos})
         elif turno_antes is not None:
-            self.pila.apilar({"op": "turno_enemigo", "datos": datos, "eventos": eventos})
+            self._apilar({"op": "turno_enemigo", "datos": datos, "eventos": eventos})
         self._anotar("mover", instancia_id, msg)
         self._sync()
         return True, msg
@@ -534,7 +612,7 @@ class Fachada:
             eventos = ([turno_seq] if turno_seq is not None else []) + [siguiente.seq]
             # La inversa devuelve la oleada consumida y corta la reprogramada:
             # deshacer restaura la cadena entera (§4.6).
-            self.pila.apilar({"op": "aparece",
+            self._apilar({"op": "aparece",
                                "datos": {"instancia": inst,
                                          "sala": self.estado.sala_actual,
                                          "oleada_antes": oleada_antes},
@@ -545,31 +623,31 @@ class Fachada:
             sala = self.estado.salas.get(d.get("sala"))
             antes = sala.salidas[d["direccion"]].cerrada if sala and d.get("direccion") in (sala.salidas if sala else {}) else None
             ejecutar_cierre(self.estado, d.get("sala"), d.get("direccion"))
-            self.pila.apilar({"op": "cierre", "datos": {"sala": d.get("sala"),
+            self._apilar({"op": "cierre", "datos": {"sala": d.get("sala"),
                              "direccion": d.get("direccion"), "cerrada_antes": antes},
                              "eventos": []})
         elif ev.tipo == "rearme_trampa":
             ejecutar_rearme(self.estado, d.get("instancia"))
-            self.pila.apilar({"op": "rearme", "datos": {"instancia": d.get("instancia")},
+            self._apilar({"op": "rearme", "datos": {"instancia": d.get("instancia")},
                              "eventos": []})
         elif ev.tipo == "veneno":
             vida_antes = self.estado.jugador.vida_actual
             veneno_antes = self.estado.jugador.efectos.get("veneno")
             ejecutar_veneno(self.estado, int(d.get("dano", 1)))
-            self.pila.apilar({"op": "veneno_tick", "datos": {"vida_antes": vida_antes,
+            self._apilar({"op": "veneno_tick", "datos": {"vida_antes": vida_antes,
                              "veneno_antes": veneno_antes,
                              "dano": int(d.get("dano", 1))}, "eventos": []})
         elif ev.tipo == "quemadura":
             vida_antes = self.estado.jugador.vida_actual
             quemadura_antes = self.estado.jugador.efectos.get("quemadura")
             ejecutar_quemadura(self.estado, int(d.get("dano", 1)))
-            self.pila.apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes,
+            self._apilar({"op": "dano_jugador", "datos": {"vida_antes": vida_antes,
                               "quemadura_antes": quemadura_antes}, "eventos": []})
         elif ev.tipo == "fin_efecto":
             nombre = d.get("efecto", "")
             tenia = self.estado.jugador.efectos.get(nombre)
             ejecutar_fin_efecto(self.estado, nombre)
-            self.pila.apilar({"op": "fin_efecto", "datos": {"efecto": nombre,
+            self._apilar({"op": "fin_efecto", "datos": {"efecto": nombre,
                              "valor_antes": tenia}, "eventos": []})
             if nombre == "veloz":
                 try:
@@ -596,7 +674,7 @@ class Fachada:
                 ev2 = self.agenda.programar(self.reloj.ahora + REGENERACION_PERIODO,
                                             "regeneracion", dict(d))
                 seq_pulso = ev2.seq
-            self.pila.apilar({"op": "regeneracion", "datos": {"instancia": inst,
+            self._apilar({"op": "regeneracion", "datos": {"instancia": inst,
                              "vida_antes": antes},
                              "eventos": [seq_pulso] if seq_pulso is not None else []})
         elif ev.tipo == "turno" and (d.get("kind") == "enemigo" or d.get("actor", "").startswith("e")):
@@ -632,9 +710,12 @@ class Fachada:
 
     # -- deshacer §2.11 (intervalo: una llamada revierte hasta acción jugador) --
     def deshacer(self) -> tuple[bool, str]:
+        self.cancelar_viaje()
         ok, msg = deshacer_una(self.estado, self.agenda, self.pila, self.catalogo)
         if not ok:
             return self._fail(msg)
+        if self.receptor_cambios is not None:
+            self.receptor_cambios.truncar_ultimo_intervalo()
         # §2.11: usar el pergamino no consume tiempo virtual. El reloj vuelve
         # al instante previo a la acción deshecha y se deja un turno del
         # jugador en ese mismo instante, con seq -1 para ganar cualquier
@@ -653,17 +734,44 @@ class Fachada:
         return self._ok("Deshecho.")
 
     def pausar(self) -> None:
+        self.cancelar_viaje()
         self.en_pausa = True
 
     def reanudar(self) -> None:
         self.en_pausa = False
 
     def guardar(self) -> dict:
+        self.cancelar_viaje()
         self._sync()
         return self.estado.a_dict()
 
     def cargar(self, data: dict) -> None:
-        self.estado = EstadoPartida.desde_dict(data)
+        from src.controller2.conocimiento import MapaConocido, CambioConocimiento
+        from src.models.errors import GuardadoError
+        try:
+            conocimiento = MapaConocido.desde_dict(data["conocimiento"], self._datos_sala)
+            for inversa in data.get("pila_deshacer", []):
+                for delta in inversa.get("cambios_conocimiento", []):
+                    cambio = CambioConocimiento.desde_dict(delta)
+                    for registro in (cambio.antes, cambio.despues):
+                        if cambio.tipo == "sala" and registro is not None:
+                            datos = self._datos_sala(registro.id)
+                            if registro.estado == "explorada" and (datos.nombre != registro.nombre or datos.salidas != registro.salidas):
+                                raise ValueError("delta no coincide con metadatos")
+                        elif cambio.tipo == "puerta":
+                            datos = self._datos_sala(cambio.clave[0])
+                            if not any(s.puerta_id == cambio.clave for s in datos.salidas):
+                                raise ValueError("delta de puerta inválido")
+            candidato = EstadoPartida.desde_dict(data)
+            actual = conocimiento.sala(candidato.sala_actual)
+            if actual is None or actual.estado != "explorada":
+                raise ValueError("sala actual no explorada en guardado")
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GuardadoError(f"conocimiento inválido: {exc}") from exc
+        conocimiento.revision = self.estado.conocimiento.revision + 1
+        candidato.conocimiento = conocimiento
+        self.estado = candidato
+        self.viaje = ControlViaje()
         self.agenda = Agenda.desde_lista(self.estado.agenda or [])
         self.reloj = RelojVirtual(ahora=self.estado.reloj)
         self.pila = PilaDeshacer.desde_lista(self.estado.pila_deshacer or [])
@@ -683,6 +791,7 @@ class Fachada:
         puertas = {}
         for k, v in (sala.salidas.items() if sala else {}):
             puertas[k] = {"destino": v.destino, "cerrada": v.cerrada,
+                          "costo": getattr(v, "costo", 100),
                           "llave": v.llave,
                           "cierre_en": self._cierre_restante(sala.id, k)
                           if sala is not None else None}
@@ -709,7 +818,9 @@ class Fachada:
             mensajes=self.mensajes.ultimos(MENSAJES_MAX),
             presupuesto=self.estado.presupuesto_restante,
             estado=self.estado.estado, error=self.error, en_pausa=self.en_pausa,
-            sala_oscura=bool(getattr(sala, "oscura", False)))
+            sala_oscura=bool(getattr(sala, "oscura", False)),
+            viaje={"activo": self.viaje.activo, "destino": self.viaje.destino, "motivo": self.viaje.ultimo_motivo},
+            conocimiento_revision=self.estado.conocimiento.revision)
 
     # -- consola de pruebas 7.2: solo usa la fachada --
     def consola(self, comandos: list[str]) -> list[str]:

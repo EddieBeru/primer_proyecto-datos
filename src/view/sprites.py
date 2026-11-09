@@ -244,16 +244,16 @@ def _escala_respiro(base: pygame.Surface, total: int) -> tuple[int, int]:
 class SpriteManager:
     """Carga una vez; `sprite(id)` siempre retorna algo (reemplazo si falta).
 
-    `suavizado=False` (default): escalado nearest, píxel sharp. En True
-    usa smoothscale (bordes suaves).
+    Los PNG se escalan con nearest, sin filtros de interpolación.
     """
 
-    def __init__(self, suavizado: bool = False) -> None:
-        self.suavizado = suavizado
+    def __init__(self) -> None:
+        self.escala = 1.0
         self._cache: dict[str, pygame.Surface] = {}
         self._png_cache: dict[tuple[str, int], pygame.Surface] = {}
         self._reemplazo = _mosaico(REEMPLAZO)
         self._jugador = _mosaico(JUGADOR)
+        self._jugador_originales: list[pygame.Surface] = []
         self._jugador_frames: list[pygame.Surface] = self._cargar_jugador()
         self._frame_cache: dict[tuple[int, str, int, int, int], pygame.Surface] = {}
         self._espada_cache: dict[bool, pygame.Surface] = {}
@@ -265,6 +265,28 @@ class SpriteManager:
             estado: _mosaico(color, tam=TAM - 8)
             for estado, color in COLORES_PUERTA.items()
         }
+
+    def ajustar_escala(self, factor: float) -> None:
+        """Invalida tamaños derivados; cada PNG se vuelve a tomar del original."""
+        if factor == self.escala:
+            return
+        self.escala = factor
+        self._cache.clear()
+        self._png_cache.clear()
+        self._grande_cache.clear()
+        self._caja_cache.clear()
+        self._caja_fondo_cache.clear()
+        self._frame_cache.clear()
+        self._espada_cache.clear()
+        self._escudo_cache.clear()
+        self._reemplazo = _mosaico(REEMPLAZO, self.tam)
+        self._jugador = _mosaico(JUGADOR, self.tam)
+        self._puertas = {estado: _mosaico(color, max(1, round((TAM - 8) * factor)))
+                         for estado, color in COLORES_PUERTA.items()}
+
+    @property
+    def tam(self) -> int:
+        return max(1, round(TAM * self.escala))
 
     def _cargar_jugador(self) -> list[pygame.Surface]:
         """Frames PNG del prota escalados; vacío si falta el arte (fallback)."""
@@ -283,6 +305,7 @@ class SpriteManager:
                 pass
             alto = JUGADOR_ALTO
             ancho = max(1, img.get_width() * alto // max(img.get_height(), 1))
+            self._jugador_originales.append(img)
             frames.append(pygame.transform.scale(img, (ancho, alto)))
         return frames
 
@@ -307,8 +330,7 @@ class SpriteManager:
         if lado <= 0:
             return None
         if (img.get_width(), img.get_height()) != (tam, tam):
-            escalar = pygame.transform.smoothscale if self.suavizado \
-                else pygame.transform.scale
+            escalar = pygame.transform.scale
             try:
                 img = escalar(img, (max(1, img.get_width() * tam // lado),
                                     max(1, img.get_height() * tam // lado)))
@@ -352,13 +374,15 @@ class SpriteManager:
         elif not moviendo and len(self._jugador_frames) > 1 and total % 240 < 12:
             idx = 1  # parpadeo en reposo, sin salto ni inclinación
         base = self._jugador_frames[idx]
-        respiro = _escala_respiro(base, total)
+        rw, rh = _escala_respiro(base, total)
+        respiro = (max(1, round(rw * self.escala)), max(1, round(rh * self.escala)))
         clave = (idx, facing, lean, respiro[0], respiro[1], espejo)
         if clave not in self._frame_cache:
-            img = base
+            # Cada tamaño de animación sale del PNG original: no reducir a
+            # 48 px para volver a ampliar ese resultado al respirar.
+            img = self._jugador_originales[idx]
             if (respiro[0], respiro[1]) != (img.get_width(), img.get_height()):
-                escalar = pygame.transform.smoothscale if self.suavizado \
-                    else pygame.transform.scale
+                escalar = pygame.transform.scale
                 img = escalar(img, respiro)
             if espejo:
                 img = pygame.transform.flip(img, True, False)
@@ -368,14 +392,14 @@ class SpriteManager:
                 recorte.center = rot.get_rect().center
                 img = rot.subsurface(recorte).copy()
             self._frame_cache[clave] = img
-        return self._frame_cache[clave], hop
+        return self._frame_cache[clave], round(hop * self.escala)
 
     def sprite(self, item_id: str) -> pygame.Surface:
         if item_id in self._cache:
             return self._cache[item_id]
         png = png_para_id(item_id)
         if png is not None:
-            img = self._cargar_png(png)
+            img = self._cargar_png(png, self.tam)
             if img is not None:
                 self._cache[item_id] = img
                 return img
@@ -386,6 +410,8 @@ class SpriteManager:
             sup = self._reemplazo
         else:
             _glifo(sup, clase, color)
+            if self.tam != TAM:
+                sup = pygame.transform.scale(sup, (self.tam, self.tam))
         self._cache[item_id] = sup
         return sup
 
@@ -406,7 +432,7 @@ class SpriteManager:
 
         En partida el arte se reduce a TAM (nearest, look retro); en los
         menús se parte del PNG original (117×161) y se escala nearest por
-        defecto (sin antialiasing; `suavizado=True` cambia a smoothscale).
+        defecto, sin filtros de interpolación.
         Sin PNG cae al frame de juego escalado (nunca rompe).
         """
         clave = (round(float(escala), 2), bool(espejo))
@@ -429,8 +455,7 @@ class SpriteManager:
                 base, (max(1, round(base.get_width() * escala * 3)),
                        max(1, round(base.get_height() * escala * 3))))
         else:
-            escalar = pygame.transform.smoothscale if self.suavizado \
-                else pygame.transform.scale  # nearest: sin antialiasing
+            escalar = pygame.transform.scale  # nearest: sin antialiasing
             img = escalar(img, (max(1, round(img.get_width() * escala)),
                                 max(1, round(img.get_height() * escala))))
         if espejo:
@@ -467,8 +492,7 @@ class SpriteManager:
         nombre = "Box.png" if stage is None else f"Lid Stage {stage}.png"
         img = self._cargar_caja(nombre)
         if img is not None and escala != 1.0:
-            escalar = pygame.transform.smoothscale if self.suavizado \
-                else pygame.transform.scale
+            escalar = pygame.transform.scale
             img = escalar(img, (max(1, round(img.get_width() * escala)),
                                 max(1, round(img.get_height() * escala))))
         self._caja_cache[clave] = img
@@ -491,8 +515,7 @@ class SpriteManager:
             if borde.width > 4 and borde.height > 4:
                 arte = img.subsurface(borde)
                 escala = max(ancho / borde.width, alto / borde.height)
-                escalar = pygame.transform.smoothscale if self.suavizado \
-                    else pygame.transform.scale
+                escalar = pygame.transform.scale
                 grande = escalar(arte, (max(1, round(borde.width * escala)),
                                          max(1, round(borde.height * escala))))
                 corte = pygame.Rect(
@@ -522,7 +545,7 @@ class SpriteManager:
         proporcional); el fallback procedural (sin assets) sigue coloreando
         por comportamiento.
         """
-        img = self._cargar_png(ENEMIGO_PNG, tam=TAM * ENEMIGO_ESCALA)
+        img = self._cargar_png(ENEMIGO_PNG, tam=self.tam * ENEMIGO_ESCALA)
         if img is not None:
             return img
         color = COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO)
@@ -531,6 +554,8 @@ class SpriteManager:
         pygame.draw.circle(sup, color, (centro, centro), radio)
         pygame.draw.circle(sup, (255, 255, 255), (centro, centro), radio, 2)
         _glifo(sup, "enemigo", color)
+        if self.tam != TAM:
+            sup = pygame.transform.scale(sup, (self.tam, self.tam))
         return sup
 
     def escudo(self, espejo: bool = False) -> pygame.Surface:
@@ -543,16 +568,16 @@ class SpriteManager:
         espejo = bool(espejo)
         if espejo in self._escudo_cache:
             return self._escudo_cache[espejo]
-        img = self._cargar_png(ESCUDO_PNG)
+        tam_escudo = max(1, round(ESCUDO_TAM * self.escala))
+        img = self._cargar_png(ESCUDO_PNG, tam=tam_escudo)
         if img is None:
             color = COLORES_CLASE.get("armadura", REEMPLAZO)
             img = _mosaico(color)
             _glifo(img, "armadura", color)
-        if (img.get_width(), img.get_height()) != (ESCUDO_TAM, ESCUDO_TAM):
-            escalar = pygame.transform.smoothscale if self.suavizado \
-                else pygame.transform.scale
+        if img.get_size() != (tam_escudo, tam_escudo):
+            escalar = pygame.transform.scale
             try:
-                img = escalar(img, (ESCUDO_TAM, ESCUDO_TAM))
+                img = escalar(img, (tam_escudo, tam_escudo))
             except pygame.error:
                 pass
         if espejo:
@@ -571,7 +596,7 @@ class SpriteManager:
         izq = (facing == "O") if espejo is None else bool(espejo)
         if izq in self._espada_cache:
             return self._espada_cache[izq]
-        img = self._cargar_png(ESPADA_PNG)
+        img = self._cargar_png(ESPADA_PNG, self.tam)
         if img is None:
             color = COLORES_CLASE.get("arma", REEMPLAZO)
             img = _mosaico(color)

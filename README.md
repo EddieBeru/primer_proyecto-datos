@@ -59,18 +59,50 @@ python -m pytest tests/ -q
 
 ## Archivos generados
 
-- `partida.bin`: guardado binario v2 (índice por sala, §4.10). v1 solo compat lectura.
+- `partida.bin`: guardado binario v3 con conocimiento e índice por sala; v1/v2 se leen técnicamente, pero P2 rechaza cargarlos porque no guardan el conocimiento.
 - `partida.log`: bitácora append, primera línea `#cripta <id> <ver> <vercat> <semilla>`.
 - `puntajes.jsonl`: tabla local (nombre, cripta id+versión, acciones, derrotados, reloj).
 - `cache.pkl`: caché LRU persistida (pickle versión + orden).
 - `cache.pkl.fichas`: almacén persistente de fichas desalojadas (§4.4, solo si hay `--cache`/ruta real).
 
-## Consola mínima (solo fachada)
+## Consola interactiva (solo fachada)
 
 `abrir N/S/E/O`, `N/S/E/O` mover, `atacar <inst>`, `esperar`, `pisar <inst>`,
 `recoger/usar/equipar/soltar`, `inventario [nombre|peso|valor]` (vista
-ordenada sin tocar el orden real, §4.5), `deshacer` (1 pergamino, intervalo
-completo), `avanzar` (siguiente evento), `foto`.
+ordenada sin tocar el orden real, §4.5), `mapa`, `ir a <id explorado>` y
+`cancelar`. Durante un viaje, la consola da un paso cada 150 ms y sigue
+aceptando consultas y cancelación. `deshacer` usa 1 pergamino e invierte el
+intervalo completo; `guardar`/`cargar` conservan la persistencia; `foto`
+consulta el estado actual. El cruce manual por puertas sigue disponible.
+
+En Pygame, **M** abre el mapa gráfico de nodos cuadrados y conexiones
+direccionales; **↑/↓/←/→** selecciona la sala vecina en esa dirección y **Enter**
+inicia el viaje. **Escape** lo cancela; WASD/flechas regresan al control manual.
+
+## Ventana y controles de Pygame
+
+- **F10** abre Ajustes desde el menú, la pausa o la partida: ventana clásica
+  de 1024 × 800, panorámica de 1280 × 720, 1600 × 900 o 1920 × 1080,
+  y ayudas de controles. Los tamaños se ajustan al escritorio disponible.
+- Arrastra un borde para cambiar el tamaño libremente. **F11** alterna
+  pantalla completa y restaura el tamaño anterior de ventana; el arte
+  conserva sus proporciones. En panorámica, la mochila y las acciones
+  pasan a un panel lateral.
+- El juego dibuja directamente a la resolución de la ventana o del
+  escritorio en pantalla completa: no usa un frame de resolución fija,
+  reescalado de pantalla ni filtros de interpolación. Los sprites se
+  ajustan individualmente desde los PNG originales con nearest.
+- Textos, botones, mochila, mapa y sprites comparten una escala adaptable:
+  crecen en pantallas grandes y se reducen en ventanas pequeñas, conservando
+  las proporciones y los alcances de interacción sin ampliar el frame.
+- **F2** muestra la guía completa. Los menús aceptan flechas / Tab y Enter,
+  los atajos indicados o clic. La mochila acepta clic y rueda del ratón;
+  sus botones usan las mismas acciones que el teclado.
+- Ajustes y controles suspenden el movimiento y el viaje automático.
+  Al perder el foco, el juego se pausa; **Esc** permite continuar.
+- Las preferencias se recuerdan al cerrar la ventana, en
+  `$XDG_CONFIG_HOME/cripta/ui.json` (por defecto `~/.config/cripta/ui.json`),
+  independientemente del guardado de la partida.
 
 ## Mapa de carpetas (separación vista–controlador)
 

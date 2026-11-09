@@ -7,11 +7,16 @@ partida completa, la fachada tiene todo lo que la vista necesitará (§7.2).
 
 from __future__ import annotations
 
+import select
+import sys
+import time
+
 from src.controller1.mergesort import mergesort
 
 AYUDA = ("comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar · "
          "pisar <inst> · recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · "
-         "inventario [nombre|peso|valor] · deshacer · foto · guardar [ruta] · "
+         "inventario [nombre|peso|valor] · mapa · ir a <id> · cancelar · "
+         "deshacer · foto · guardar [ruta] · "
          "cargar <ruta> · fin · salir · ayuda")
 
 
@@ -47,6 +52,11 @@ def renderizar(foto, salida=print) -> None:
                                   else "a oscuras; enciende una antorcha (usar <id>)"))
     salida(f"  vida {j['vida']}/{j['vida_max']} atk {j['ataque']} def {j['defensa']} "
            f"vel {j['velocidad']} efectos {j['efectos'] or '—'}")
+    viaje = getattr(foto, "viaje", None) or {}
+    if viaje.get("activo"):
+        salida(f"  viaje: hacia {viaje.get('destino')} · cancelar para detener")
+    elif viaje.get("motivo"):
+        salida(f"  viaje detenido: {viaje['motivo']}")
     salida(f"  inv: {', '.join(foto.inventario) or '—'} (pergaminos: {foto.pergaminos})")
     for m in foto.mensajes[-20:]:  # §4.8: se conservan los últimos 20
         salida(f"  · {m}")
@@ -56,12 +66,29 @@ def renderizar(foto, salida=print) -> None:
 
 
 def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin") -> int:
-    """Loop bloqueante de consola. Retorna código de salida."""
+    """Loop de consola; mientras hay viaje acepta consultas/cancelación sin bloquear."""
     salida(AYUDA)
     renderizar(sesion.foto(), salida)
+    prompt_viaje = False
     while True:
         try:
-            texto = entrada("> ").strip()
+            if sesion.fachada and sesion.fachada.viaje.activo and entrada is input:
+                if not prompt_viaje:
+                    sys.stdout.write("> ")
+                    sys.stdout.flush()
+                    prompt_viaje = True
+                listo, _, _ = select.select([sys.stdin], [], [], 0.15)
+                if not listo:
+                    _, _, foto = sesion.avanzar_viaje()
+                    renderizar(foto, salida)
+                    continue
+                texto = sys.stdin.readline()
+                if not texto:
+                    raise EOFError
+                texto = texto.strip()
+                prompt_viaje = False
+            else:
+                texto = entrada("> ").strip()
         except (EOFError, KeyboardInterrupt):
             salida("\nsesión interrumpida.")
             return 130
@@ -86,6 +113,11 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
             continue
         if cmd == "foto":
             renderizar(sesion.foto(), salida)
+            continue
+        if cmd == "mapa":
+            mapa = sesion.mapa_conocido()
+            for sala in mapa.salas:
+                salida(f"{sala['id']}  {sala.get('nombre') or sala.get('etiqueta')}  [{sala.get('estado')}]")
             continue
         if cmd in ("inventario", "inv"):
             partes = texto.split()

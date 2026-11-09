@@ -69,3 +69,32 @@ Intenciones: mover N/S/E/O, atacar, equipar, soltar, recorrer, deshacer, pausar,
 - K5: loop oficial = intención → drenar agenda hasta turno-jugador/fin → foto.
   Tope 500 eventos por paso; errores de evento = error amable sin crash.
 - `savegame.validar_versiones` acepta `backend` (antes cableaba endpoints real).
+
+## Enmienda 002 — 2026-11-08
+
+Autorización explícita del usuario en esta sesión: «apruebo todos los contratos»,
+tras presentar la propuesta `specs/002-niebla-ir-a/contracts/interfaces.md`.
+Se registra esa aprobación directa, sin atribuir un mensaje a otra persona.
+
+- K1 incorpora `datos_sala(id)->DatosSala` inmutable, desde índice de metadatos
+  preparado una vez. Sin HTTP/contenido/fichas/visitas/activaciones. Extremos
+  recíprocos opuestos declarados comparten la menor clave; no se inventan inversas.
+  La coherencia física y los costos de puertas recíprocas siguen coordinados con001.
+- K5 mantiene `(ok,mensaje,FotoEstado)` y suma `ir a <id>`, `cancelar`,
+  `avanzar_viaje` y `mapa_conocido`. C2 decide ruta/detención sobre conocimiento;
+  un avance ejecuta como máximo un movimiento ordinario y su drenaje. Controles
+  y consultas no consumen tiempo. Foto suma viaje y revisión, sin mapa completo.
+  Consultas conservan viaje; acciones manuales/guardar/pausa cancelan. Cargar
+  solo cancela al instalar correctamente; un fallo preserva la partida/viaje.
+- K2 P2 escribe formato3 con conocimiento y deltas reversibles, índice por sala
+  y core JSON; rechaza formatos1/2 al cargar una partida P2, sin migración
+  silenciosa. Los lectores técnicos legados pueden conservarse por separado.
+  No serializa continuación, ruta, contexto de paso, heap ni caché visual.
+- K3 añade comentario estricto `#ir-a <id>` una vez por orden aceptada; ambos
+  replay lo ignoran, reproduciendo movimientos individuales. Header/corrupción
+  conservan sus validaciones. Logs previos sin comentarios siguen siendo legibles;
+  lectores antiguos no soportan el comentario nuevo y requieren actualizarse.
+- 004 recibe por inyección lotes bidireccionales ordenados y truncamiento de undo
+  antes de descartar intervalos por tope cinco. No se implementan historia ni
+  checkpoints en002. Su aceptación integrada y la temporal ponderada de001 quedan
+  pendientes de entregas reales, igual que el contraste del enunciado íntegro P2.

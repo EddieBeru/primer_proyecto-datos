@@ -8,3 +8,11 @@ partida.bin
 partida.bin.cache
 puntajes.jsonl
 cache.pkl
+
+# Artefactos de Python y pruebas locales
+*.py[cod]
+.pytest_cache/
+venv/
+dist/
+build/
+*.egg-info/

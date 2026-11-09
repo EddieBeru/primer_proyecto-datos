@@ -63,7 +63,7 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 - **FR-LIN-10**: fuera de los puntos de control solo se guarda lo necesario para reconstruir cambios; la memoria crece con los cambios más un punto cada K acciones.
 - **FR-LIN-11**: el estado reconstruido es idéntico al que tuvo la partida original en ese instante (determinismo).
 - **FR-LIN-12**: guardar y cargar conserva la línea completa; los archivos P1 y los P2 anteriores a 004 que carecen de historial se rechazan con un mensaje explícito de incompatibilidad, nunca se cargan en silencio.
-- **FR-LIN-13** (rendimiento): `historia` ≤ 50 ms con ≥ 5 000 acciones y K por defecto; usar un pergamino recorta la línea sin recorrer toda la historia.
+- **FR-LIN-13** (rendimiento): con al menos 5 000 acciones y K por defecto, el máximo observado entre 1 000 consultas medidas de `historia`, luego de 100 calentamientos, debe ser ≤50 ms. Usar un pergamino recorta la línea sin recorrer toda la historia.
 - **FR-LIN-14** (medición): `--bench` mide memoria y tiempo de consulta con al menos tres valores de K y contra la alternativa sin puntos de control.
 
 ### Key Entities
@@ -77,7 +77,7 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 
 ### Measurable Outcomes
 
-- **SC-LIN-01**: Consulta historia en como máximo 50 ms con al menos 5 000 acciones y el K por defecto justificado.
+- **SC-LIN-01**: El máximo observado en al menos 1 000 consultas medidas de `historia`, luego de 100 calentamientos y con al menos 5 000 acciones y K por defecto, es ≤50 ms.
 - **SC-LIN-02**: Cada consulta aplica o deshace cambios de como máximo K acciones.
 - **SC-LIN-03**: Memoria proporcional a los cambios más un punto de control cada K acciones; se comparan al menos tres K y la alternativa sin puntos.
 - **SC-LIN-04**: La consulta no altera la partida; retroceder recorta la línea sin recorrer toda la historia; guardar y cargar conserva la línea completa.
@@ -112,4 +112,4 @@ Restricción de memoria: se permiten copias completas del estado (puntos de cont
 
 Persistencia: guardar y cargar conserva la línea completa. Los archivos P1 y los guardados P2 previos a 004 que carecen de historial se rechazan con un error explícito; nunca se cargan en silencio.
 
-Rendimiento: «historia» ≤ 50 ms en una partida de al menos 5 000 acciones con K por defecto. Debe medirse memoria y tiempo de consulta con al menos tres valores de K y contra la alternativa sin puntos de control.
+Rendimiento: el máximo observado entre al menos 1 000 consultas medidas de «historia», luego de 100 calentamientos, es ≤50 ms en una partida de al menos 5 000 acciones con K por defecto. También se miden memoria y tiempo con al menos tres valores de K y contra la alternativa sin puntos de control.

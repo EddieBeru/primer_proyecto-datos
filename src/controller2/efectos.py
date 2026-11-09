@@ -232,10 +232,15 @@ def usar_antorcha(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
     dur = int(getattr(ficha, "duracion", 0) or 0)
     if antorcha_id not in estado.jugador.inventario:
         return ResultadoEfecto(False, "No la tienes."), None
+    antes = estado.jugador.efectos.get("antorcha")
+    eventos_antes = [{"t": e.t, "seq": e.seq, "tipo": e.tipo, "datos": dict(e.datos)}
+                     for e in agenda if e.tipo == "fin_efecto" and e.datos.get("efecto") == "antorcha"]
+    agenda.cancelar_donde(lambda e: e.tipo == "fin_efecto" and e.datos.get("efecto") == "antorcha")
     _consumir(estado, antorcha_id)
     estado.jugador.efectos["antorcha"] = dur
     ev = agenda.programar(reloj.ahora + dur, "fin_efecto", {"efecto": "antorcha"})
-    inversa = {"op": "antorcha", "datos": {"item": antorcha_id}, "eventos": [ev.seq]}
+    inversa = {"op": "antorcha", "datos": {"item": antorcha_id, "antorcha_antes": antes,
+               "eventos_antes": eventos_antes}, "eventos": [ev.seq]}
     return ResultadoEfecto(True, "", 0, [ev.seq]), inversa
 
 

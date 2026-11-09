@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
+from copy import deepcopy
+from src.controller2.conocimiento import MapaConocido
 
 from src.models.dungeons import DungeonGeneral, PlayerInitial
 from src.models.roomContents import EnemyPlacement, RoomContentEntry, TrapPlacement
@@ -100,6 +102,10 @@ class JugadorVivo:
         return self.defensa + armadura_bonus
 
     def recibir_dano(self, cantidad: int) -> None:
+        if cantidad > 0 and self.vida_actual > 0:
+            contexto = getattr(self, "_contexto_paso", None)
+            if contexto is not None:
+                contexto.recibio_dano = True
         self.vida_actual = max(0, self.vida_actual - max(0, int(cantidad)))
 
     def curar(self, cantidad: int) -> None:
@@ -296,6 +302,7 @@ class EstadoPartida:
     acciones_jugador: int = 0
     enemigos_derrotados: int = 0
     puerta_salida_abierta: bool = False
+    conocimiento: MapaConocido = field(default_factory=MapaConocido)
 
     @classmethod
     def nueva_partida(cls, ficha: DungeonGeneral, version_catalogo: str, semilla: int = 0) -> "EstadoPartida":
@@ -329,11 +336,17 @@ class EstadoPartida:
 
     # -- serializacion para C1-8 (C2 entrega dict, C1 lo pasa a bytes) --
     def a_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        resultado = {nombre: deepcopy(getattr(self, nombre)) for nombre in self.__dataclass_fields__
+                     if nombre not in ("conocimiento", "jugador", "salas")}
+        resultado["jugador"] = asdict(self.jugador)
+        resultado["salas"] = {sid: asdict(sala) for sid, sala in self.salas.items()}
+        resultado["conocimiento"] = self.conocimiento.a_dict()
+        return resultado
 
     @classmethod
     def desde_dict(cls, data: dict[str, Any]) -> "EstadoPartida":
         d = dict(data)
+        d["conocimiento"] = MapaConocido.desde_dict(d["conocimiento"]) if "conocimiento" in d else MapaConocido()
         d.setdefault("semilla", 0)
         d.setdefault("azar_llamadas", 0)
         d.setdefault("acciones_jugador", 0)

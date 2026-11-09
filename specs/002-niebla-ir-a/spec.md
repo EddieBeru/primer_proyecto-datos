@@ -20,6 +20,12 @@
 - Q: Al encender la antorcha dentro de una sala, ¿se revelan inmediatamente sus vecinas o hay que moverse primero? → A: Se revelan inmediatamente al encenderla y también al entrar en otras salas mientras siga encendida, con las mismas restricciones de revelación.
 - Q: Durante «ir a», ¿el jugador puede cancelar voluntariamente el viaje entre dos pasos? → A: Sí. Puede cancelar después de completar el cambio de sala y sus eventos, antes del siguiente movimiento automático. Cancelar no consume tiempo ni deshace movimientos; recupera el control manual.
 
+### Session 2026-11-08 — ajustes aceptados tras análisis
+
+- La revelación tiene costo esperado amortizado proporcional a los registros consultados o modificados. Las operaciones ordinarias no barren el mapa conocido; las expansiones del índice pueden recorrer sus registros y deben incluirse en las mediciones. El límite de 5 ms para calcular un paso no cambia. Este acuerdo sigue pendiente de contraste con el enunciado íntegro P2.
+- Consultar mapa, foto, inventario o ayuda conserva el viaje. Una acción manual lo cancela antes de procesarse; guardar y pausar también lo cancelan. Cargar solo cancela al instalar correctamente la partida; una carga fallida conserva el viaje anterior.
+- La entrega aislada de 002 puede verificarse con falsos, pero la aceptación completa de FR-NIE-08 requiere comprobar el conocimiento histórico integrado con 004, incluida su reconstrucción, retroceso y conservación al guardar/cargar.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Niebla de guerra e ir a (Priority: P1)
@@ -75,7 +81,7 @@ Los casos 1–6 conservan los escenarios atribuidos al Apéndice B por la guía;
 - **FR-NIE-16**: en `partida.log` cada paso es un movimiento individual y «ir a» queda como comentario.
 - **FR-NIE-17**: el pergamino revierte solo el último paso y el viaje no continúa.
 - **FR-NIE-18**: la interfaz muestra por qué se detuvo un viaje.
-- **FR-NIE-19** (rendimiento): un paso de «ir a» ≤ 5 ms con el mapa conocido completo; explorar cuesta proporcionalmente a las salas reveladas.
+- **FR-NIE-19** (rendimiento): calcular un paso de «ir a» ≤ 5 ms con el mapa conocido completo. Revelar salas tiene costo esperado amortizado proporcional a los registros de salas y puertas consultados o modificados; las operaciones ordinarias no recorren el mapa conocido completo. Las expansiones del índice pueden recorrer sus registros y deben incluirse en las mediciones.
 - **FR-NIE-20** (medición): `--bench` mide consultas al mapa conocido y el cálculo de «ir a».
 - **FR-NIE-21**: el jugador puede cancelar voluntariamente «ir a» entre pasos, después de completar el movimiento anterior y sus eventos, antes del siguiente movimiento automático. La cancelación detiene la continuación automática, devuelve el control manual, no consume tiempo virtual ni deshace movimientos; la interfaz muestra el motivo de detención.
 
@@ -90,7 +96,7 @@ Los casos 1–6 conservan los escenarios atribuidos al Apéndice B por la guía;
 ### Measurable Outcomes
 
 - **SC-NIE-01**: Calcular un paso tarda como máximo 5 ms con el mapa conocido completo de la cripta de referencia.
-- **SC-NIE-02**: Revelar salas cuesta proporcionalmente a las salas reveladas, sin recorrer el mapa conocido completo.
+- **SC-NIE-02**: Revelar salas tiene costo esperado amortizado proporcional a los registros de salas y puertas consultados o modificados. Las operaciones ordinarias no recorren el mapa conocido completo; las mediciones incluyen el trabajo de las expansiones del índice, que sí pueden recorrer sus registros.
 - **SC-NIE-03**: La consulta del mapa y el viaje no revelan información desconocida; guardar, cargar y retroceder conservan el conocimiento correspondiente.
 
 ## Assumptions

@@ -32,6 +32,8 @@ from src.controller2.fachada import Fachada, FotoEstado
 from src.controller2.modelo import EnemigoInstancia, EstadoPartida, SalaViva, TrampaInstancia
 from src.controller2.victoria import entrada_desde_estado
 from src.models.errors import CriptaError, GuardadoError
+from src.models.errors import NotFoundError
+from src.models.conocimiento import preparar_metadatos, MapaDTO
 
 MAX_DRENAJE = 500
 
@@ -51,6 +53,13 @@ class ProveedorSesion:
         # (enemigos por todo el mapa sin pedir contenido extra).
         self.registrador = registrador
         self._armadas: set[int] = set()
+        self._metadatos = preparar_metadatos(loader.plano.values())
+
+    def datos_sala(self, sala_id):
+        try:
+            return self._metadatos[sala_id]
+        except KeyError:
+            raise NotFoundError(f"Sala {sala_id} inexistente") from None
 
     def sala_lista(self, n: int) -> SalaViva:
         sv = self._armar(n)
@@ -194,9 +203,31 @@ class Sesion:
             if s.id not in self.estado.salas:
                 self.estado.salas[s.id] = s
 
-    def paso(self, texto: str, grabar: bool = True) -> tuple[bool, str, FotoEstado]:
+    def paso(self, texto: str, grabar: bool = True, _automatico: bool = False) -> tuple[bool, str, FotoEstado]:
         """Una intención del jugador + drenaje §2.3. Nunca crashea (error amable)."""
         assert self.fachada is not None, "llamar iniciar() primero"
+        partes = texto.strip().split()
+        comando = partes[0].lower() if partes else ""
+        if comando in ("mapa", "foto", "inventario", "ayuda"):
+            return True, "Consulta sin tiempo.", self.foto()
+        if comando == "cancelar":
+            ok, msg = self.fachada.cancelar_viaje()
+            return ok, msg, self.foto()
+        if comando == "ir":
+            import re
+            self.fachada.cancelar_viaje()
+            if len(partes) != 3 or partes[1].lower() != "a" or not re.fullmatch(r"[+-]?[0-9]+", partes[2]):
+                self.fachada.error = "Uso: ir a <id entero>."
+                return False, self.fachada.error, self.foto()
+            destino = int(partes[2])
+            ok, msg = self.fachada.iniciar_viaje(destino)
+            if ok:
+                self._mem.anotar(f"#ir-a {destino}")
+                if grabar:
+                    self._volcar_bitacora()
+            return ok, msg, self.foto()
+        if not _automatico:
+            self.fachada.cancelar_viaje()
         sala_antes = self.fachada.estado.sala_actual
         ok, msg = self._intencion(texto)
         if ok:
@@ -216,6 +247,61 @@ class Sesion:
         if grabar:
             self._volcar_bitacora()
         return ok, msg, foto
+
+    def avanzar_viaje(self, grabar=True):
+        assert self.fachada is not None
+        f = self.fachada
+        if not f.viaje.activo:
+            return True, "Sin viaje activo.", self.foto()
+        contexto = f.abrir_contexto_viaje()
+        ok, mensaje = True, ""
+        try:
+            if self.estado.estado != "jugando":
+                f.viaje.detener("fin_partida")
+            elif any(e.vivo for e in self.estado.sala_en_curso().enemigos):
+                f.viaje.detener("enemigos")
+            else:
+                ruta = f.preparar_paso_viaje()
+                if not ruta.alcanzable or ruta.direccion is None:
+                    f.viaje.detener("destino" if self.estado.sala_actual == f.viaje.destino else "sin_ruta")
+                else:
+                    ok, mensaje, _ = self.paso(ruta.direccion, grabar=grabar, _automatico=True)
+                    if not ok:
+                        contexto.error = mensaje
+                        # El rechazo de puerta se observa y no se reintenta aquí.
+                        f.preparar_paso_viaje()
+        except Exception as exc:
+            ok, mensaje = False, str(exc)
+            contexto.error = mensaje
+            f.error = mensaje
+        finally:
+            if f.error and contexto.error is None:
+                contexto.error = f.error
+            f.finalizar_paso_viaje(contexto)
+        return ok, mensaje or ("Viaje detenido: " + f.viaje.ultimo_motivo if not f.viaje.activo else ""), self.foto()
+
+    def mapa_conocido(self):
+        from src.controller2.conocimiento import _registro
+        assert self.estado is not None
+        mapa = self.estado.conocimiento
+        registros = []
+        for sala in mapa.salas():
+            registro = _registro(sala)
+            if sala.estado == "explorada":
+                for salida, dto in zip(sala.salidas, registro["salidas"]):
+                    dto["estado"] = mapa.puerta(salida.puerta_id)
+            else:
+                registro["etiqueta"] = "sala avistada"
+            registros.append(registro)
+        return MapaDTO(tuple(mergesort(registros, clave=lambda s: s["id"])), mapa.revision)
+
+    def pausar(self):
+        assert self.fachada is not None
+        self.fachada.pausar()
+
+    def reanudar(self):
+        assert self.fachada is not None
+        self.fachada.reanudar()
 
     def foto(self) -> FotoEstado:
         assert self.fachada is not None, "llamar iniciar() primero"
@@ -403,39 +489,53 @@ class Sesion:
             pass
         return data
 
-    def cargar(self, ruta: str) -> FotoEstado:
-        """Carga y valida versiones (Flujo G: mismatch = error, no silencioso)."""
+    def _candidato_carga(self, ruta, en_frio):
         from src.controller1 import savegame
-        assert self.fachada is not None and self.budget is not None
-        data = savegame.cargar(ruta)
-        if "jugador" not in data:
-            raise GuardadoError("formato legado v1 sin estado completo; inicie de nuevo")
-        ok_c, ok_k = savegame.validar_versiones(data, self.budget, backend=self.backend)
+        from copy import copy
+        data = savegame.cargar_p2(ruta)
+        candidato = Sesion(backend=self.backend, cache_size=self.cache_size, jugador=self.jugador)
+        if en_frio:
+            # No instalar sesión ni escribir log/caché activos durante preparación.
+            candidato.iniciar(data["cripta_id"], semilla=int(data.get("semilla", 0)))
+        else:
+            assert self.fachada is not None and self.budget is not None
+            candidato.info = self.info
+            candidato.budget = copy(self.budget)
+            candidato.cache = copy(self.cache)
+            candidato.almacen = None  # No escribir almacén activo durante validación.
+            candidato.loader = RoomLoader(data["cripta_id"], self.loader.plano,
+                candidato.budget, candidato.cache, backend=self.backend)
+            candidato.proveedor = ProveedorSesion(candidato.loader, registrador=candidato._registrar_vecinas)
+            estado_aislado = EstadoPartida.desde_dict(self.estado.a_dict())
+            candidato.fachada = Fachada(estado_aislado, candidato.proveedor, candidato.proveedor.catalogo)
+        ok_c, ok_k = savegame.validar_versiones(data, candidato.budget, backend=self.backend)
         if not (ok_c and ok_k):
-            raise GuardadoError(
-                f"versión incompatible (cripta_ok={ok_c}, catalogo_ok={ok_k}): "
-                "no se puede garantizar partida fiel")
-        self.fachada.cargar(data)
-        self.estado = self.fachada.estado
-        self._recargar_catalogo()
+            raise GuardadoError("versión incompatible: no se puede garantizar partida fiel")
+        candidato.fachada.cargar(data)
+        candidato.estado = candidato.fachada.estado
+        candidato._recargar_catalogo()
+        candidato.fachada.catalogo = candidato.proveedor.catalogo
+        if self.estado is not None:
+            candidato.estado.conocimiento.revision = self.estado.conocimiento.revision + 1
+        restantes = int(data.get("presupuesto_restante", candidato.budget.get_presupuesto()))
+        candidato.budget.presupuesto = restantes
+        candidato.budget.realizadas = candidato.budget.inicial - restantes
+        return candidato
+
+    def _instalar_carga(self, candidato):
+        for atributo in ("info", "budget", "cache", "almacen", "loader", "proveedor", "estado", "fachada"):
+            setattr(self, atributo, getattr(candidato, atributo))
+        self.proveedor.registrador = self._registrar_vecinas
+        self.fachada.bitacora = self._mem
         self._fijar_fichas_en_uso()
-        restantes = int(data.get("presupuesto_restante", self.budget.get_presupuesto()))
-        try:
-            self.budget.presupuesto = restantes
-            self.budget.realizadas = self.budget.inicial - restantes
-        except Exception:
-            pass
         return self.foto()
 
+    def cargar(self, ruta: str) -> FotoEstado:
+        """Instalar solo tras validar formato, conocimiento, versiones y catálogo."""
+        return self._instalar_carga(self._candidato_carga(ruta, en_frio=False))
+
     def cargar_en_frio(self, ruta: str) -> FotoEstado:
-        """Resume sin sesión previa: lee el save, inicia su cripta y carga."""
-        from src.controller1 import savegame
-        data = savegame.cargar(ruta)
-        if "jugador" not in data:
-            raise GuardadoError("formato legado v1 sin estado completo; inicie de nuevo")
-        semilla = int(data.get("semilla", 0))
-        self.iniciar(data["cripta_id"], semilla=semilla)
-        return self.cargar(ruta)
+        return self._instalar_carga(self._candidato_carga(ruta, en_frio=True))
 
     def _recargar_catalogo(self) -> None:
         """Tras cargar en otro proceso, trae fichas de tipos referenciados."""
@@ -507,7 +607,7 @@ class Sesion:
             if not ln.strip():
                 continue
             h = parsear(ln)
-            if "header" in h:
+            if "header" in h or "comentario" in h:
                 continue
             self._aplicar_replay(h["tipo"], h["detalle"])
         return self.foto()

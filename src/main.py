@@ -70,6 +70,7 @@ def modo_vista(cfg):
     import pygame
 
     from src.view.app import VistaApp, rutas_log_por_defecto
+    from config.preferencias import cargar_preferencias, guardar_preferencias
     pygame.init()
     ses = _nueva_sesion(cfg, log_ruta=None)
     if cfg.cargar:
@@ -94,7 +95,8 @@ def modo_vista(cfg):
         foto = None
     dev = os.environ.get("CRIPTA_DEV") == "1"
     app = VistaApp(ses, dev=dev,
-                   save_path=cfg.guardar or rutas_log_por_defecto()[1])
+                   save_path=cfg.guardar or rutas_log_por_defecto()[1],
+                   preferencias=cargar_preferencias())
     if foto is not None:
         app.foto = foto
         app.pantalla = "juego"
@@ -108,7 +110,12 @@ def modo_vista(cfg):
         # Siempre se abre en el menú principal; "1 Jugar" lleva a la
         # selección (aunque haya una sola cripta).
         app.preparar_menu(tarjetas, os.path.isfile(app.save_path))
-    return app.ejecutar()
+    try:
+        return app.ejecutar()
+    finally:
+        if not guardar_preferencias(app.preferencias_actuales()):
+            print("No se pudieron guardar las preferencias de pantalla.")
+        pygame.quit()
 
 
 def modo_jugar(cfg):

@@ -449,3 +449,34 @@ comparaciones se hacen dentro de la misma corrida).
 66. **Deduplicar lotes sin `dict` (§7): helper `unicos` propio.**
     `dict.fromkeys(ids)` deduplicaba ids antes de pedir fichas/lotes (room_loader, endpoints, offline, sesión, bench, fakes de tests) y era la única aparición de `dict` fuera de (de)serialización JSON. Reemplazado por `src/controller1/unicos.py` (lista de vistos, búsqueda lineal; los lotes son chicos). Los `dict` que quedan en `src/` son solo para leer/escribir JSON (contratos del API, `a_dict`/`from_dict`, `catalogo.json`) y los mapas del propio modelo K2 (`estado.salas`, `efectos`), que son el formato de estado serializado, no índices internos: los índices evaluados (caché LRU, tabla hash, agenda, buffer) son implementaciones propias en `src/controller1/`/`src/controller2/`.
     Descartado: dejar `dict.fromkeys` (un grep del evaluador lo marca como dict-tabla) y migrar los mapas del modelo a estructuras propias (riesgo alto en save/replay sin beneficio evaluable; ya justificado en la decisión 4).
+
+67. **Fundamentos neutrales de002: índice hash, heap y metadatos inmutables.**
+    Problema: consultar registros por IDs dispersos/extremos y priorizar búsquedas
+    sin importar C1 desde C2 ni sustituir estructuras evaluadas por bibliotecas.
+    `src/estructuras/tabla_indice.py` usa cubetas y cadenas propias con hash
+    determinista de enteros/extremos, carga máxima0,75 y duplicación con rehash.
+    No reserva hasta el ID máximo. `monticulo_minimo.py` usa heap binario sobre
+    list y secuencia de inserción para empates, sin comparar los valores.
+    `src/models/conocimiento.py` ofrece DTO congelados con salidas en tuplas,
+    costos positivos e IDs/direcciones estrictos, sin estado mutable remoto.
+
+    Alternativas: la tabla de C1 está acoplada al LRU y cruzaría la frontera de
+    capas; una lista lineal encarece consultas por ID; un arreglo por ID máximo
+    desperdicia memoria con IDs dispersos. Para prioridades, una cola lineal
+    encarece selección/extracción, y heapq sustituiría una estructura evaluada.
+    Se mantienen los componentes separados para su futura integración.
+
+    Complejidad teórica, para claves de tamaño acotado: índice con consulta
+    esperada O(1), inserción esperada amortizada O(1), rehash O(capacidad+n),
+    iteración O(capacidad+n) y memoria O(capacidad+n). No reduce capacidad al
+    borrar, por lo que esta depende del máximo número de registros almacenados.
+    Heap: insertar/extraer O(log n), memoria O(n). Los DTO tienen como máximo
+    cuatro salidas por sala. Límites: colisiones adversarias pueden degradar la
+    consulta; las expansiones deben incluirse al medir revelación amortizada.
+
+    Evidencia funcional:42 pruebas nuevas aprobadas; regresión total298
+    aprobadas/1 omitida con SDL dummy (comandos y resultados en
+    `specs/002-niebla-ir-a/quickstart.md`). Aún no hay mediciones de rendimiento,
+    comparación empírica con las alternativas ni aceptación de5 ms: pendientes
+    de T044–T048. No se modificaron modelos ponderados de001, contratos vigentes,
+    guardado o replay; la integración permanece condicionada a T001.

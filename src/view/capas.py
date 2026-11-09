@@ -12,6 +12,7 @@ import pygame
 
 from src.view import paleta
 from src.view import texto as _texto
+from src.view.medidas import Medidas, medidas
 from src.view.sprites import (CAJA_ARTE_ALTO, CAJA_ARTE_ANCHO,
                               CAJA_ARTE_X, CAJA_ARTE_Y, CAJA_ZONA_ANCHO,
                               CAJA_ZONA_X, CAJA_ZONA_Y, LID_STAGES, TAM,
@@ -78,12 +79,13 @@ def arma_visible(foto) -> bool:
     return bool(equipado) and clase_de_id(equipado) == "arma"
 
 
-def rect_puerta(area: pygame.Rect, direccion: str) -> pygame.Rect:
+def rect_puerta(area: pygame.Rect, direccion: str, escala: float = 1.0) -> pygame.Rect:
     """Rect de la puerta (misma geometría que dibujar_fondo)."""
     fx, fy = POS_PUERTA[direccion]
-    x = area.x + int(fx * (area.w - TAM)) + (0 if fx in (0.0, 1.0) else 0)
-    y = area.y + int(fy * (area.h - TAM))
-    return pygame.Rect(x, y, TAM, TAM)
+    tam = max(1, round(TAM * escala))
+    x = area.x + int(fx * (area.w - tam))
+    y = area.y + int(fy * (area.h - tam))
+    return pygame.Rect(x, y, tam, tam)
 
 
 SPOTS_COLS = 6  # retícula base de puestos estáticos (columnas)
@@ -92,9 +94,10 @@ SPOT_JITTER = 22  # desvío determinista del puesto (px)
 SPOT_MARGEN = 36  # margen al borde del área para el centro del puesto
 
 
-def banda_enemiga(area: pygame.Rect) -> pygame.Rect:
+def banda_enemiga(area: pygame.Rect, escala: float = 1.0) -> pygame.Rect:
     """Zona donde dibujan los enemigos (rejilla 4x2); los puestos la esquivan."""
-    return pygame.Rect(area.centerx - 116, area.centery - 60, 232, 120)
+    p = Medidas(escala).px
+    return pygame.Rect(area.centerx - p(116), area.centery - p(60), p(232), p(120))
 
 
 def _jitter(k: int) -> tuple[int, int]:
@@ -106,22 +109,25 @@ def _jitter(k: int) -> tuple[int, int]:
     return dx, dy
 
 
-def spots_estaticos(area: pygame.Rect) -> list[tuple[int, int]]:
+def spots_estaticos(area: pygame.Rect, escala: float = 1.0) -> list[tuple[int, int]]:
     """Puestos con jitter fijo repartidos por el área.
 
     Descarta los que pisan alguna puerta (con margen) o la banda enemiga.
     """
-    x0, x1 = area.x + SPOT_MARGEN, area.right - SPOT_MARGEN
-    y0, y1 = area.y + SPOT_MARGEN, area.bottom - SPOT_MARGEN
-    excluir = [rect_puerta(area, d).inflate(28, 28) for d in POS_PUERTA]
-    excluir.append(banda_enemiga(area))
+    p = Medidas(escala).px
+    tam = p(TAM)
+    x0, x1 = area.x + p(SPOT_MARGEN), area.right - p(SPOT_MARGEN)
+    y0, y1 = area.y + p(SPOT_MARGEN), area.bottom - p(SPOT_MARGEN)
+    excluir = [rect_puerta(area, d, escala).inflate(p(28), p(28)) for d in POS_PUERTA]
+    excluir.append(banda_enemiga(area, escala))
     libres: list[tuple[int, int]] = []
     for k in range(SPOTS_COLS * SPOTS_FILAS):
         col, fila = k % SPOTS_COLS, k // SPOTS_COLS
         dx, dy = _jitter(k)
+        dx, dy = p(dx), p(dy)
         x = x0 + (x1 - x0) * col // max(1, SPOTS_COLS - 1) + dx
         y = y0 + (y1 - y0) * fila // max(1, SPOTS_FILAS - 1) + dy
-        tile = pygame.Rect(x - TAM // 2, y - TAM // 2, TAM, TAM)
+        tile = pygame.Rect(x - tam // 2, y - tam // 2, tam, tam)
         if area.contains(tile) and not any(tile.colliderect(e) for e in excluir):
             libres.append((x, y))
     return libres or [(area.centerx, area.centery)]
@@ -142,7 +148,7 @@ def _ident(x, i: int) -> str:
 
 
 def asignar_spots(area: pygame.Rect, sala: int, trampas, items,
-                  memoria: dict | None = None) -> tuple[list, list]:
+                  memoria: dict | None = None, escala: float = 1.0) -> tuple[list, list]:
     """Puntos (items, trampas) estables por identidad, en orden de entrada.
 
     ``crc32(sala|tipo|id)`` elige puesto; si está ocupado prueba el siguiente
@@ -150,7 +156,7 @@ def asignar_spots(area: pygame.Rect, sala: int, trampas, items,
     nunca mueve a los demás. Sin memoria el resultado es el mismo para el
     mismo contenido (recarga/reinicio reproducible).
     """
-    spots = spots_estaticos(area)
+    spots = spots_estaticos(area, escala)
     n = len(spots)
     memoria = memoria if memoria is not None else {}
     usados: set[int] = set()
@@ -164,7 +170,7 @@ def asignar_spots(area: pygame.Rect, sala: int, trampas, items,
             vistos[base] = k + 1
             clave = base + (k,)
             slot = memoria.get(clave)
-            if slot is None or slot in usados:
+            if slot is None or not 0 <= slot < n or slot in usados:
                 inicio = _hash_slot(f"{sala}|{tipo}|{ident}|{k}", n)
                 slot = next(((inicio + d) % n for d in range(n)
                              if (inicio + d) % n not in usados), inicio)
@@ -174,29 +180,31 @@ def asignar_spots(area: pygame.Rect, sala: int, trampas, items,
     return out["item"], out["trampa"]
 
 
-def pos_enemigo(area: pygame.Rect, i: int) -> tuple[int, int]:
+def pos_enemigo(area: pygame.Rect, i: int, escala: float = 1.0) -> tuple[int, int]:
     """Centro del slot del i-ésimo enemigo vivo (misma geometría que dibujar).
 
     Rejilla centrada 4x2 (hasta 8): ningún slot tapa las puertas N/S/E/O.
     """
-    sep = TAM + 20
+    p = Medidas(escala).px
+    sep = p(TAM + 20)
     col = i % 4
     fila = (i // 4) % 2
     x = area.centerx + (col * 2 - 3) * sep // 2
-    y = area.centery + (fila * 2 - 1) * 28
+    y = area.centery + (fila * 2 - 1) * p(28)
     return x, y
 
 
-def pos_enemigo_animada(area: pygame.Rect, i: int, total: int) -> tuple[int, int]:
+def pos_enemigo_animada(area: pygame.Rect, i: int, total: int,
+                        escala: float = 1.0) -> tuple[int, int]:
     """Slot + patrullaje visual (solo vista): deriva senoidal ±8px por slot.
 
     Los guardianes no abandonan su sitio por diseño (C2-8); esto solo les da
     vida visible. Misma función para dibujar y para proximidad.
     """
     import math
-    cx, cy = pos_enemigo(area, i)
+    cx, cy = pos_enemigo(area, i, escala)
     fase = total / 18.0 + i * 1.7
-    return cx + round(8 * math.sin(fase)), cy + round(6 * math.cos(fase * 0.8))
+    return cx + round(8 * escala * math.sin(fase)), cy + round(6 * escala * math.cos(fase * 0.8))
 
 
 def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
@@ -207,6 +215,9 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     el arte, damero de respaldo. Puerta abierta con cierre programado:
     badge con ticks restantes.
     """
+    m = Medidas(sprites.escala)
+    p = m.px
+    tam = sprites.tam
     rect = rect_caja(area)
     if sprites.caja(None) is not None:
         sup.fill(FONDO_SALA, rect)  # mesa alrededor de la caja encajada
@@ -214,30 +225,30 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         dibujar_caja_tapa(sup, sprites, rect, LID_STAGES)
     else:
         sup.fill(FONDO_SALA, area)
-        paso = 24
+        paso = max(1, p(24))
         for yy in range(area.y, area.y + area.h, paso):
             for xx in range(area.x, area.x + area.w, paso):
                 if ((xx - area.x) // paso + (yy - area.y) // paso) % 2:
                     sup.fill(paleta.PISO_ALT, pygame.Rect(xx, yy, paso, paso))
-        pygame.draw.rect(sup, MURO, area, 6)
+        pygame.draw.rect(sup, MURO, area, m.trazo(6))
     for direccion, (fx, fy) in POS_PUERTA.items():
         puerta = (foto.puertas or {}).get(direccion)
-        rect = rect_puerta(area, direccion)
+        rect = rect_puerta(area, direccion, m.factor)
         x, y = rect.x, rect.y
         if puerta is None:
-            pygame.draw.rect(sup, MURO, pygame.Rect(x, y, TAM, TAM))
+            pygame.draw.rect(sup, MURO, pygame.Rect(x, y, tam, tam))
             continue
         img = sprites.puerta(bool(puerta.get("cerrada")), puerta.get("llave"))
         sup.blit(img, (x, y))
         if puerta.get("cerrada") and puerta.get("llave"):
-            pygame.draw.circle(sup, paleta.LLAVE_PUNTO, (x + TAM // 2, y + TAM // 2), 5)
+            pygame.draw.circle(sup, paleta.LLAVE_PUNTO, (x + tam // 2, y + tam // 2), m.trazo(5))
         cierre = puerta.get("cierre_en")
         if fuente is not None and cierre is not None and not puerta.get("cerrada"):
             # Badge ASCII (la fuente no trae emojis): ticks restantes.
             etiqueta = fuente.render(f"{cierre}t", True, paleta.TITULO)
-            fondo = pygame.Rect(x - 4, y + TAM + 2, etiqueta.get_width() + 8, 18)
+            fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), p(18))
             sup.fill(paleta.MURO, fondo)
-            sup.blit(etiqueta, (x, y + TAM + 2))
+            sup.blit(etiqueta, (x, y + tam + p(2)))
 
 
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
@@ -252,26 +263,29 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     acaban de dispararse (el motor las activa por sala, §2.10: sin esto el
     daño llegaba "de la nada").
     """
+    m = Medidas(sprites.escala)
+    p = m.px
+    tam = sprites.tam
     suelo = list(foto.objetos_suelo or [])
     trampas = list(foto.trampas or [])
     if spots is None:
-        spots = asignar_spots(area, foto.sala_id, trampas, suelo)
+        spots = asignar_spots(area, foto.sala_id, trampas, suelo, escala=m.factor)
     puntos_items, puntos_trampas = spots
     for i, item_id in enumerate(suelo):
         cx, cy = puntos_items[i]
-        x, y = cx - TAM // 2, cy - TAM // 2
+        x, y = cx - tam // 2, cy - tam // 2
         sup.blit(sprites.sprite(item_id), (x, y))
         if i == sel_suelo % max(len(suelo), 1):
-            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, TAM, TAM), 2)
+            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, tam, tam), m.trazo(2))
             etiqueta = fuente.render(_texto.etiqueta_item(item_id), True, paleta.TEXTO) \
                 if fuente is not None else None
             if etiqueta is not None:
-                fondo = pygame.Rect(x, y + TAM + 2, etiqueta.get_width() + 4, 18)
+                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), p(18))
                 sup.fill(paleta.ETIQUETA_FONDO, fondo)
-                sup.blit(etiqueta, (x + 2, y + TAM + 2))
+                sup.blit(etiqueta, (x + p(2), y + tam + p(2)))
     for j, trampa in enumerate(trampas):
         cx, cy = puntos_trampas[j]
-        x, y = cx - TAM // 2, cy - TAM // 2
+        x, y = cx - tam // 2, cy - tam // 2
         img = sprites.sprite(str(trampa.get("tipo", "trampa")))
         if not trampa.get("armada", True):
             img = img.copy()
@@ -291,18 +305,20 @@ def dibujar_fuego_trampa(sup: pygame.Surface, centro: tuple[float, float],
     """
     if fase <= 0:
         return
+    m = medidas(sup)
+    p = m.px
     import math  # local: checklist §12 solo permite ciertos imports top-level
     fase = min(1.0, fase)
-    radio = int(TAM * 0.7 + TAM * 0.9 * (1.0 - fase))
+    radio = p(TAM * 0.7 + TAM * 0.9 * (1.0 - fase))
     alfa = int(235 * fase)
-    capa = pygame.Surface((radio * 2 + 8,) * 2, pygame.SRCALPHA)
+    capa = pygame.Surface((radio * 2 + p(8),) * 2, pygame.SRCALPHA)
     c = (capa.get_width() // 2, capa.get_height() // 2)
-    pygame.draw.circle(capa, (*TRAMPA_FUEGO_COLOR, alfa), c, radio, 3)
+    pygame.draw.circle(capa, (*TRAMPA_FUEGO_COLOR, alfa), c, radio, m.trazo(3))
     for k in range(6):
         a = math.radians(60 * k + 15)
         p0 = (c[0] + radio * 0.35 * math.cos(a), c[1] + radio * 0.35 * math.sin(a))
         p1 = (c[0] + radio * math.cos(a), c[1] + radio * math.sin(a))
-        pygame.draw.line(capa, (*TRAMPA_FUEGO_COLOR, alfa), p0, p1, 3)
+        pygame.draw.line(capa, (*TRAMPA_FUEGO_COLOR, alfa), p0, p1, m.trazo(3))
     sup.blit(capa, (int(centro[0]) - capa.get_width() // 2,
                     int(centro[1]) - capa.get_height() // 2))
 
@@ -323,20 +339,22 @@ def dibujar_tajo(sup: pygame.Surface, centro: tuple[float, float],
     """
     if fase <= 0:
         return
+    m = medidas(sup)
+    p = m.px
     import math  # local: checklist §12 solo permite ciertos imports top-level
     inicio, fin = ANGULOS_TAJO.get(facing, ANGULOS_TAJO["N"])
     fase = min(1.0, fase)
     largo = fin - inicio
     cabeza = fin - largo * (1.0 - fase)
     cola = max(inicio, cabeza - largo * 0.6)
-    borde = 6
-    capa = pygame.Surface((TAJO_RADIO * 2 + borde * 2,) * 2, pygame.SRCALPHA)
-    rect = pygame.Rect(borde, borde, TAJO_RADIO * 2, TAJO_RADIO * 2)
+    borde = p(6)
+    capa = pygame.Surface((p(TAJO_RADIO) * 2 + borde * 2,) * 2, pygame.SRCALPHA)
+    rect = pygame.Rect(borde, borde, p(TAJO_RADIO) * 2, p(TAJO_RADIO) * 2)
     for k in range(TAJO_PASOS):
         a0 = math.radians(cola + (cabeza - cola) * k / TAJO_PASOS)
         a1 = math.radians(cola + (cabeza - cola) * (k + 1) / TAJO_PASOS)
         alfa = int(210 * fase * (k + 1) / TAJO_PASOS)
-        pygame.draw.arc(capa, (*TAJO_COLOR, alfa), rect, a0, a1, 4)
+        pygame.draw.arc(capa, (*TAJO_COLOR, alfa), rect, a0, a1, m.trazo(4))
     sup.blit(capa, (int(centro[0]) - capa.get_width() // 2,
                     int(centro[1]) - capa.get_height() // 2))
 
@@ -365,6 +383,9 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     `golpes` = {instancia: fase 0..1}: el enemigo embiste hacia el jugador y
     destella al atacarte (mismo lenguaje que la embestida del prota).
     """
+    m = Medidas(sprites.escala)
+    p = m.px
+    tam = sprites.tam
     ref_vida = ref_vida or {}
     moviendo, tick, total = paso_jugador
     img_jugador, hop = sprites.jugador_frame(moviendo, tick, facing, total,
@@ -373,25 +394,25 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         img_jugador = _tinte_rojo(img_jugador)
     if pos_jugador is None:
         jx = area.x + area.w // 2 - img_jugador.get_width() // 2 + desplaza[0]
-        jy = area.y + area.h // 2 - TAM // 2 + desplaza[1] + hop
+        jy = area.y + area.h // 2 - tam // 2 + desplaza[1] + hop
     else:
         jx = pos_jugador[0] - img_jugador.get_width() // 2 + desplaza[0]
-        jy = pos_jugador[1] - img_jugador.get_height() + TAM // 2 + desplaza[1] + hop
+        jy = pos_jugador[1] - img_jugador.get_height() + tam // 2 + desplaza[1] + hop
     sup.blit(img_jugador, (jx, jy))
     izq = (facing == "O") if espejo is None else bool(espejo)
     lado = -1 if izq else 1  # el arte base mira a la derecha
     if armadura_visible(foto):  # escudo encima, del lado del cuerpo
         esc = sprites.escudo(izq)
-        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESCUDO_LADO
+        cx = jx + img_jugador.get_width() // 2 + lado * p(OFFSET_ESCUDO_LADO)
         cy = jy + img_jugador.get_height() // 2
         sup.blit(esc, (cx - esc.get_width() // 2, cy - esc.get_height() // 2))
     if arma_visible(foto):  # espada rotada cerca de las manos, sobre todo
         esp = sprites.espada(facing, izq)
-        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESPADA_LADO
+        cx = jx + img_jugador.get_width() // 2 + lado * p(OFFSET_ESPADA_LADO)
         cy = jy + img_jugador.get_height() // 2
         sup.blit(esp, (cx - esp.get_width() // 2, cy - esp.get_height() // 2))
     if tajo is not None:  # estela del espadazo (feedback al atacar con arma)
-        cx = jx + img_jugador.get_width() // 2 + lado * OFFSET_ESPADA_LADO
+        cx = jx + img_jugador.get_width() // 2 + lado * p(OFFSET_ESPADA_LADO)
         cy = jy + img_jugador.get_height() // 2
         dibujar_tajo(sup, (cx, cy), tajo[0], tajo[1])
     vivos = [e for e in (foto.enemigos or []) if e.get("vida", 0) > 0]
@@ -399,7 +420,7 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     px = jx + img_jugador.get_width() // 2
     py = jy + img_jugador.get_height() // 2
     for i, enemigo in enumerate(vivos):
-        cx, cy = pos_enemigo_animada(area, i, total)
+        cx, cy = pos_enemigo_animada(area, i, total, m.factor)
         img = sprites.enemigo(str(enemigo.get("comportamiento", "")))
         fase = golpes.get(enemigo.get("instancia", ""), 0.0)
         if fase > 0:
@@ -407,7 +428,7 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
             # duración que el resto del feedback); destella al impactar.
             dx, dy = px - cx, py - cy
             dist = (dx * dx + dy * dy) ** 0.5
-            empuje = round(10 * fase)
+            empuje = round(p(10) * fase)
             if dist > 0.001 and empuje:
                 cx += round(dx / dist * empuje)
                 cy += round(dy / dist * empuje)
@@ -415,19 +436,19 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                 img = _tinte_rojo(img)
         sup.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
         vida = int(enemigo.get("vida", 0))
-        bx, by = cx - TAM // 2, cy - TAM // 2  # casilla del enemigo
-        _barra(sup, bx, cy - img.get_height() // 2 - 10, TAM, 6, vida,
+        bx, by = cx - tam // 2, cy - tam // 2  # casilla del enemigo
+        _barra(sup, bx, cy - img.get_height() // 2 - p(10), tam, p(6), vida,
                max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
         etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
                                   True, paleta.TEXTO)
         sup.blit(etiqueta, (cx - etiqueta.get_width() // 2,
-                            cy + img.get_height() // 2 + 2))
+                            cy + img.get_height() // 2 + p(2)))
         if enemigo.get("instancia") == golpe:
-            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(bx - 2, by - 2, TAM + 4, TAM + 4), 3)
+            pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(bx - p(2), by - p(2), tam + p(4), tam + p(4)), m.trazo(3))
         if enemigo.get("instancia") in alcance:
-            pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(bx - 2, by - 2, TAM + 4, TAM + 4), 2)
+            pygame.draw.rect(sup, (0, 220, 0), pygame.Rect(bx - p(2), by - p(2), tam + p(4), tam + p(4)), m.trazo(2))
         if i == sel_enemigo % max(len(vivos), 1):
-            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(bx, by, TAM, TAM), 2)
+            pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(bx, by, tam, tam), m.trazo(2))
 
 
 def _barra(sup: pygame.Surface, x: int, y: int, w: int, h: int,
@@ -461,12 +482,13 @@ def dibujar_oscuridad(sup: pygame.Surface, area: pygame.Rect, foto,
         return
     if antorcha_encendida(foto):
         return
+    p = medidas(sup).px
     centro = pos_jugador or (area.centerx, area.centery)
     cx, cy = int(centro[0] - area.x), int(centro[1] - area.y)
     velo = pygame.Surface((area.w, area.h), pygame.SRCALPHA)
     velo.fill((6, 5, 12, ALFA_OSCURIDAD))
-    pygame.draw.circle(velo, (6, 5, 12, 150), (cx, cy), LUZ_PENUMBRA)
-    pygame.draw.circle(velo, (6, 5, 12, 0), (cx, cy), LUZ_SIN_ANTORCHA)
+    pygame.draw.circle(velo, (6, 5, 12, 150), (cx, cy), p(LUZ_PENUMBRA))
+    pygame.draw.circle(velo, (6, 5, 12, 0), (cx, cy), p(LUZ_SIN_ANTORCHA))
     sup.blit(velo, (area.x, area.y))
 
 

@@ -24,7 +24,8 @@ from src.controller1.mergesort import mergesort
 from src.models.errors import GuardadoError
 
 MAGIA = b"CRIPTA\x00"
-VERSION_FMT = 2
+VERSION_FMT = 3
+VERSION_FMT_V2 = 2
 VERSION_FMT_V1 = 1
 _ENTERO = struct.Struct("<i")
 
@@ -126,7 +127,7 @@ def _restaurar_azar(core: dict) -> dict:
 
 
 def guardar(ruta, estado):
-    """Acepta dict legado (v1) o dict EstadoPartida.a_dict() (v2)."""
+    """P2 escribe v3; conservar escritura técnica de dicts legados v1/v2."""
     if _es_legado(estado):
         return _guardar_v1(ruta, estado)
     try:
@@ -135,14 +136,16 @@ def guardar(ruta, estado):
         core = _json_blob(_core_sin_salas(estado))
         n = len(blobs)
         # header + índice
-        idx = struct.pack(f"<{len(MAGIA)}sBH", MAGIA, VERSION_FMT, n)
+        version = VERSION_FMT if "conocimiento" in estado else VERSION_FMT_V2
+        formato_indice = "<qqq" if version == 3 else "<iqq"
+        idx = struct.pack(f"<{len(MAGIA)}sBH", MAGIA, version, n)
         entradas = b""
-        base = len(idx) + n * struct.calcsize("<iqq") + struct.calcsize("<q")
+        base = len(idx) + n * struct.calcsize(formato_indice) + struct.calcsize("<q")
         off = base + len(core)
         # §4.9: índice de salas ordenado con el mergesort propio (sin sorted).
         orden = mergesort(list(blobs.items()), clave=lambda kv: int(kv[0]))
         for sid, blob in orden:
-            entradas += struct.pack("<iqq", int(sid), off, len(blob))
+            entradas += struct.pack(formato_indice, int(sid), off, len(blob))
             off += len(blob)
         with open(ruta, "wb") as f:
             f.write(idx)
@@ -156,105 +159,125 @@ def guardar(ruta, estado):
 
 
 def _leer_indice(buf: bytes):
+    from src.estructuras.tabla_indice import TablaIndice
     pos = len(MAGIA) + 1
+    version = buf[len(MAGIA)]
+    formato = "<qqq" if version == 3 else "<iqq"
+    ancho = struct.calcsize(formato)
     (n,) = struct.unpack_from("<H", buf, pos)
     pos += 2
-    entradas = {}
+    entradas = TablaIndice()
+    ultimo_id = None
     for _ in range(n):
-        if pos + 20 > len(buf):
-            raise GuardadoError("archivo truncado")
-        sid, off, largo = struct.unpack_from("<iqq", buf, pos)
-        pos += 20
-        entradas[int(sid)] = (off, largo)
-    if pos + 8 > len(buf):
-        raise GuardadoError("archivo truncado")
+        sid, off, largo = struct.unpack_from(formato, buf, pos)
+        pos += ancho
+        if sid in entradas or (ultimo_id is not None and sid <= ultimo_id):
+            raise GuardadoError("índice de salas duplicado o desordenado")
+        entradas[sid] = (off, largo)
+        ultimo_id = sid
     (core_len,) = struct.unpack_from("<q", buf, pos)
     pos += 8
-    if pos + core_len > len(buf):
-        raise GuardadoError("archivo truncado")
+    if core_len < 0 or pos + core_len > len(buf):
+        raise GuardadoError("core truncado o inválido")
     core = json.loads(buf[pos:pos + core_len].decode("utf-8"))
+    if type(core) is not dict:
+        raise GuardadoError("core debe ser objeto JSON")
+    regiones = mergesort(list(entradas.items()), clave=lambda kv: kv[1][0])
+    fin = pos + core_len
+    for sid, (off, largo) in regiones:
+        if off != fin or largo < 0 or off + largo > len(buf):
+            raise GuardadoError("índice solapado, truncado o inválido")
+        fin = off + largo
+    if fin != len(buf):
+        raise GuardadoError("datos adicionales fuera del índice")
     return entradas, _restaurar_azar(core)
 
 
 def cargar(ruta):
+    """Lector técnico v1/v2/v3; el flujo de partida P2 usa cargar_p2."""
     try:
         with open(ruta, "rb") as f:
             buf = f.read()
-    except OSError as e:
-        raise GuardadoError(f"no se pudo leer: {e}") from e
-    if not buf.startswith(MAGIA):
-        raise GuardadoError("no es archivo de partida")
-    pos = len(MAGIA)
-    if pos >= len(buf):
-        raise GuardadoError("archivo truncado")
-    ver = buf[pos]
-    if ver == VERSION_FMT_V1:
-        return _cargar_v1(buf)
-    if ver != VERSION_FMT:
-        raise GuardadoError("versión de formato desconocida")
-    try:
-        pos = len(MAGIA) + 1
-        (n,) = struct.unpack_from("<H", buf, pos)
-        pos += 2
-        entradas = {}
-        for _ in range(n):
-            if pos + 20 > len(buf):
-                raise GuardadoError("archivo truncado")
-            sid, off, largo = struct.unpack_from("<iqq", buf, pos)
-            pos += 20
-            entradas[int(sid)] = (off, largo)
-        if pos + 8 > len(buf):
+        if not buf.startswith(MAGIA):
+            raise GuardadoError("no es archivo de partida")
+        if len(buf) <= len(MAGIA):
             raise GuardadoError("archivo truncado")
-        (core_len,) = struct.unpack_from("<q", buf, pos)
-        pos += 8
-        if pos + core_len > len(buf):
-            raise GuardadoError("archivo truncado")
-        core = _restaurar_azar(json.loads(buf[pos:pos + core_len].decode("utf-8")))
+        ver = buf[len(MAGIA)]
+        if ver == VERSION_FMT_V1:
+            return _cargar_v1(buf)
+        if ver not in (VERSION_FMT_V2, VERSION_FMT):
+            raise GuardadoError("versión de formato desconocida")
+        entradas, core = _leer_indice(buf)
         salas = {}
         for sid, (off, largo) in entradas.items():
-            if off + largo > len(buf):
-                raise GuardadoError("archivo truncado")
-            salas[str(sid)] = json.loads(buf[off:off + largo].decode("utf-8"))
+            sala = json.loads(buf[off:off+largo].decode("utf-8"))
+            if type(sala) is not dict or sala.get("id") != sid:
+                raise GuardadoError("ID de sala no coincide con índice")
+            salas[str(sid)] = sala
         core["salas"] = salas
         return core
     except GuardadoError:
         raise
-    except (struct.error, UnicodeDecodeError, json.JSONDecodeError) as e:
-        raise GuardadoError(f"archivo dañado: {e}") from e
+    except (OSError, struct.error, UnicodeDecodeError, ValueError, TypeError) as e:
+        raise GuardadoError(f"archivo dañado o ilegible: {e}") from e
+
+
+def cargar_p2(ruta):
+    """Rechazar guardados anteriores sin inventar conocimiento perdido."""
+    try:
+        with open(ruta, "rb") as f:
+            head = f.read(len(MAGIA) + 1)
+        if not head.startswith(MAGIA) or len(head) != len(MAGIA) + 1:
+            raise GuardadoError("archivo de partida inválido o truncado")
+        if head[-1] in (1, 2):
+            raise GuardadoError("guardado v1/v2 incompatible con P2: se requiere v3 con conocimiento")
+        return cargar(ruta)
+    except OSError as e:
+        raise GuardadoError(f"no se pudo leer: {e}") from e
 
 
 def cargar_sala(ruta, sala_id: int):
-    """Recupera una sala sin leer el archivo completo (§4.10)."""
+    """Acceso por índice a una sala; no lee los demás blobs ni el core JSON."""
     try:
         with open(ruta, "rb") as f:
-            head = f.read(len(MAGIA) + 1 + 2)
-            if not head.startswith(MAGIA):
-                raise GuardadoError("no es archivo de partida")
-            ver = head[len(MAGIA)]
-            if ver == VERSION_FMT_V1:
-                raise GuardadoError("formato v1 sin índice; convierta a v2")
-            if ver != VERSION_FMT:
-                raise GuardadoError("versión de formato desconocida")
-            (n,) = struct.unpack_from("<H", head, len(MAGIA) + 1)
-            entradas = {}
+            head = f.read(len(MAGIA)+3)
+            if len(head) != len(MAGIA)+3 or not head.startswith(MAGIA):
+                raise GuardadoError("archivo inválido o truncado")
+            version = head[len(MAGIA)]
+            if version not in (2, 3):
+                raise GuardadoError("formato sin índice compatible")
+            formato = "<qqq" if version == 3 else "<iqq"
+            ancho = struct.calcsize(formato)
+            n = struct.unpack_from("<H", head, len(MAGIA)+1)[0]
+            elegido, anterior = None, None
+            fin_previo = None
             for _ in range(n):
-                raw = f.read(20)
-                if len(raw) < 20:
-                    raise GuardadoError("archivo truncado")
-                sid, off, largo = struct.unpack("<iqq", raw)
-                entradas[int(sid)] = (off, largo)
-            if sala_id not in entradas:
+                raw = f.read(ancho)
+                sid, off, largo = struct.unpack(formato, raw)
+                if anterior is not None and sid <= anterior:
+                    raise GuardadoError("índice duplicado o desordenado")
+                if largo < 0 or (fin_previo is not None and off != fin_previo):
+                    raise GuardadoError("índice inválido")
+                anterior, fin_previo = sid, off+largo
+                if sid == sala_id:
+                    elegido = (off, largo)
+            raw = f.read(8)
+            core_len = struct.unpack("<q", raw)[0]
+            minimo = f.tell()+core_len
+            if elegido is None:
                 raise GuardadoError(f"sala {sala_id} no está en el archivo")
-            off, largo = entradas[int(sala_id)]
+            off, largo = elegido
+            if core_len < 0 or off < minimo or off+largo > os.fstat(f.fileno()).st_size:
+                raise GuardadoError("índice fuera del archivo")
             f.seek(off)
-            blob = f.read(largo)
-            if len(blob) < largo:
-                raise GuardadoError("archivo truncado")
-            return json.loads(blob.decode("utf-8"))
+            sala = json.loads(f.read(largo).decode("utf-8"))
+            if type(sala) is not dict or sala.get("id") != sala_id:
+                raise GuardadoError("ID de sala no coincide con índice")
+            return sala
     except GuardadoError:
         raise
-    except OSError as e:
-        raise GuardadoError(f"no se pudo leer: {e}") from e
+    except (OSError, struct.error, UnicodeDecodeError, ValueError, TypeError) as e:
+        raise GuardadoError(f"archivo dañado o ilegible: {e}") from e
 
 
 def comparar_json(estado: dict) -> dict:

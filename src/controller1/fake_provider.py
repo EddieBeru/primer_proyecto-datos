@@ -248,10 +248,18 @@ class FakeProvider:
     def __init__(self) -> None:
         self._fichas = _fichas_fijas()
         self._salas = _esqueleto()
+        from src.models.conocimiento import preparar_metadatos
+        self._metadatos = preparar_metadatos(self._salas.values())
         self._contenido = _contenido()
         self._general = _ficha_general()
         self._preparada: str | None = None
         self._presupuesto = PRESUPUESTO_FAKE
+
+    def datos_sala(self, sala_id):
+        try:
+            return self._metadatos[sala_id]
+        except KeyError:
+            raise NotFoundError(f"sala inexistente: {sala_id}") from None
 
     # K1: lista criptas (endpoint 1)
     def listar_criptas(self) -> CriptasResponse:

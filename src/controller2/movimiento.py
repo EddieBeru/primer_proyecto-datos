@@ -106,6 +106,10 @@ def intentar_mover(
     estado.sala_actual = destino.id
     # §2.9: destino recibe tiempo actual; activa dormidos §2.4.
     destino.ultima_visita = reloj.ahora
+    contexto = getattr(estado.jugador, "_contexto_paso", None)
+    if contexto is not None:
+        contexto.enemigos_vivos_al_entrar = any(e.vivo for e in destino.enemigos)
+        contexto.movimiento_realizado = True
     eventos_activacion: list[int] = []
     activados: list[str] = []
     try:
