@@ -16,6 +16,7 @@
 - Q: Después de que un pergamino elimina acciones de la línea, ¿cómo deben numerarse las acciones que sobreviven? → A: Renumerar la línea vigente consecutivamente desde 1, incluyendo el uso aceptado del pergamino como la siguiente acción.
 - Q: Al cargar un archivo de partida de P1, ¿qué debe hacer la línea de tiempo? → A: Rechazar el archivo con un mensaje claro de incompatibilidad.
 - Q: ¿Qué debe pasar al cargar un guardado P2 creado antes de 004, que aún no tiene historial persistido? → A: Rechazarlo con un mensaje explícito de incompatibilidad.
+- Q: Si, tras usar un pergamino, hay más de una decisión del jugador en el mismo tiempo t, ¿qué estado debe mostrar `historia <t>`? → A: El estado justo antes de la primera decisión en t de la línea vigente, después de los eventos automáticos de ese instante.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -50,7 +51,7 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 
 ### Functional Requirements
 
-- **FR-LIN-01**: el estado en el instante t es el posterior a todos los eventos con tiempo ≤ t; si a t le corresponde una decisión del jugador, es el estado justo antes de tomarla.
+- **FR-LIN-01**: el estado en el instante t es el posterior a todos los eventos automáticos con tiempo ≤ t y anterior a la primera decisión del jugador en t en la línea vigente. Si el reloj se repite tras un pergamino, `historia <t>` devuelve ese mismo punto único; `historia #k` distingue acciones concretas.
 - **FR-LIN-02**: `historia <t>` y `historia #k` (justo antes de la acción k del jugador) están disponibles en partida. El número cuenta las acciones aceptadas que cambian la partida; cada paso automático de «ir a» y cada uso aceptado de un pergamino cuentan por separado. Las consultas y acciones rechazadas no cuentan.
 - **FR-LIN-03**: el resumen incluye como mínimo reloj, sala del jugador, vida y estadísticas, inventario, efectos activos, enemigos de esa sala con su vida y el mapa conocido en ese momento.
 - **FR-LIN-04**: la consulta no consume tiempo virtual, no se registra como acción en `partida.log` y no altera el estado del juego ni el historial de retroceso.
@@ -89,6 +90,7 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 - Cada paso de ir a cuenta como una acción para K y para historia #k; también cuenta cada uso aceptado de un pergamino. Las consultas y acciones rechazadas quedan fuera del conteo.
 - Las acciones contadas se numeran consecutivamente desde 1 en la línea vigente. Tras un retroceso, las que sobreviven se renumeran y el uso aceptado del pergamino se agrega al final; #0, índices inexistentes y tiempos negativos o no enteros se rechazan sin efectos.
 - K debe ser entero mayor o igual que 1; su valor por defecto se decide en el plan con mediciones de al menos tres valores.
+- Si el reloj se repite tras un pergamino, `historia <t>` resuelve el instante antes de la primera decisión en ese tiempo de la línea vigente; `historia #k` permite consultar un punto de acción preciso.
 - El estado inicial puede conservarse como origen de reconstrucción; no autoriza copias completas por acción.
 - Depende del conocimiento definido en 002; se conserva el límite de cinco acciones del pergamino de P1.
 - La representación concreta del resumen se fija al planificar, preservando los comportamientos exigidos. P1 y los guardados P2 anteriores a 004 que no persisten historial no se migran porque no contienen una línea reconstruible.
@@ -98,7 +100,7 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 
 Capacidad: línea de tiempo. El pergamino de retroceso (P1 §2.11) sigue limitado a 5 acciones. La línea de tiempo es independiente: permite consultar, sin modificar la partida, el estado en cualquier instante desde el inicio.
 
-Estado en el instante t: el estado después de ejecutar todos los eventos con tiempo menor o igual que t. Si a t le corresponde una decisión del jugador, es el estado justo antes de tomarla.
+Estado en el instante t: el estado después de ejecutar todos los eventos automáticos con tiempo menor o igual que t y justo antes de la primera decisión del jugador en ese tiempo de la línea vigente. Si el reloj se repite tras un pergamino, se conserva un único resultado por tiempo; `historia #k` permite distinguir acciones concretas.
 
 Consulta en partida: el comando «historia <t>» o «historia #k» (estado justo antes de la acción número k del jugador) muestra como mínimo: reloj, sala del jugador, vida y estadísticas, inventario, efectos activos, enemigos de esa sala con su vida, y el mapa conocido en ese momento. La consulta no consume tiempo virtual, no se registra como acción y no altera ningún estado del juego ni del historial de retroceso. Consultar un instante posterior al reloj actual se rechaza.
 
