@@ -102,3 +102,66 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   `--bench` salida0 y matriz final36 cargas en el informe JSON versionable de
   `docs/mediciones/`. Se publican fallos sintéticos de5 ms y el muestreo revisado;
   quedan46/52 tareas cerradas y seis de aceptación/integración pendientes.
+
+## Preparación004 — 2026-11-10
+
+- Prompt literal: «actualiza la preparación». Contexto: identificar trabajo de
+  persona B que puede avanzar sin persona A.
+- Uso: contraste de004 con `docs/Cripta Parte II.md` (§§3.6,5.5,6.1–6.3 y
+  Apéndice B); actualización de spec, plan, research, tasks y quickstart.
+- Resultado: T001 completada; T002/T003 conservadas pendientes por diferencias
+  entre receptor propuesto004 y contrato aprobado002, y definición de v4.
+  No se cambian código, contratos compartidos ni se atribuye aceptación ejecutada.
+- Validación: revisión documental y `git diff --check`; sin pruebas funcionales
+  porque solo se actualizaron documentos.
+
+## Inicio de implementación004 — 2026-11-10
+
+- Prompt literal: «sigamos con 004 para terminarlo».
+- Uso: habilidad speckit-implement, prerrequisitos004 y checklist16/16; inspección
+  del motor, agenda, RNG, undo, Sesión y persistencia. Propuesta concreta del
+  receptor004 separado de002 y layout v4 en contracts/interfaces.md.
+- Hallazgo: las inversas P1 omiten cambios que sí debe preservar la historia
+  (pergaminos, RNG y operaciones de agenda posteriores al apilado). Se registra
+  matriz preliminar de captura; no se marca T016 ni aceptación funcional.
+- Pendiente: aceptación explícita T002/T003 conforme a la constituciónII y
+  CONTRATOS.md regla6.3 antes de modificar interfaces compartidas.
+
+## Requisito UI/UX de004 — 2026-11-10
+
+- Prompt literal: «quiero resaltar la importancia de un buen UI/UX a la hora de implentar. no solo texto sin más. a la hora de implementar, revisar el resto de la implementación de interfaz y mantener consistencia además de buenas practicas como multiplos de 8px en bordes».
+- Uso: inspección inicial de medidas, paleta y paneles existentes; incorporación
+  de FR-LIN-15/16, tareas T031–T033 y criterios de validación visual. Retícula de
+  8 px lógicos para espaciados/padding/radios y trazos finos permitidos.
+- Resultado: alcance gráfico explícito con navegación, jerarquía, mapa histórico,
+  foco, errores/vacíos y revisión visual/manual. No se implementa aún ni se
+  consideran aprobados los contratos internos pendientes.
+- Validación documental: git diff --check.
+
+## Implementación004 y UI/UX — 2026-11-10
+
+- Modelo: Codex; identificador específico del modelo no expuesto en esta sesión.
+- Prompts literales: «sigamos con 004 para terminarlo»; «apruebo» (receptor
+  histórico y formato v4); «recuerda hacer commit cada que sea necesario».
+- Requisito UI/UX literal registrado arriba: consistencia con la interfaz
+  existente, presentación visual y múltiplos de8 px.
+- Uso: speckit-implement, revisión de contratos y auditoría de escrituras;
+  diario de mutaciones, checkpoints, consultas puras t/#k, replay, v4 y validación
+  candidata. Panel H/Historial con navegación, teclado/ratón, foco, sprites,
+  barra de vida y grafo histórico. Tokens, paleta y fuentes compartidos.
+- Validación: pruebas de estado completo, eventos empatados, antorcha/undo,
+  pasos de viaje, corrupción/incompatibilidad y fallos inyectados; capturas
+  revisadas con OfflineBackend real. Se distingue revisión headless de recorrido
+  humano pendiente. Pruebas usan cuatro tamaños y contenido largo.
+- Medición:5.000 esperar aceptadas mediante Sesión/motor, K10/20/50 y sin
+  intermedios;100 calentamientos y1000 consultas por alternativa. K20: máximo
+  2,862450 ms; RAM de estructura serializable39.122.486 bytes. Se conserva20
+  por compromiso medido de memoria/latencia, sin extrapolar a otros estados.
+- Commits locales por hitos: especificación/contratos antes del código; base002
+  separada; motor004; correcciones, interfaz y evidencia en commits siguientes.
+  No se hicieron operaciones remotas de GitHub. Archivos ajenos no se incluyen.
+- Resultado funcional y detalles de regresión en quickstart.md; T033 queda
+  abierto por recorrido humano. No se declara cierre académico total ni se
+  adjudican001 o la revisión transversal completa§5.6 a esta entrega004.
+
+- Regresión final004:464 aprobadas/1 omitida (14,39 s); git diff --check sin errores.

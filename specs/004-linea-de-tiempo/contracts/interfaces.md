@@ -57,8 +57,8 @@ la estrategia de error/atomicidad se cierra en tareas antes de cambiar el contra
 ## Guardado
 
 - El nuevo formato incluye la línea completa, K, entradas y checkpoints.
-- Se propone versión binaria v4, pendiente de inspección de layout y aceptación
-  en `CONTRATOS.md` antes de implementación.
+- Versión binaria v4 aprobada y registrada en `CONTRATOS.md` el2026-11-10;
+  índice de salas de64 bits y core JSON con bloque historia.
 - El flujo P2 rechaza explícitamente v1/v2 P1 y v3 P2 anterior a 004, que no
   contienen la línea completa. Lectores técnicos antiguos solo se preservan si
   no hacen que el flujo de juego cargue esos formatos silenciosamente.

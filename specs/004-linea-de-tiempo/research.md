@@ -99,3 +99,29 @@ una historia incompleta. La propuesta concreta de contrato y layout v4 está en
 `contracts/interfaces.md`; T002/T003 siguen pendientes de aceptación y no se
 modifica CONTRATOS.md anticipadamente. No se requiere entrega de A para resolver
 esta captura sobre el motor actual.
+
+## Resultado de auditoría y contratos — 2026-11-10
+
+El usuario aprobó explícitamente ambos contratos («apruebo»); CONTRATOS.md
+contiene la enmienda004. T002/T003 están cerradas. Las notas anteriores que
+conservan el estado «pendiente» describen la preparación previa a esa aprobación.
+
+La captura elegida observa las escrituras de los modelos y sus colecciones,
+completando lo que no cubren las inversas P1: RNG y contador de llamadas,
+agenda/seq, activaciones, traslados, efectos, puertas, conocimiento y pergaminos.
+Se desvinculan entidades al salir de una colección para no registrar cambios
+con una ruta antigua; al incorporarse de nuevo se registra su estado nuevo.
+Las proyecciones de conocimiento se normalizan por ID para que una carga que
+reconstruye la tabla hash no cambie el orden lógico de los deltas/checkpoints.
+
+Evidencia: test_reconstruccion_completa_cubre_rng_eventos_agenda_y_entidades
+compara todos los campos previos de siete decisiones con su reconstrucción;
+las pruebas de captura/cierre fallidos comprueban estado, rama y log intactos.
+Los eventos empatados incluyen veneno y quemadura; antorcha/entrada/undo se
+verifican también tras guardar/cargar. Las consultas no invocan Fachada ni red.
+
+La búsqueda de cortes/checkpoints es O(log A); la reconstrucción copia un
+checkpoint/estado actual y aplica deltas de hasta K acciones. El costo adicional
+depende del tamaño del estado y de cambios por intervalo. El recorte elimina
+solo el sufijo afectado y sus checkpoints; no recorre el prefijo histórico.
+No se extrapolan las mediciones a estados mayores que los publicados.

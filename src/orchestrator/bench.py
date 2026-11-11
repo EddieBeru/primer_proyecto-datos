@@ -284,4 +284,6 @@ def correr_todo() -> dict:
     from src.orchestrator.bench_niebla import bench_conocimiento, bench_ir_a
     out.update(bench_conocimiento())
     out.update(bench_ir_a())
+    from src.orchestrator.bench_historia import bench_historia
+    out.update(bench_historia())
     return out

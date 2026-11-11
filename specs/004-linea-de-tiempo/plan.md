@@ -55,7 +55,7 @@ definido en la guía.
 | Principio | Gate antes de diseñar | Plan de cumplimiento |
 | --- | --- | --- |
 | I. Cumplimiento del enunciado | **Pasa como preparación documental**: P2 disponible y contrastado. | Véase research.md: §§3.6,5.5,6.1–6.3 y Apéndice B. Preservar P1 §2.11 y distinguir aclaraciones locales de reglas oficiales; aceptación ejecutada pendiente. |
-| II. Separación y contratos | **Pasa con aprobación previa a implementación.** | `Sesion` coordina. C2 registra deltas e invierte sobre estado aislado; C1 solo persiste el DTO. Los contratos 004 son propuestas y requieren revisión/enmienda de `CONTRATOS.md` antes de modificar APIs compartidas. |
+| II. Separación y contratos | **Pasa con aprobación previa a implementación.** | `Sesion` coordina. C2 registra deltas e invierte sobre estado aislado; C1 solo persiste el DTO. Los contratos004 fueron aprobados explícitamente y registrados en CONTRATOS.md el2026-11-10. |
 | III. Estructuras justificadas | **Pasa con evidencia pendiente.** | Guardar deltas y checkpoints; usar lista cronológica con búsqueda binaria propia; sin `sorted()` ni dict como índice evaluado; medir tres K y alternativa sin checkpoints. |
 | IV. Determinismo/compatibilidad | **Pasa con cambio versionado.** | Registrar orden causal, reloj, RNG y agenda. Serializar línea completa en nuevo formato; rechazar explícitamente formatos sin línea y validar candidato antes de instalarlo. |
 | V. Validación | **Pasa como plan; evidencia pendiente.** | Casos aislados offline para estado, replay, undo, carga y 5 000 acciones. Registrar omisiones y mediciones; no activar API real. |
@@ -118,8 +118,9 @@ búsqueda binaria propia localiza el corte temporal.
   de 004 introduce un ordinal de línea separado y no puede cambiar esa regla.
 - Replay y carga dependen de versiones compatibles de cripta/catálogo; errores
   deben preservar el estado activo y no exponer resultados parciales.
-- El contraste documental P2 está realizado; siguen pendientes conciliar el
-  receptor004 con la enmienda002 y concretar/registrar el formato v4 (T002/T003).
+- Contraste documental, receptor separado y formato v4 aprobados y registrados
+  el2026-11-10. La validación visual automatizada no sustituye el recorrido
+  manual humano pendiente de T033.
 
 ## Project Structure
 
@@ -165,11 +166,11 @@ y C1 trata los bytes; C1/C2 conservan su independencia.
 | Principio | Resultado tras diseño |
 | --- | --- |
 | Cumplimiento oficial | **Pasa como diseño contrastado**: fuente P2 disponible; implementación y aceptación ejecutada pendientes. |
-| Separación/contratos | **Pasa condicionado a aceptación**: se documentó el receptor propuesto; todavía no se modifica el contrato vigente. |
+| Separación/contratos | **Pasa**: receptor y formato v4 aprobados; enmienda004 registrada. |
 | Estructuras/evidencia | **Pasa**: lista cronológica y búsqueda binaria propia; rendimiento queda pendiente de benchmark. |
 | Determinismo/compatibilidad | **Pasa**: orden causal definido, nuevo formato y rechazos explícitos especificados. |
 | Validación | **Pasa como diseño**: offline, replay y carga candidata; ejecuciones pendientes. |
-| Spec Kit/trazabilidad | **Pasa** para plan; tasks.md ya existe. Revisión de consistencia previa al código pendiente. |
+| Spec Kit/trazabilidad | **Pasa** para plan; tasks.md ya existe. La revisión inicial detectó la discrepancia entre receptores002/004; se concretaron y aprobaron interfaces antes del código. |
 | Registro LLM | **Pasa**: prompt resumido y uso registrados en `PROMPTS_LLM.md`. |
 
 No hay violaciones deliberadas que requieran excepción; la tabla Complexity
@@ -207,3 +208,27 @@ Validar selección histórica y mapa pasado con pruebas de interacción; revisar
 capturas a1024×800 y otros tamaños admitidos, nombres largos y listas extensas,
 y ejecutar recorrido manual. No confundir renderizado headless con validación
 manual. La consola conserva el mismo contenido semántico del resumen.
+
+## Ajuste de implementación validado — 2026-11-10
+
+La auditoría encontró que las inversas P1 son incompletas para historia004.
+Se conserva PilaDeshacer y se añade un diario de escrituras observable en los
+modelos C2: asignaciones y cambios en listas/mapas producen deltas antes/después
+con ruta y presencia. Las listas de longitud variable guardan solo el segmento
+reemplazado. No se guarda una copia completa por acción. Los checkpoints y las
+consultas normalizan JSON sin referencias al motor; los cortes temporales y de
+acción conservan el orden causal mediante posiciones del diario. El formato
+v4 transporta este diario, sus cortes y checkpoints.
+
+La observación de conocimiento usa una proyección actual normalizada para
+calcular deltas, sin almacenar una proyección completa por acción. Es un costo
+de captura dependiente del mapa conocido que debe reevaluarse con cargas
+grandes; los tiempos de consulta se publican con el tamaño de estado medido.
+Las consultas reconstruyen desde el checkpoint posterior o el estado actual
+y aplican los deltas inversos sobre una copia aislada. Las escrituras se
+preparan antes de publicarse; fallos inyectados de captura/cierre, incluido
+pergamino, restauran estado y rama sin snapshot de transacción.
+
+La interfaz se implementó en src/view/historia.py con tokens compartidos en
+medidas.py, paleta existente, sprites y topología histórica cacheada. La
+validación visual headless se distingue del recorrido humano pendiente en T033.

@@ -585,3 +585,92 @@ antes/después controlada con la misma carga, por lo que no se atribuye una raz�
 de aceleración a la optimización. La justificación comprobada es reducir accesos
 redundantes. La aceptación de tiempos ponderados001, historia004 y referencia
 oficial permanece abierta. Esto no cierra§5.6 ni elige K.
+
+## D. Línea de tiempo004 — 2026-11-10
+
+**Problema y elección.** Consultar pasado sin alterar juego/undo, con hasta K
+acciones de reconstrucción y memoria proporcional a los cambios. Se eligió un
+diario de escrituras de C2: asignaciones y mutaciones de colecciones registran
+ruta, presencia y valores antes/después. Las inserciones/borrados de listas
+conservan solo el segmento afectado. La auditoría encontró que copiar las
+inversas P1 directamente perdería RNG, pergaminos y cambios de agenda posteriores
+al apilado. Se mantiene independiente la pila P1 de cinco intervalos y el
+colector de conocimiento002.
+
+Los checkpoints completos se crean al inicio y cada K acciones; la consulta
+copia el checkpoint posterior más cercano o el estado actual y aplica deltas
+inversos hasta el corte. Cortes/checkpoints se localizan por búsqueda binaria
+propia, O(log A). El costo de reconstrucción depende del tamaño del estado y
+los deltas de hasta K intervalos. El truncamiento trabaja sobre el sufijo
+revertido y sus checkpoints, sin recorrer el prefijo histórico. El pergamino
+conserva su ordinal separado y no cambia los contadores/exclusiones P1.
+
+**Alternativas.** Snapshot completo por acción viola la restricción de memoria.
+Reconstruir desde el principio evita checkpoints pero cuesta según la longitud
+de la historia; la alternativa medida a continuación usa inversión desde el
+estado actual sin checkpoints intermedios. Re-simulación desde un checkpoint
+es válida pero volvería a ejecutar reglas y exigiría aislar proveedor/catálogo;
+la inversión del diario reconstruye sin motor ni red.
+
+**Medición principal ejecutada.** 5.000 órdenes `esperar` aceptadas mediante
+Sesión y motor reales; tres salas hidratadas, sin enemigos/trampas, oleadas
+fuera del intervalo medido, semilla20261110. Incluye agenda/seq, RNG serializado,
+conocimiento y pila P1. 100 calentamientos +1.000 consultas por tiempo por K,
+sin red ni render; mismos resúmenes en todas las variantes. Datos completos en
+[004-historia-motor-2026-11-10.json](docs/mediciones/004-historia-motor-2026-11-10.json).
+Python3.12.3, Linux, Intel Core i7-1185G7; detalles en el informe.
+
+| K | Mediana ms | p95 ms | Máximo ms | Bytes checkpoints, JSON compacto | Memoria de estructura Python bytes | Máximo acciones reconstruidas |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 0,792 | 1,368 | 2,785 | 4.865.757 | 47.813.610 | 10 |
+| **20** | **0,997** | **1,954** | **2,862** | **2.437.388** | **39.122.486** | **20** |
+| 50 | 1,652 | 2,978 | 4,519 | 980.356 | 33.907.702 | 50 |
+| Sin intermedios, K=5001 | 112,345 | 238,222 | 485,004 | 8.993 | 30.431.238 | 5.000 |
+
+Se conserva **K=20** por reducir aproximadamente a la mitad los bytes de
+checkpoints frente a10, con margen temporal en la carga medida. K=50 ahorra
+más memoria y aumenta el tiempo de reconstrucción; no se afirma que20 sea
+óptimo para cualquier estado. Las tres variantes con checkpoints tuvieron cero
+consultas mayores de50 ms; la alternativa sin checkpoints tuvo777/1000.
+El máximo de acciones y deltas se instrumenta sobre consultas reales. La memoria
+Python se midió en una ejecución complementaria de la misma carga, contando
+objetos del bloque serializable y deduplicando referencias con TablaIndice
+propia; no incluye el juego vivo externo, la UI ni memoria temporal del índice
+de medición. El informe también registra pico temporal de consulta mediante
+tracemalloc y tamaño JSON compacto. No confundir bytes JSON con memoria RAM.
+
+Reproducción dirigida equivalente a la sección004 de `--bench`:
+
+```bash
+.venv/bin/python -c 'from src.orchestrator.bench_historia import bench_historia; print(bench_historia())'
+```
+
+Se conserva además el diagnóstico de diario sintético de una sala y dos eventos
+por acción en `docs/mediciones/004-historia-2026-11-10.json`; no sustituye el
+resultado del motor real. Sus tamaños parciales JSON iniciales incluyen espacios,
+mientras que el tamaño total es compacto; la tabla anterior usa exclusivamente
+el informe principal con separadores consistentes.
+
+**Compatibilidad y errores.** Formato v4 con índice de64 bits y bloque histórico
+versionado en core. El flujo de juego rechaza v1/v2/v3; lectores técnicos legados
+permanecen separados. Carga candidata valida cortes, deltas, checkpoints y su
+coherencia antes de instalar. Pruebas de fallos inyectados de captura/cierre,
+incluido retroceso, verifican rollback por deltas y estado/ramas/log intactos.
+Abrir una puerta ya abierta se trata como éxito sin acción ni avance temporal;
+se corrigió la rama previa que apilaba esa apertura vacía.
+
+**UI/UX.** Panel H/Historial con navegación por tiempo/acción, foco, teclado y
+ratón, barra de vida, sprites de inventario, secciones y grafo del mapa histórico.
+Paleta/fuentes/escala compartidas; tokens de8/24/8 px para espacio/margen/radio.
+La geometría histórica se cachea por consulta; controles siguen visibles con
+listas largas y scroll. Capturas offline revisadas a1024×800 y640×480; pruebas
+a640×480,1024×800,1280×720 y1920×1080. El panel suspende movimiento/viaje y
+restablece el temporizador al cerrar sin pasos acumulados.
+
+**Límites.** La medición confirma el umbral solo para la carga publicada; no
+certifica estados mayores o cazadores de001. La captura de conocimiento utiliza
+una proyección normalizada del mapa actual y su costo debe reevaluarse con mapas
+grandes. §5.6 completo conserva su alcance transversal y espera también la carga
+nueva de A. El recorrido manual humano de UI sigue pendiente (T033); capturas y
+eventos headless no se presentan como esa validación. Regresión final:464
+aprobadas/1 omitida (integración HTTP opcional), 14,39 s.

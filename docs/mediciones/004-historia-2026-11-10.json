@@ -1,0 +1,82 @@
+{
+  "historia": {
+    "entorno": {
+      "python": "3.12.3",
+      "sistema": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+      "procesador": "x86_64",
+      "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"
+    },
+    "acciones": 5000,
+    "muestras": 1000,
+    "calentamientos": 100,
+    "carga": "dos eventos por acción, vida/efectos/reloj, una sala; sintética sin red/render",
+    "resultados": [
+      {
+        "k": 10,
+        "sin_checkpoints": false,
+        "mediana_ms": 0.136495,
+        "p95_ms": 0.22651,
+        "max_ms": 0.365104,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 3232,
+        "serializado_bytes": 1800606,
+        "checkpoints_bytes": 490069,
+        "deltas_bytes": 1194762,
+        "deltas": 25000,
+        "checkpoints": 501,
+        "max_acciones_reconstruidas": 10,
+        "max_deltas_aplicados": 47
+      },
+      {
+        "k": 20,
+        "sin_checkpoints": false,
+        "mediana_ms": 0.194023,
+        "p95_ms": 0.366109,
+        "max_ms": 0.545777,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 3232,
+        "serializado_bytes": 1579577,
+        "checkpoints_bytes": 245540,
+        "deltas_bytes": 1194762,
+        "deltas": 25000,
+        "checkpoints": 251,
+        "max_acciones_reconstruidas": 20,
+        "max_deltas_aplicados": 97
+      },
+      {
+        "k": 50,
+        "sin_checkpoints": false,
+        "mediana_ms": 0.285993,
+        "p95_ms": 0.558762,
+        "max_ms": 1.001308,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 3232,
+        "serializado_bytes": 1446959,
+        "checkpoints_bytes": 98822,
+        "deltas_bytes": 1194762,
+        "deltas": 25000,
+        "checkpoints": 101,
+        "max_acciones_reconstruidas": 50,
+        "max_deltas_aplicados": 247
+      },
+      {
+        "k": 5001,
+        "sin_checkpoints": true,
+        "mediana_ms": 17.693579,
+        "p95_ms": 40.582987,
+        "max_ms": 69.577182,
+        "fallos_50ms": 18,
+        "pico_consulta_bytes": 3322,
+        "serializado_bytes": 1358493,
+        "checkpoints_bytes": 954,
+        "deltas_bytes": 1194762,
+        "deltas": 25000,
+        "checkpoints": 1,
+        "max_acciones_reconstruidas": 5000,
+        "max_deltas_aplicados": 24997
+      }
+    ],
+    "fecha_local": "2026-11-10",
+    "alcance": "offline; no certifica cargas con cazadores ni tamaños de estado no medidos"
+  }
+}
