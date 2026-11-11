@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import pygame
 
 from src.orchestrator.sesion import Sesion
-from src.view import capas, entrada, paleta, pantallas, ui
+from src.view import capas, entrada, paleta, pantallas, ui, texto
 from src.view.display import Display, RESOLUCIONES
 from src.view.medidas import medidas
 from src.view.historia import PanelHistoria
@@ -57,7 +57,6 @@ class VistaApp:
         self.sprites = SpriteManager()
         self.sfx = Sonidos()  # solo audio local: nunca rompe la partida
         pygame.font.init()
-        self.fuente = pygame.font.SysFont("consolas,monospace", 16)
         preferencias = preferencias or {}
         self.display = Display(preferencias.get("tamano", (ancho, alto)),
                                preferencias.get("completa", False), ventana)
@@ -66,6 +65,7 @@ class VistaApp:
         self.mostrar_ayudas = preferencias.get("ayudas", True)
         self.volver_a = "inicio"
         self.volver_controles = "inicio"
+        self.scroll_controles = 0
         self.foco_menu: int | None = None
         pygame.display.set_caption("CRIPTA")
         pygame.display.set_icon(self.sprites.icono())  # el prota de paso
@@ -182,6 +182,7 @@ class VistaApp:
         if self.pantalla not in ("ajustes", "controles"):
             self.volver_a = self.pantalla
         if nombre == "controles":
+            self.scroll_controles = 0
             self.volver_controles = self.pantalla
         self.pantalla = nombre
         self.foco_menu = None
@@ -798,6 +799,11 @@ class VistaApp:
 
     def navegar_menu(self, key: int) -> bool:
         """Flechas/Tab y Enter recorren los mismos botones que usa el ratón."""
+        if self.pantalla == 'controles' and key in (pygame.K_UP,pygame.K_DOWN,pygame.K_PAGEUP,pygame.K_PAGEDOWN):
+            paso=-48 if key in (pygame.K_UP,pygame.K_PAGEUP) else 48
+            if key in (pygame.K_PAGEUP,pygame.K_PAGEDOWN): paso*=4
+            self.scroll_controles=max(0,min(pantallas.limite_scroll_controles(self.ventana),self.scroll_controles+paso))
+            return True
         if self.pantalla == "juego" or not self.hotspots:
             return False
         if key in (pygame.K_UP, pygame.K_LEFT, pygame.K_DOWN, pygame.K_RIGHT, pygame.K_TAB):
@@ -957,10 +963,10 @@ class VistaApp:
         w, h = self.ventana.get_size()
         p = medidas(self.ventana).px
         if ui.es_panoramica(self.ventana):
-            return zona_caja(pygame.Rect(p(20), p(54), w - p(ui.ANCHO_LATERAL + 64), h - p(80)))
+            return zona_caja(pygame.Rect(p(20), p(54), w - medidas(self.ventana).ui_px(ui.ANCHO_LATERAL) - p(64), h - p(80)))
         arriba, pie, pad = p(34), p(6), p(20)
         disponible = h - arriba - pie
-        info = max(p(200), disponible // 5)
+        info = max(ui.alto_hud(self.ventana), disponible // 5)
         # Zona máxima donde encaja la caja; el campo de juego es su hueco
         # interior (110,110 de 290x290 en el lienzo de 512²), centrado.
         zona = pygame.Rect(pad, arriba + pad, w - 2 * pad,
@@ -994,6 +1000,7 @@ class VistaApp:
             self.zoom_ttl = None
 
     def dibujar(self) -> None:
+        texto.iniciar_frame()
         self._ajustar_medidas()
         self.hotspots = []
         if self.pantalla == "ajustes":
@@ -1002,7 +1009,7 @@ class VistaApp:
                 self.display.completa, self.mostrar_ayudas, self.raton_pos)
         elif self.pantalla == "controles":
             self.hotspots = pantallas.pantalla_controles(self.ventana, self.fuente,
-                                                        self.raton_pos)
+                                                        self.raton_pos,self.scroll_controles)
         elif self.pantalla == "inicio":
             self.hotspots = pantallas.pantalla_inicio(
                 self.ventana, self.fuente, self.puede_continuar, self.sprites,
@@ -1131,7 +1138,7 @@ class VistaApp:
             caja = pygame.Rect(p(24), p(24), self.ventana.get_width() - p(48),
                                self.ventana.get_height() - p(48))
             capa = pygame.Surface(caja.size, pygame.SRCALPHA)
-            capa.fill((22, 24, 31, 242))
+            capa.fill((22, 24, 31, 255))
             self.ventana.blit(capa, caja.topleft)
             self._dibujar_mapa_grafico(mapa.salas, caja)
             # El panel cubre el HUD donde normalmente se pinta el error de la
@@ -1146,13 +1153,15 @@ class VistaApp:
         if self.pantalla == "ajustes" and self.aviso and self.aviso_ttl > 0:
             ui.dibujar_toast(self.ventana, self.fuente, self.aviso)
             self.aviso_ttl -= 1
+        foco = self.hotspots[self.foco_menu % len(self.hotspots)][0] if self.foco_menu is not None and self.hotspots else None
+        texto.dibujar_ayuda(self.ventana,self.raton_pos,foco)
         self.display.presentar()
 
     def _dibujar_mapa_grafico(self, salas, caja: pygame.Rect) -> None:
         """Dibuja el grafo conocido; la geometría nunca consulta el plano vivo."""
         m = medidas(self.ventana)
-        p = m.px
-        titulo = m.fuente(22, True)
+        p = m.ui_px
+        titulo = m.estilo('h2')
         fuente = m.fuente(14)
         fuente_chica = m.fuente(11)
         claro, apagado = (245, 238, 220), (145, 150, 158)
@@ -1223,18 +1232,18 @@ class VistaApp:
         for sid, (x, y) in posiciones.items():
             sala = por_id[sid]
             explorada = sala.get("estado") == "explorada"
-            color = (222, 107, 39) if sid == actual else ((104, 145, 187) if explorada else (72, 77, 88))
+            color = paleta.ACCION if sid == actual else ((48, 78, 108) if explorada else (72, 77, 88))
             nodo = pygame.Rect(0, 0, lado, lado)
             nodo.center = (x, y)
             if sid == seleccion:
                 pygame.draw.rect(self.ventana, (255, 205, 90), nodo.inflate(p(10), p(10)), m.trazo(3))
             pygame.draw.rect(self.ventana, color, nodo)
             pygame.draw.rect(self.ventana, (240, 232, 211), nodo, m.trazo(2))
-            linea1 = str(sid) if not explorada else str(sala.get("nombre", "Sala"))[:8]
+            linea1 = str(sid) if not explorada else str(sala.get("nombre", "Sala"))
             linea2 = "AVISTADA" if not explorada else f"#{sid}"
-            for texto, yy in ((linea1, y - p(12)), (linea2, y + p(7))):
-                img = fuente_chica.render(texto, True, (255, 250, 235))
-                self.ventana.blit(img, img.get_rect(center=(x, yy)))
+            for contenido, yy in ((linea1, y - fuente_chica.get_linesize()//2), (linea2, y + fuente_chica.get_linesize()//2)):
+                rect_texto=pygame.Rect(nodo.x+4,yy-fuente_chica.get_height()//2,max(1,nodo.w-8),fuente_chica.get_height())
+                texto.etiqueta(self.ventana,fuente_chica,contenido,rect_texto,(255,250,235),centrar=True,enfocado=sid==seleccion)
 
         elegida = por_id[seleccion]
         detalle = (f"#{seleccion} {elegida.get('nombre', '')}" if elegida.get("estado") == "explorada"
@@ -1242,25 +1251,27 @@ class VistaApp:
         self.ventana.blit(fuente.render(detalle, True, claro),
                           (caja.x + p(26), caja.bottom - p(108)))
         for i, salida in enumerate(elegida.get("salidas", ())):
-            texto = (f"{salida['direccion']} → {salida['destino']} · costo {salida['costo']} · "
+            leyenda_salida = (f"{salida['direccion']} → {salida['destino']} · costo {salida['costo']} · "
                      f"{salida['estado']}")
-            self.ventana.blit(fuente_chica.render(texto, True, claro),
+            self.ventana.blit(fuente_chica.render(leyenda_salida, True, claro),
                 (caja.x + p(26) + (i % 2) * (caja.width // 2), caja.bottom - p(84) + (i // 2) * p(18)))
 
         leyenda_y = caja.bottom - p(42)
         pygame.draw.line(self.ventana, (90, 210, 125), (caja.x + p(26), leyenda_y + p(6)),
                          (caja.x + p(54), leyenda_y + p(6)), 4)
-        self.ventana.blit(fuente_chica.render("abierta", True, claro), (caja.x + p(60), leyenda_y))
+        self.ventana.blit(fuente_chica.render("Abierta", True, claro), (caja.x + p(60), leyenda_y))
         pygame.draw.line(self.ventana, (240, 95, 80), (caja.x + p(125), leyenda_y + p(6)),
                          (caja.x + p(153), leyenda_y + p(6)), 2)
-        self.ventana.blit(fuente_chica.render("cerrada", True, claro), (caja.x + p(159), leyenda_y))
+        self.ventana.blit(fuente_chica.render("Cerrada", True, claro), (caja.x + p(159), leyenda_y))
         pygame.draw.line(self.ventana, (130, 140, 154), (caja.x + p(230), leyenda_y + p(6)),
                          (caja.x + p(258), leyenda_y + p(6)), 2)
-        self.ventana.blit(fuente_chica.render("sin observar", True, claro), (caja.x + p(264), leyenda_y))
+        self.ventana.blit(fuente_chica.render("Sin observar", True, claro), (caja.x + p(264), leyenda_y))
 
     def manejar_evento(self, evento) -> None:
         """Entrada física -> coordenadas del lienzo -> acción de UI/juego."""
         anterior = self.pantalla
+        if evento.type == pygame.MOUSEWHEEL and texto.desplazar_ayuda(evento.y,self.raton_pos):
+            return
         if self.panel_historia is not None and self.pantalla == 'juego' and evento.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.MOUSEWHEEL):
             pos = self.display.coordenadas(getattr(evento,'pos',pygame.mouse.get_pos()))
             if not self.panel_historia.evento(evento,pos):
@@ -1289,6 +1300,8 @@ class VistaApp:
             if self.raton_pos is not None:
                 self.manejar_clic(self.raton_pos)
         elif evento.type == pygame.MOUSEWHEEL:
+            if self.pantalla == 'controles':
+                self.scroll_controles=max(0,min(pantallas.limite_scroll_controles(self.ventana),self.scroll_controles-evento.y*48))
             if self.pantalla == "juego" and not self.panel_mapa and self.inv_orden:
                 self.sel_inv = (self.sel_inv - evento.y) % len(self.inv_orden)
         if anterior != self.pantalla:

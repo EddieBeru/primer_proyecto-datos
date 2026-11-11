@@ -102,68 +102,79 @@ class PanelHistoria:
         return True
 
     def dibujar(self, superficie, sprites):
-        m=medidas(superficie);p=m.px
-        fuente=m.fuente(14);chica=m.fuente(12);titulo=m.fuente(24,True)
+        m=medidas(superficie);p=m.ui_px
+        fuente=m.estilo('cuerpo');chica=m.estilo('auxiliar');titulo=m.estilo('h1');control=m.estilo('boton')
         self.botones=[]
         velo=pygame.Surface(superficie.get_size(),pygame.SRCALPHA);velo.fill((62,39,26,155));superficie.blit(velo,(0,0))
-        caja=superficie.get_rect().inflate(-p(MARGEN*2),-p(MARGEN*2))
+        margen=16 if superficie.get_width()<800 else p(MARGEN)
+        caja=superficie.get_rect().inflate(-margen*2,-margen*2)
         pygame.draw.rect(superficie,paleta.PANEL,caja)
-        pygame.draw.rect(superficie,paleta.MURO,caja,m.trazo())
-        x,y=caja.x+p(24),caja.y+p(16)
+        pygame.draw.rect(superficie,paleta.MURO,caja,1)
+        pad=16 if superficie.get_width()<800 else p(24)
+        x,y=caja.x+pad,caja.y+pad
         superficie.blit(titulo.render('Historial de la partida',True,paleta.TEXTO),(x,y))
-        superficie.blit(chica.render('Consulta el pasado · tu partida sigue en el presente',True,paleta.SECUNDARIO),(x,y+p(32)))
+        superficie.blit(chica.render('Consulta el pasado · tu partida sigue en el presente',True,paleta.SECUNDARIO),(x,y+titulo.get_linesize()))
         def boton(rect,etiqueta,accion,seleccion=False,foco=None):
-            pygame.draw.rect(superficie,paleta.TITULO if seleccion else paleta.FONDO_APP,rect)
-            pygame.draw.rect(superficie,paleta.TEXTO if foco==self.foco else paleta.MURO,rect,m.trazo(2 if foco==self.foco else 1))
-            imagen=chica.render(etiqueta,True,paleta.TEXTO_CLARO if seleccion else paleta.TEXTO)
-            superficie.blit(imagen,imagen.get_rect(center=rect.center));self.botones.append((rect,accion))
-        boton(pygame.Rect(caja.right-p(112),y,p(88),p(32)),'Esc  Cerrar','cerrar',foco=5)
-        y+=p(64)
-        boton(pygame.Rect(x,y,p(80),p(32)),'Acción','accion',self.modo=='accion',0)
-        boton(pygame.Rect(x+p(88),y,p(80),p(32)),'Tiempo','tiempo',self.modo=='tiempo',1)
-        campo=pygame.Rect(x+p(184),y,p(128),p(32))
-        pygame.draw.rect(superficie,paleta.FONDO_APP,campo)
-        pygame.draw.rect(superficie,paleta.TITULO if self.foco==2 else paleta.SECUNDARIO,campo,m.trazo(2))
-        superficie.blit(fuente.render(('#' if self.modo=='accion' else 't=')+self.entrada,True,paleta.TEXTO),(campo.x+p(8),campo.y+p(8)))
-        self.botones.append((campo,'entrada'))
-        boton(pygame.Rect(x+p(320),y,p(88),p(32)),'Consultar','consultar',foco=2)
-        boton(pygame.Rect(x+p(424),y,p(88),p(32)),'← Anterior','anterior',foco=3)
-        boton(pygame.Rect(x+p(520),y,p(88),p(32)),'Siguiente →','siguiente',foco=4)
-        if self.error: superficie.blit(chica.render(self.error,True,paleta.PELIGRO),(x,y+p(40)))
-        y+=p(64)
-        lista=pygame.Rect(x,y,p(184),caja.bottom-y-p(56))
+            pygame.draw.rect(superficie,paleta.ACCION if seleccion else paleta.FONDO_APP,rect)
+            pygame.draw.rect(superficie,paleta.TEXTO if foco==self.foco else paleta.MURO,rect,2 if foco==self.foco else 1)
+            texto.etiqueta(superficie,control,etiqueta,rect.inflate(-16,0),paleta.TEXTO_CLARO if seleccion else paleta.TEXTO,centrar=True)
+            self.botones.append((rect,accion))
+        boton(pygame.Rect(caja.right-pad-p(88),y,p(88),p(32)),'Esc  Cerrar','cerrar',foco=5)
+        y+=titulo.get_linesize()+chica.get_linesize()+p(16)
+        cursor=x
+        for etiqueta,accion,ancho,foco in (('Acción','accion',80,0),('Tiempo','tiempo',80,1),
+                ('','entrada',112,2),('Consultar','consultar',88,2),('← Anterior','anterior',96,3),('Siguiente →','siguiente',96,4)):
+            ancho=p(ancho)
+            if cursor+ancho>caja.right-pad:
+                cursor=x;y+=p(40)
+            rect=pygame.Rect(cursor,y,ancho,p(32))
+            if accion=='entrada':
+                pygame.draw.rect(superficie,paleta.FONDO_APP,rect)
+                pygame.draw.rect(superficie,paleta.TEXTO_ACENTO if self.foco==2 else paleta.SECUNDARIO,rect,2)
+                texto.etiqueta(superficie,fuente,('#' if self.modo=='accion' else 't=')+self.entrada,rect.inflate(-16,0),paleta.TEXTO,centrar=True)
+                self.botones.append((rect,accion))
+            else: boton(rect,etiqueta,accion,self.modo==accion,foco)
+            cursor+=ancho+p(8)
+        y+=p(40)
+        if self.error:
+            for linea in texto.envolver(texto.inicial_mayuscula(self.error),chica,caja.width-pad*2,2):
+                superficie.blit(chica.render(linea,True,paleta.PELIGRO),(x,y));y+=chica.get_linesize()
+        y+=p(8)
+        alto=max(64,caja.bottom-y-p(48))
+        ancho_lista=min(p(200),max(160,(caja.width-pad*2)//4))
+        lista=pygame.Rect(x,y,ancho_lista,alto)
         self._limite_lista=lista.right
         pygame.draw.rect(superficie,paleta.FONDO_APP,lista)
         superficie.blit(chica.render(f'ACCIONES · {len(self.acciones)}',True,paleta.SECUNDARIO),(lista.x+p(8),lista.y+p(8)))
-        visibles=max(1,(lista.height-p(40))//max(1,p(40)))
+        visibles=max(1,(lista.height-p(40))//p(40))
         self.lista_scroll=min(self.lista_scroll,max(0,len(self.acciones)-visibles))
         if not self.acciones:
             superficie.blit(chica.render('Aún no hay acciones',True,paleta.SECUNDARIO),(lista.x+p(8),lista.y+p(40)))
         for fila,(n,t,tipo) in enumerate(self.acciones[self.lista_scroll:self.lista_scroll+visibles]):
-            r=pygame.Rect(lista.x+p(8),lista.y+p(32)+fila*p(40),lista.width-p(16),p(32))
-            boton(r,f'#{n} · t={t}'+(' · ↶' if tipo=='deshacer' else ''),n-1,n-1==self.indice)
-        detalle=pygame.Rect(lista.right+p(24),y,caja.right-lista.right-p(48),lista.height)
+            rect=pygame.Rect(lista.x+p(8),lista.y+p(32)+fila*p(40),lista.width-p(16),p(32))
+            boton(rect,f'#{n} · t={t}'+(' · ↶' if tipo=='deshacer' else ''),n-1,n-1==self.indice)
+        detalle=pygame.Rect(lista.right+p(16),y,caja.right-lista.right-pad-p(16),lista.height)
         clip=superficie.get_clip();superficie.set_clip(detalle)
-        if self.resumen:
-            self._detalle(superficie,detalle,m,sprites)
+        if self.resumen: self._detalle(superficie,detalle,m,sprites)
         superficie.set_clip(clip)
-        superficie.blit(chica.render('← → Acciones    Tab Foco    Números + Enter Consultar    ↑ ↓ / rueda Desplazar',True,paleta.SECUNDARIO),(x,caja.bottom-p(32)))
+        pie='← → Acciones · Tab Foco · Número + Enter Consultar · ↑ ↓ / rueda Desplazar'
+        texto.etiqueta(superficie,chica,pie,pygame.Rect(x,caja.bottom-p(32),caja.width-pad*2,p(24)),paleta.SECUNDARIO)
 
     def _detalle(self,sup,rect,m,sprites):
-        p=m.px;r=self.resumen;f=m.fuente(14);ch=m.fuente(12);tit=m.fuente(18,True)
+        p=m.ui_px;r=self.resumen;f=m.estilo('cuerpo');ch=m.estilo('label');tit=m.estilo('h2')
         x=rect.x;y=rect.y-p(self.scroll*24);w=rect.width
         def texto_linea(cadena,color=paleta.TEXTO,fuente=f):
             nonlocal y
-            for linea in texto.envolver(cadena,fuente,w,100):
-                sup.blit(fuente.render(linea,True,color),(x,y));y+=p(24)
+            for linea in texto.envolver(texto.inicial_mayuscula(cadena),fuente,w,100):
+                sup.blit(fuente.render(linea,True,color),(x,y));y+=fuente.get_linesize()
         etiqueta=f'ANTES DE #{r.accion}' if self.modo=='accion' and self.acciones else 'CONSULTA POR TIEMPO' if self.acciones else 'INICIO DE PARTIDA'
-        texto_linea(f'{etiqueta}   ·   TIEMPO {r.reloj}',paleta.TITULO,tit)
+        texto_linea(f'{etiqueta}   ·   TIEMPO {r.reloj}',paleta.TEXTO_ACENTO,tit)
         texto_linea(f'Sala {r.sala_id} · {r.sala_nombre}')
         y+=p(8)
         bar=pygame.Rect(x,y,w,p(16));pygame.draw.rect(sup,paleta.VIDA_FONDO,bar)
         llena=bar.copy();llena.width=round(w*r.vida/max(1,r.vida_max));pygame.draw.rect(sup,paleta.VIDA,llena);y+=p(24)
-        texto_linea(f'Vida {r.vida}/{r.vida_max}    ATQ {r.ataque}    DEF {r.defensa}    VEL {r.velocidad}')
-        y+=p(8);texto_linea('INVENTARIO',paleta.TITULO,tit)
+        texto_linea(f'Vida {r.vida}/{r.vida_max} · ATQ {r.ataque} · DEF {r.defensa} · VEL {r.velocidad}')
+        y+=p(8);texto_linea('INVENTARIO',paleta.TEXTO_ACENTO,tit)
         if not r.inventario: texto_linea('Mochila vacía',paleta.SECUNDARIO)
         for item in r.inventario:
             imagen=pygame.transform.smoothscale(sprites.sprite(item),(p(24),p(24)))
@@ -172,11 +183,11 @@ class PanelHistoria:
             lineas=texto.envolver(etiqueta,f,max(1,w-p(32)),100)
             for i,linea in enumerate(lineas): sup.blit(f.render(linea,True,paleta.TEXTO),(x+p(32),y+i*p(24)))
             y+=p(32)+max(0,len(lineas)-1)*p(24)
-        y+=p(8);texto_linea('EFECTOS Y ENEMIGOS',paleta.TITULO,tit)
+        y+=p(8);texto_linea('EFECTOS Y ENEMIGOS',paleta.TEXTO_ACENTO,tit)
         texto_linea(' · '.join(f'{n}: {v}' for n,v in r.efectos) or 'Sin efectos activos',paleta.SECUNDARIO)
         if not r.enemigos: texto_linea('Sin enemigos en esta sala',paleta.SECUNDARIO)
         for instancia,tipo,vida in r.enemigos: texto_linea(f'{instancia} · {tipo} · vida {vida}')
-        y+=p(8);texto_linea('MAPA CONOCIDO EN ESTE INSTANTE',paleta.TITULO,tit)
+        y+=p(8);texto_linea('MAPA CONOCIDO EN ESTE INSTANTE',paleta.TEXTO_ACENTO,tit)
         # Grafo histórico: conexiones y estados proceden solo del resumen elegido.
         coordenadas=self.coordenadas
         minx=min((q[0] for q in coordenadas.values()),default=0)
@@ -200,7 +211,7 @@ class PanelHistoria:
                         sup.blit(marca,marca.get_rect(center=punto))
         for sid,nombre,estado,salidas in r.mapa:
             centro=posiciones[sid];nodo=pygame.Rect(0,0,p(56),p(40));nodo.center=centro
-            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.PANEL,nodo)
+            pygame.draw.rect(sup,paleta.TEXTO_ACENTO if sid==r.sala_id else paleta.PANEL,nodo)
             pygame.draw.rect(sup,paleta.MURO,nodo,m.trazo(2 if sid==r.sala_id else 1))
             etiqueta=texto.envolver(f'#{sid}'+(' ?' if estado=='avistada' else ''),ch,nodo.width-p(8),1)[0]
             imagen=ch.render(etiqueta,True,paleta.TEXTO_CLARO if sid==r.sala_id else paleta.TEXTO)
@@ -216,7 +227,7 @@ class PanelHistoria:
             alto=p(24*(len(lineas)+len(detalle_salidas))+16)
             caja=pygame.Rect(x,y,w,alto)
             pygame.draw.rect(sup,paleta.FONDO_APP,caja)
-            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.SECUNDARIO,caja,m.trazo())
+            pygame.draw.rect(sup,paleta.TEXTO_ACENTO if sid==r.sala_id else paleta.SECUNDARIO,caja,m.trazo())
             for linea in lineas:
                 sup.blit(ch.render(linea,True,paleta.TEXTO),(x+p(8),y+p(8)));y+=p(24)
             for linea in detalle_salidas:

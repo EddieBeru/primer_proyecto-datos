@@ -175,3 +175,24 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
 - Validación: pruebas existentes de interfaz, regeneración y revisión de capturas
   offline a1024×800 y640×480, y git diff --check.
 - Resultado de esta corrección:103 pruebas de interfaz aprobadas/1 omitida; capturas revisadas y ausencia de border_radius en src/view.
+
+## Recuperación y validación de tipografía — 2026-11-10
+
+- Prompts literales: «somwthing must have been left out before the force close.
+  anything left behind? related with the fonts maybe»; «can you keep it going?
+  do you need more context?».
+- Modelo: Codex; identificador específico no expuesto en esta sesión.
+- Uso: recuperar cambios locales de Lato y roles compartidos; revisar
+  `docs/diseno-ui.md`; corregir distribución4K, mapa, nombres truncados, errores,
+  contraste y resumen final. Añadir pruebas significativas de fuentes y tooltips.
+- Validación:487 pruebas aprobadas/1 omitida; `git diff --check` sin errores.
+  Capturas headless con FakeBackend/sprites reales a640×480,1024×800 y1280×720,
+  con nombres/listas/errores largos, guardadas en `docs/mediciones/tipografia-*.png`.
+  Detalle y límites en DECISIONES.md; no se declara recorrido humano ni
+  conformidad WCAG completa. Sin operaciones remotas de GitHub.
+- Los archivos ajenos `cache.pkl.fichas` y `docs/Cripta Parte II.md` se preservan.
+- Prompts adicionales: «commit de eso»; «ocupo que te asegures que todo tengas
+  mayusculas iniciales como minimo. muchos elementos se ven mal si están full
+  en minúscula». Se añade mayúscula inicial a textos visibles y etiquetas de
+  objetos, conservando siglas/datos originales. Se regeneran capturas y se
+  valida con494 pruebas aprobadas/1 omitida (6,19 s), antes del commit local.

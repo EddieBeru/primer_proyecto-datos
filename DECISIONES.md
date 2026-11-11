@@ -683,3 +683,48 @@ barras y nodos del historial, incluido su acceso desde el juego. La retícula
 de8 px se aplica al espaciado y los márgenes; no autoriza esquinas redondeadas.
 Se corrigen especificación, plan, tareas, contrato y capturas para mantener la
 estética de rectángulos duros ya documentada en la decisión30.
+
+### Tipografía compartida y recuperación tras cierre — 2026-11-10
+
+Se retoma el cambio de presentación que había quedado en el árbol de trabajo.
+`src/view/tipografia.py` centraliza Lato con archivos originales Regular400,
+Medium500, Semibold600 y Bold700, incluidos en `assets/fonts/` con licencia OFL.
+Los roles tienen tamaño mínimo real, interlineado en múltiplos de4 px,
+tracking medido y caché de fuentes. Las cifras0–9 tienen ancho uniforme en las
+cuatro variantes. La geometría del escenario conserva su escala; la lectura no
+se comprime al reducir la ventana. No se modifican contratos ni reglas del motor.
+
+Se integran roles en menús, HUD e historial; se ajustan textos y acciones a
+ventanas pequeñas. Controles permite desplazamiento con rueda/flechas/PageUp/
+PageDown. Las etiquetas truncadas registran texto completo para tooltip con
+ratón o foco/selección; el tooltip envuelve, permite scroll y queda en la ventana.
+Se corrige también la envoltura cuando ni la elipsis cabe, evitando un bucle.
+El mapa usa respaldo opaco y medidas legibles para separar título/instrucciones.
+Los títulos y subtítulos sobre arte tienen respaldo sólido; botones deshabilitados
+usan texto legible. Se corrigen el margen del botón Volver a4K, filas del resumen
+final y escala de indicadores de dificultad. Se conservan las esquinas rectas.
+
+Validación: `.venv/bin/python -m pytest -q`: **487 aprobadas/1 omitida**
+(integración HTTP opcional),6,22 s. `git diff --check` sin errores. Pruebas nuevas
+verifican archivos/pesos originales, cifras tabulares, caché, métricas de dibujo,
+interlineados, mínimos, parejas de contraste compartidas y tooltip completo con
+foco/scroll. Los colores normales compartidos pasan4.5:1 en panel, fondo, hover
+y deshabilitado; acción clara y error sobre rojo oscuro también pasan4.5:1.
+Estas comprobaciones parciales no equivalen a conformidad WCAG global.
+
+Evidencia visual headless con sprites reales y FakeBackend de `tests/test_vista.py`:
+`docs/mediciones/tipografia-640.png`, `tipografia-1024.png` y `tipografia-1280.png`.
+Cada mosaico conserva píxeles nativos de640×480,1024×800 o1280×720:
+filas inicio/selección, pausa/ajustes, controles/HUD, mapa/historia y fin/error.
+Incluyen cinco criptas de nombre largo, historia con40 objetos y nombre extenso,
+y error largo con acceso completo. Se revisaron capturas para detectar solapes;
+la regresión también verifica límites de controles hasta3840×2160.
+No sustituye un recorrido humano interactivo ni cierra T033 de004.
+
+Antes del commit, el usuario solicita mayúscula inicial como mínimo en los
+elementos visibles. Se incorpora `texto.inicial_mayuscula` para etiquetas,
+objetos, tooltips, avisos y nombres de presentación; se corrigen ayudas,
+subtítulos y leyendas del mapa. Se conserva el resto del texto y las siglas,
+sin alterar identificadores ni datos del motor. Se regeneran los tres mosaicos.
+Regresión final con esta corrección: **494 aprobadas/1 omitida**,6,19 s;
+`git diff --check` sin errores.

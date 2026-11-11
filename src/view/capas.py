@@ -245,8 +245,8 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         cierre = puerta.get("cierre_en")
         if fuente is not None and cierre is not None and not puerta.get("cerrada"):
             # Badge ASCII (la fuente no trae emojis): ticks restantes.
-            etiqueta = fuente.render(f"{cierre}t", True, paleta.TITULO)
-            fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), p(18))
+            etiqueta = fuente.render(f"{cierre}t", True, paleta.TEXTO_ACENTO)
+            fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), fuente.get_linesize())
             sup.fill(paleta.MURO, fondo)
             sup.blit(etiqueta, (x, y + tam + p(2)))
 
@@ -280,7 +280,7 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
             etiqueta = fuente.render(_texto.etiqueta_item(item_id), True, paleta.TEXTO) \
                 if fuente is not None else None
             if etiqueta is not None:
-                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), p(18))
+                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), fuente.get_linesize())
                 sup.fill(paleta.ETIQUETA_FONDO, fondo)
                 sup.blit(etiqueta, (x + p(2), y + tam + p(2)))
     for j, trampa in enumerate(trampas):
