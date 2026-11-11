@@ -3,7 +3,7 @@
 ## Estado de fuentes
 
 - `specs/004-linea-de-tiempo/spec.md` es la fuente funcional de este plan.
-- La guía de Parte II resume la capacidad; el enunciado íntegro P2 no está disponible en el repositorio. No se atribuyen al enunciado oficial las decisiones de la guía ni se cierra aceptación académica sin contraste.
+- Fuente normativa disponible: [Cripta Parte II](../../docs/Cripta%20Parte%20II.md), §§3.6, 5.5, 6.1–6.3 y Apéndice B. La guía de división del trabajo es complementaria. Contraste documental realizado el 2026-11-10; no implica implementación ni aceptación ejecutada.
 - La implementación parte de la base existente en la rama `main`; `specs/004-linea-de-tiempo` es carpeta de capacidad, no una rama Git dedicada.
 
 ## Decisiones
@@ -48,4 +48,54 @@ La guía oficial de P1 §2.11 excluye el uso/consumo del pergamino del historial
 - Guardar/cargar checkpoints e inversas puede aumentar mucho el archivo; el bench deberá medir bytes reales además de tiempo.
 - El criterio ≤50 ms aplica al máximo observado de 1 000 consultas tras 100 calentamientos en una partida de 5 000+ acciones con K por defecto. El resultado depende del tamaño del checkpoint y del número de eventos por acción; informar ambos, no solo cantidad de acciones. Mediana y p95 se reportan como diagnósticos.
 - El contrato C2–orquestador para el receptor histórico es nuevo y debe revisarse/aprobarse antes de modificarlo, según `CONTRATOS.md` y la constitución.
-- El contraste de reglas y referencias de rendimiento con el enunciado íntegro P2 permanece bloqueado por fuente externa ausente.
+- El enunciado ya está disponible y contrastado; quedan pendientes implementación, pruebas y mediciones. La carga integrada con cazadores y costos variables de §5.6 espera la entrega de A, pero el desarrollo aislado de004 no la requiere.
+
+## Preparación actualizada — 2026-11-10
+
+| Fuente oficial | Cobertura del diseño |
+| --- | --- |
+| §3.6: instante tras eventos, consulta por tiempo/acción, pureza y rechazo de futuro | FR-LIN-01–06; T009,T013–T015,T020–T023 |
+| §3.6: retroceso elimina acciones; checkpoints configurables y reconstrucción ≤K | FR-LIN-07–11; T005–T008,T011,T018–T019 |
+| §3.6: persistencia completa e incompatibilidad explícita | FR-LIN-12; T007,T012,T024 |
+| §§5.5/6.1–6.3: cambios + checkpoints, truncamiento eficiente, ≥5000 acciones, ≤50 ms y comparación de tres K | FR-LIN-09–14; T025–T026 |
+| Apéndice B: seis casos oficiales de línea de tiempo | Escenarios1–6 de spec.md; T009,T011–T015 |
+
+El escenario7 (rechazar P2 anterior sin historia), el ordinal del pergamino y la
+renumeración son acuerdos locales registrados en las aclaraciones, no reglas
+adicionales atribuidas al enunciado. Los100 calentamientos y1000 consultas son
+el protocolo local de medición; el umbral50 ms y las5000 acciones son oficiales.
+
+La aprobación registrada en CONTRATOS.md corresponde a la propuesta002: lotes
+bidireccionales y truncamiento. No equivale a aprobar automáticamente las firmas
+distintas propuestas por004 (`registrar_cambio`, `cerrar_accion`,
+`truncar_intervalo`) ni el formato v4. T002/T003 siguen pendientes: conciliar
+receptor y atomicidad con el contrato vigente, concretar layout/validación y
+registrar el acuerdo antes de cambiar interfaces. Esta revisión no solicita
+nueva aprobación ni modifica contratos compartidos.
+
+Puede avanzarse con el motor actual y fixtures offline en el modelo histórico,
+la auditoría de inversas y las pruebas de004. La integración final deberá cubrir
+las mutaciones nuevas de001 cuando A las entregue. §5.6 sigue siendo trabajo
+transversal de B y no queda cerrado por preparar004.
+
+## Inspección previa de captura — 2026-11-10
+
+Esta inspección prepara T016; no la cierra ni sustituye sus pruebas de cobertura.
+
+| Ruta existente | Cobertura actual | Trabajo que exige004 |
+| --- | --- | --- |
+| `Fachada._apilar` | Inversa P1 y deltas de conocimiento002 | Capturar delta histórico completo antes del descarte por tope cinco; mantener receptor002 intacto |
+| `_tras_accion` / `_programar_turno_jugador` | Contador, rastro y programación posteriores al apilado | Incluir esos cambios y los seq de agenda en el registro004 |
+| `avanzar` | Saca evento y mueve reloj antes de producir la inversa | Registrar también consumo del evento, reloj y secuencia causal; agrupar empates al consultar t |
+| `fin_efecto` | Puede reescalar agenda después de `_apilar` | Capturar reprogramación completa, no solo efecto anterior |
+| Combate / turnos / oleada | Llamadas RNG y cambios de instancias | Restaurar estado RNG, orden de entidades y agenda; las inversas P1 no garantizan todo ello |
+| `aplicar_inversa` | Excluye pergaminos deliberadamente | Historia necesita registrar su adquisición, traslado y consumo sin cambiar undo P1 |
+| `Sesion._registrar_vecinas` | Precarga fuera del apilado | Definir captura de altas de salas dormidas sin confundir hidratación con revelación |
+| `_ok` / `avanzar` | Actualizan victoria/derrota tras sincronizar | Cerrar registro después de las mutaciones finales |
+| `Fachada.deshacer` | Restaura intervalo y emite truncamiento002 | Recortar sufijo004 y agregar consumo de pergamino como ordinal separado |
+
+Hallazgo principal: transmitir las inversas actuales sin ampliarlas produciría
+una historia incompleta. La propuesta concreta de contrato y layout v4 está en
+`contracts/interfaces.md`; T002/T003 siguen pendientes de aceptación y no se
+modifica CONTRATOS.md anticipadamente. No se requiere entrega de A para resolver
+esta captura sobre el motor actual.

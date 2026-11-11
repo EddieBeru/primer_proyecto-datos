@@ -74,3 +74,29 @@ Comando previsto tras implementar el benchmark:
 ```bash
 .venv/bin/python -m src.main --bench
 ```
+
+## Estado de preparación — 2026-11-10
+
+T001 completada: enunciado oficial disponible en `docs/Cripta Parte II.md` y
+contraste trazado en research.md. T002/T003 siguen pendientes de conciliación
+del receptor histórico con la enmienda002 y definición/acuerdo del formato v4.
+Las instrucciones y comandos anteriores son verificaciones futuras: no se ha
+implementado004 ni ejecutado sus escenarios o benchmarks. Se puede desarrollar
+con el motor actual y fixtures offline; la integración con costos/puertas y
+cazadores nuevos se verifica cuando A entregue001.
+
+## Validación visual e interacción (pendiente)
+
+- Revisar primero los componentes y atajos actuales; usar paleta, fuentes y
+  escala compartidas. Inspeccionar retícula de8 px lógicos en márgenes, padding
+  y radios, sin exigir8 px de grosor a los contornos.
+- Abrir desde el juego y navegar historia con teclado y ratón; comprobar foco
+  visible, selección por tiempo/acción, Escape y retorno al juego sin movimiento
+  accidental ni pasos de viaje acumulados.
+- Comprobar jerarquía visual de estadísticas, inventario, efectos y enemigos;
+  mapa correspondiente al pasado, tiempo/acción visibles y distinción del presente.
+- Probar historia vacía, ausencia de enemigos/efectos, errores, nombres largos y
+  listas extensas. Los errores conservan el último resumen válido.
+- Revisar capturas a1024×800 y otros tamaños admitidos, legibilidad, scroll y
+  ausencia de superposición/recorte. Registrar por separado capturas headless
+  y recorrido manual efectivo. Estas verificaciones aún no se han ejecutado.

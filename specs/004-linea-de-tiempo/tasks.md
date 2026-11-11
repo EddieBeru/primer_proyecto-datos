@@ -6,9 +6,9 @@
 
 ## Phase 1: Preparación
 
-- [ ] T001 Revisar disponibilidad del enunciado íntegro P2 y actualizar `specs/004-linea-de-tiempo/research.md`; si sigue ausente, conservar el bloqueo de aceptación académica y no atribuir requisitos nuevos a la guía.
-- [ ] T002 Obtener aprobación explícita del receptor histórico C2–orquestador propuesto en `specs/004-linea-de-tiempo/contracts/interfaces.md` y registrar acuerdo/versión en `CONTRATOS.md`; no editar contratos compartidos antes de esa aprobación.
-- [ ] T003 Confirmar el nuevo formato de guardado con versión distinta a v1/v2/v3 y la política de rechazo en `CONTRATOS.md` y `specs/004-linea-de-tiempo/contracts/interfaces.md`; preserva los lectores técnicos previos sin carga silenciosa en P2.
+- [X] T001 Revisar disponibilidad del enunciado íntegro P2 y actualizar `specs/004-linea-de-tiempo/research.md`. Completada2026-11-10: contraste con `docs/Cripta Parte II.md`, §§3.6,5.5,6.1–6.3 y Apéndice B; aclaraciones locales separadas de requisitos oficiales. No implica aceptación funcional.
+- [X] T002 Obtener aprobación explícita del receptor histórico C2–orquestador propuesto en `specs/004-linea-de-tiempo/contracts/interfaces.md` y registrar acuerdo/versión en `CONTRATOS.md`; no editar contratos compartidos antes de esa aprobación.
+- [X] T003 Confirmar el nuevo formato de guardado con versión distinta a v1/v2/v3 y la política de rechazo en `CONTRATOS.md` y `specs/004-linea-de-tiempo/contracts/interfaces.md`; preserva los lectores técnicos previos sin carga silenciosa en P2.
 
 ## Phase 2: Fundamentos compartidos
 
@@ -50,9 +50,15 @@
 
 ## Phase 4: Pulido y verificación cruzada
 
-- [ ] T028 Revisar `specs/004-linea-de-tiempo/tasks.md`, `spec.md`, `plan.md` y `research.md` para trazabilidad completa de FR/SC y bloquear aceptación académica mientras falte el enunciado P2 o la aprobación contractual.
+- [ ] T028 Revisar `specs/004-linea-de-tiempo/tasks.md`, `spec.md`, `plan.md` y `research.md` para trazabilidad completa de FR/SC y verificar el contraste P2 ya registrado; mantener pendiente la aceptación contractual y la evidencia funcional/de rendimiento que aún falten.
 - [ ] T029 Ejecutar regresión `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q`; resolver regresiones y registrar resultado/omisiones en `specs/004-linea-de-tiempo/quickstart.md`.
-- [ ] T030 Registrar prompts, uso y resultados en `PROMPTS_LLM.md`; cerrar solo tareas comprobadas y declarar dependencia externa pendiente de fuente P2.
+- [ ] T030 Registrar prompts, uso y resultados en `PROMPTS_LLM.md`; cerrar solo tareas comprobadas y declarar dependencias reales pendientes de contratos, integración o mediciones; la fuente P2 ya está disponible.
+
+## Interfaz gráfica — alcance solicitado el 2026-11-10
+
+- [ ] T031 Auditar patrones de interfaz y atajos en `src/view/app.py`, `ui.py`, `medidas.py`, `paleta.py`, `texto.py` y `entrada.py`; documentar composición y reutilización de componentes para historia. Consolidar tokens de8/16/24/32 px lógicos para espaciados, padding y radios, escalados con Medidas; trazos finos permitidos. No rediseñar otras pantallas. Requisitos: FR-LIN-15, FR-LIN-16. Dep.: T002/T003 antes de cambios compartidos.
+- [ ] T032 Implementar panel visual de historia con acceso visible, selección por tiempo/acción, navegación anterior/siguiente, foco, teclado/ratón y Escape; resumen jerarquizado y mapa histórico usando DTO de Sesión. Manejar vacíos, errores y contenido largo; suspender movimiento/viaje durante el foco y evitar pasos acumulados al cerrar. Requisitos: FR-LIN-03, FR-LIN-04, FR-LIN-15, FR-LIN-16. Dep.: T020,T031.
+- [ ] T033 Probar interacción del panel y ausencia de mutaciones, revisar capturas a1024×800 y tamaños admitidos con nombres/listas largos, y ejecutar recorrido manual de apertura/navegación/consulta inválida/cierre. Registrar capturas/resultados y omisiones en quickstart.md; completar ayuda de interfaz en README.md. Requisitos: FR-LIN-15, FR-LIN-16. Dep.: T032. El cierre T027–T030 requiere también esta evidencia.
 
 ## Dependencias
 

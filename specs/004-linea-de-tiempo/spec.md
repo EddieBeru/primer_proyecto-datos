@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft — aclaraciones registradas; pendiente contrastar con el enunciado íntegro de P2.
+**Status**: Preparación contrastada con el enunciado P2 el 2026-11-10; implementación, contratos específicos y validación pendientes.
 
 **Input**: descripción del usuario y bloque 004 de la guía de parte II.
 
@@ -30,7 +30,7 @@ Como jugador, quiero consultar estados pasados sin alterar la partida ni el retr
 
 **Acceptance Scenarios**:
 
-Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la guía; cada uno especifica condición, acción y resultado esperado.
+Los escenarios1–6 se contrastaron con el Apéndice B oficial; el escenario7 recoge el acuerdo local de compatibilidad. No se declaran ejecutados.
 
 1. `historia <t>` con t mayor que el reloj actual: se rechaza.
 2. `historia` después de usar un pergamino: no muestra las acciones revertidas.
@@ -66,6 +66,9 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 - **FR-LIN-13** (rendimiento): con al menos 5 000 acciones y K por defecto, el máximo observado entre 1 000 consultas medidas de `historia`, luego de 100 calentamientos, debe ser ≤50 ms. Usar un pergamino recorta la línea sin recorrer toda la historia.
 - **FR-LIN-14** (medición): `--bench` mide memoria y tiempo de consulta con al menos tres valores de K y contra la alternativa sin puntos de control.
 
+- **FR-LIN-15 (solicitud del usuario, 2026-11-10)**: la interfaz gráfica permite explorar la historia mediante un panel visual integrado con el juego, con selección de tiempo o acción, navegación y secciones jerarquizadas para estadísticas, inventario, efectos, enemigos y mapa histórico. Identifica claramente el instante consultado y el estado actual; consultar no modifica ni revierte la partida.
+- **FR-LIN-16 (solicitud del usuario, 2026-11-10)**: la interfaz histórica mantiene la paleta, tipografía, escala y patrones de interacción existentes; usa una retícula base de8 px para espaciados, márgenes internos/externos y radios de borde. Texto y contenido deben adaptarse al espacio disponible sin recortes ni superposiciones. Selección, foco, estados vacíos y errores deben ser comprensibles sin depender solo del color.
+
 ### Key Entities
 
 - Instante histórico: estado después de los eventos de tiempo menor o igual a t, antes de una decisión del jugador en ese instante.
@@ -82,11 +85,20 @@ Los casos siguientes conservan los escenarios atribuidos al Apéndice B por la g
 - **SC-LIN-03**: Memoria proporcional a los cambios más un punto de control cada K acciones; se comparan al menos tres K y la alternativa sin puntos.
 - **SC-LIN-04**: La consulta no altera la partida; retroceder recorta la línea sin recorrer toda la historia; guardar y cargar conserva la línea completa.
 
+### Aceptación de interfaz solicitada
+
+1. Abrir historia desde un control visible del juego; reconocer inmediatamente que se está consultando el pasado y qué tiempo/acción está seleccionado.
+2. Navegar por acciones y consultar un tiempo concreto con teclado y ratón; el foco se distingue y Escape cierra el panel devolviendo el control al juego.
+3. Ver estadísticas agrupadas, inventario/efectos y enemigos con los recursos visuales existentes, y el mapa conocido del instante consultado. No usar el mapa actual para representar el pasado.
+4. Sin acciones, sin enemigos o sin efectos, mostrar estados vacíos explícitos; ante una consulta inválida, conservar selección/resumen válido y mostrar un mensaje junto al control afectado.
+5. Con nombres largos y listas grandes, desplazamiento o ajuste mantiene los controles utilizables en los tamaños de ventana admitidos por la aplicación; el panel impide movimiento por proximidad o pasos automáticos mientras tiene foco.
+6. Inspeccionar capturas y recorrer controles reales antes de dar por aprobada la interfaz, además de las pruebas automatizadas.
+
 ## Assumptions
 
 - Fuentes: [guía de parte II](../../docs/CRIPTA%20Parte%20II%20gu%C3%ADa%20y%20divisi%C3%B3n%20del%20trabajo.md), [P1](../../docs/enunciado.md) y [constitución](../../.specify/memory/constitution.md).
-- La guía es un resumen y una propuesta de trabajo, no el enunciado íntegro de P2. Sus referencias deben contrastarse con ese enunciado cuando esté disponible.
-- Los requisitos copiados de la guía son la base solicitada; los supuestos siguientes son propuestas explícitas para revisión, no nuevas reglas oficiales.
+- Fuente normativa: [Cripta Parte II](../../docs/Cripta%20Parte%20II.md), §§3.6,5.5,6.1–6.3 y Apéndice B; contraste registrado en research.md. La guía es complementaria.
+- Las aclaraciones locales y el protocolo de100 calentamientos/1000 consultas complementan el enunciado; no se atribuyen a este como reglas oficiales.
 - Cada paso de ir a cuenta como una acción para K y para historia #k; también cuenta cada uso aceptado de un pergamino. Las consultas y acciones rechazadas quedan fuera del conteo.
 - Las acciones contadas se numeran consecutivamente desde 1 en la línea vigente. Tras un retroceso, las que sobreviven se renumeran y el uso aceptado del pergamino se agrega al final; #0, índices inexistentes y tiempos negativos o no enteros se rechazan sin efectos.
 - K debe ser entero mayor o igual que 1; su valor por defecto se decide en el plan con mediciones de al menos tres valores.
