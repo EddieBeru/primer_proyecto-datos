@@ -68,8 +68,9 @@ class Fachada:
 
     def __init__(self, estado: EstadoPartida, proveedor, catalogo: dict | None = None,
                  bitacora=None, semilla: int | None = None, orden_fn=None,
-                 oleada_cada: int | None = None, receptor_cambios=None) -> None:
+                 oleada_cada: int | None = None, receptor_cambios=None, receptor_historia=None) -> None:
         self.estado = estado
+        self.receptor_historia = receptor_historia
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
         self.orden_fn = orden_fn  # sorts de C1 inyectados por la Sesión (§4.1/§5.1)
@@ -195,6 +196,7 @@ class Fachada:
 
     def _sync(self) -> None:
         self.estado.agenda = self.agenda.a_lista()
+        self.estado.agenda_seq = self.agenda._seq
         self.estado.reloj = self.reloj.ahora
         self.estado.pila_deshacer = self.pila.a_lista()
         try:
@@ -596,7 +598,7 @@ class Fachada:
         self._sync()
         return True, msg
 
-    def avanzar(self) -> str:
+    def _avanzar_evento(self) -> str:
         """Ejecuta el proximo evento (cierre, veneno, rearme, fin, turno, regen)."""
         ev = self.reloj.avanzar(self.agenda)
         if ev is None:
@@ -708,6 +710,13 @@ class Fachada:
         actualizar_estado(self.estado)
         return ev.tipo
 
+    def avanzar(self) -> str:
+        resultado = self._avanzar_evento()
+        if self.receptor_historia is not None and self.receptor_historia.activo:
+            self._sync()
+            self.receptor_historia.evento()
+        return resultado
+
     # -- deshacer §2.11 (intervalo: una llamada revierte hasta acción jugador) --
     def deshacer(self) -> tuple[bool, str]:
         self.cancelar_viaje()
@@ -773,10 +782,13 @@ class Fachada:
         self.estado = candidato
         self.viaje = ControlViaje()
         self.agenda = Agenda.desde_lista(self.estado.agenda or [])
+        self.agenda._seq = max(self.agenda._seq, self.estado.agenda_seq)
         self.reloj = RelojVirtual(ahora=self.estado.reloj)
         self.pila = PilaDeshacer.desde_lista(self.estado.pila_deshacer or [])
         self.azar = Azar(int(getattr(self.estado, "semilla", 0)))
         ae = getattr(self.estado, "azar_estado", None)
+        if isinstance(ae, list):
+            ae = (ae[0], tuple(ae[1]), ae[2])
         if ae is not None:
             try:
                 self.azar._rng.setstate(ae)  # type: ignore[arg-type]

@@ -134,9 +134,13 @@ class Sesion:
     def __init__(self, backend=None, cache_size: int = 25, jugador: str = "jugador",
                  log_ruta: str | None = None, puntajes_ruta: str = "puntajes.jsonl",
                  cache_ruta: str | None = None,
-                 almacen_ruta: str | None = None) -> None:
+                 almacen_ruta: str | None = None, checkpoint_cada: int = 20) -> None:
         if backend is None:
             from src.controller1 import endpoints as backend
+        if type(checkpoint_cada) is not int or checkpoint_cada < 1:
+            raise ValueError("K debe ser entero ≥1")
+        self.checkpoint_cada = checkpoint_cada
+        self.linea = None
         self.backend = backend
         self.cache_size = cache_size
         self.jugador = jugador
@@ -187,6 +191,10 @@ class Sesion:
         if self._archivo is not None:
             self._archivo.iniciar(cripta_id, info.version, ver_cat.version, int(semilla))
         self._volcar_bitacora()
+        self.fachada._sync()
+        from src.controller2.linea_tiempo import LineaTiempo
+        self.linea = LineaTiempo(self.estado, self.checkpoint_cada)
+        self.fachada.receptor_historia = self.linea
         return self.foto()
 
     def _registrar_vecinas(self, salas: list[SalaViva]) -> None:
@@ -208,6 +216,14 @@ class Sesion:
         assert self.fachada is not None, "llamar iniciar() primero"
         partes = texto.strip().split()
         comando = partes[0].lower() if partes else ""
+        if comando == "historia":
+            try:
+                if len(partes) != 2: raise ValueError("Uso: historia <t|#k>")
+                consulta = partes[1]
+                r = self.historia_accion(int(consulta[1:])) if consulta.startswith('#') else self.historia(int(consulta))
+                return True, r.texto(), self.foto()
+            except ValueError as exc:
+                return False, str(exc), self.foto()
         if comando in ("mapa", "foto", "inventario", "ayuda"):
             return True, "Consulta sin tiempo.", self.foto()
         if comando == "cancelar":
@@ -229,8 +245,26 @@ class Sesion:
         if not _automatico:
             self.fachada.cancelar_viaje()
         sala_antes = self.fachada.estado.sala_actual
-        ok, msg = self._intencion(texto)
+        # Fixtures y consumidores técnicos pueden preparar estado antes de la primera acción.
+        if self.linea is not None and not self.linea.acciones:
+            from src.controller2.linea_tiempo import LineaTiempo
+            self.fachada._sync()
+            self.linea = LineaTiempo(self.estado, self.checkpoint_cada)
+            self.fachada.receptor_historia = self.linea
+        log_antes = len(self._mem._lineas)
+        reloj_antes = self.estado.reloj
+        if self.linea is not None: self.linea.comenzar()
+        try:
+            ok, msg = self._intencion(texto)
+        except Exception as exc:
+            if self.linea is not None:
+                self._restaurar_transaccion_historica(log_antes)
+            self.fachada.error = f'No se pudo ejecutar la acción: {exc}'
+            return False, self.fachada.error, self.foto()
         if ok:
+            if self.linea is not None:
+                self.fachada._sync()
+                self.linea.evento()
             self._drenar()
             self._guardar_cache()
             # Mejoras 2026-10: al cambiar de sala se precargan sus vecinas.
@@ -243,10 +277,49 @@ class Sesion:
         else:
             # Guía §6: todo rechazo deja foto.error (incl. comando desconocido).
             self.fachada.error = msg
+        if self.linea is not None:
+            try:
+                if ok:
+                    self.fachada._sync()
+                    if comando == 'deshacer' or (comando == 'usar' and self._mem.leer() and '|deshacer|' in self._mem.leer()[-1]):
+                        self.linea.truncar_intervalo({'reloj': reloj_antes})
+                    else:
+                        self.linea.cerrar_accion({'reloj': reloj_antes}, self.estado)
+                else:
+                    self.linea.conocimiento()
+                    if len(self.linea.registros) > self.linea._inicio:
+                        self._restaurar_transaccion_historica(log_antes)
+                    else:
+                        self.linea.descartar()
+            except Exception as exc:
+                self._restaurar_transaccion_historica(log_antes)
+                ok, msg = False, f'No se pudo registrar la acción: {exc}'
+                self.fachada.error = msg
         foto = self.foto()
         if grabar:
             self._volcar_bitacora()
         return ok, msg, foto
+
+    def _restaurar_transaccion_historica(self, log_antes):
+        from src.controller2.agenda import Agenda
+        from src.controller2.azar import Azar
+        from src.controller2.deshacer import PilaDeshacer
+        from src.controller2.reloj import RelojVirtual
+        from src.controller2.registro_mutaciones import enlazar
+        anterior = self.linea.revertir()
+        self.estado = EstadoPartida.desde_dict(anterior)
+        self.fachada.estado = self.estado
+        self.fachada.agenda = Agenda.desde_lista(self.estado.agenda)
+        self.fachada.agenda._seq = self.estado.agenda_seq
+        self.fachada.pila = PilaDeshacer.desde_lista(self.estado.pila_deshacer)
+        self.fachada.reloj = RelojVirtual(self.estado.reloj)
+        ae = self.estado.azar_estado
+        self.fachada.azar = Azar.desde_estado(self.estado.semilla,self.estado.azar_llamadas,
+            (ae[0],tuple(ae[1]),ae[2]))
+        self.linea.estado = self.estado
+        self.linea._conocimiento = anterior['conocimiento']
+        enlazar(self.estado,self.linea)
+        del self._mem._lineas[log_antes:]
 
     def avanzar_viaje(self, grabar=True):
         assert self.fachada is not None
@@ -279,6 +352,18 @@ class Sesion:
                 contexto.error = f.error
             f.finalizar_paso_viaje(contexto)
         return ok, mensaje or ("Viaje detenido: " + f.viaje.ultimo_motivo if not f.viaje.activo else ""), self.foto()
+
+    def historia(self, t):
+        assert self.linea is not None
+        return self.linea.consultar(t=t)
+
+    def historia_accion(self, k):
+        assert self.linea is not None
+        return self.linea.consultar(accion=k)
+
+    def historial_disponible(self):
+        """Metadatos de navegación, sin exponer la estructura histórica."""
+        return tuple((i+1,a[1],a[2]) for i,a in enumerate(self.linea.acciones))
 
     def mapa_conocido(self):
         from src.controller2.conocimiento import _registro
@@ -482,6 +567,11 @@ class Sesion:
         assert self.fachada is not None and self.cache is not None
         self._sync_presupuesto()
         data = self.fachada.guardar()
+        if not self.linea.acciones:
+            from src.controller2.linea_tiempo import LineaTiempo
+            self.linea = LineaTiempo(self.estado, self.checkpoint_cada)
+            self.fachada.receptor_historia = self.linea
+        data["historia"] = self.linea.a_dict()
         savegame.guardar(ruta, data)
         try:
             self.cache.guardar_disco(cache_ruta or (ruta + ".cache"))
@@ -492,7 +582,7 @@ class Sesion:
     def _candidato_carga(self, ruta, en_frio):
         from src.controller1 import savegame
         from copy import copy, deepcopy
-        data = savegame.cargar_p2(ruta)
+        data = savegame.cargar_historia(ruta)
         candidato = Sesion(backend=self.backend, cache_size=self.cache_size, jugador=self.jugador)
         if en_frio:
             # No instalar sesión ni escribir log/caché activos durante preparación.
@@ -512,6 +602,12 @@ class Sesion:
         if not (ok_c and ok_k):
             raise GuardadoError("versión incompatible: no se puede garantizar partida fiel")
         candidato.fachada.cargar(data)
+        from src.controller2.linea_tiempo import LineaTiempo
+        try:
+            candidato.linea = LineaTiempo.desde_dict(data['historia'], candidato.fachada.estado, candidato.proveedor.datos_sala)
+        except (KeyError, ValueError, TypeError, IndexError) as exc:
+            raise GuardadoError(f"historia inválida: {exc}") from exc
+        candidato.fachada.receptor_historia = candidato.linea
         candidato.estado = candidato.fachada.estado
         candidato._recargar_catalogo()
         candidato.fachada.catalogo = candidato.proveedor.catalogo
@@ -523,9 +619,10 @@ class Sesion:
         return candidato
 
     def _instalar_carga(self, candidato):
-        for atributo in ("info", "budget", "cache", "almacen", "loader", "proveedor", "estado", "fachada"):
+        for atributo in ("info", "budget", "cache", "almacen", "loader", "proveedor", "estado", "fachada", "linea"):
             setattr(self, atributo, getattr(candidato, atributo))
         self.proveedor.registrador = self._registrar_vecinas
+        self.checkpoint_cada = self.linea.k
         self.fachada.bitacora = self._mem
         self._fijar_fichas_en_uso()
         return self.foto()
@@ -588,7 +685,7 @@ class Sesion:
         self._guardar_cache()
 
     # -- replay --
-    def reproducir(self, ruta_log: str) -> FotoEstado:
+    def reproducir(self, ruta_log: str, hasta: int | None = None) -> FotoEstado:
         """--replay sin interacción: valida header y re-ejecuta vía paso()."""
         if self._archivo is None:
             self._archivo = None
@@ -609,7 +706,11 @@ class Sesion:
             h = parsear(ln)
             if "header" in h or "comentario" in h:
                 continue
-            self._aplicar_replay(h["tipo"], h["detalle"])
+            # Consecuencias y turnos enemigos ya los ejecuta el drenaje.
+            if h.get("actor", h.get("quien")) == "jugador":
+                self._aplicar_replay(h["tipo"], h["detalle"])
+        if hasta is not None:
+            return self.historia(min(hasta, self.estado.reloj))
         return self.foto()
 
     def _aplicar_replay(self, tipo: str, detalle: str) -> None:

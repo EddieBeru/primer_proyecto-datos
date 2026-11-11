@@ -42,14 +42,18 @@ def modo_replay(cfg):
         return 1
     ses = _nueva_sesion(cfg, log_ruta=None)
     try:
-        foto = ses.reproducir(cfg.replay)
+        foto = ses.reproducir(cfg.replay, hasta=cfg.hasta)
     except BitacoraIncompatibleError as e:
         print(str(e))
         return 1
-    except CriptaError as e:
+    except (CriptaError, ValueError) as e:
         print(f"No se pudo reproducir: {e}")
         return 1
-    print(f"replay ok: sala {foto.sala_id} estado {foto.estado}")
+    if cfg.hasta is not None:
+        print(foto.texto())
+        if cfg.hasta > ses.estado.reloj: print('La partida terminó antes del tiempo solicitado.')
+    else:
+        print(f"replay ok: sala {foto.sala_id} estado {foto.estado}")
     return 0
 
 
@@ -61,7 +65,7 @@ def _nueva_sesion(cfg, log_ruta="partida.log"):
         backend = OfflineBackend(cfg.offline)
         print(f"Modo offline: {cfg.offline} (no cuenta red)")
     return Sesion(backend=backend, cache_size=cfg.cache_size, jugador=cfg.jugador,
-                  log_ruta=log_ruta,
+                  log_ruta=log_ruta, checkpoint_cada=cfg.checkpoint_cada,
                   cache_ruta=None if cfg.offline else "cache.pkl")
 
 

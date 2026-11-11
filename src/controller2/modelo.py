@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 from copy import deepcopy
 from src.controller2.conocimiento import MapaConocido
+from src.controller2.registro_mutaciones import Observable, limpio
 
 from src.models.dungeons import DungeonGeneral, PlayerInitial
 from src.models.roomContents import EnemyPlacement, RoomContentEntry, TrapPlacement
@@ -45,7 +46,7 @@ _DIRECCIONES_VALIDAS = ("N", "S", "E", "O")
 # ---------------------------------------------------------------------------
 
 @dataclass
-class JugadorVivo:
+class JugadorVivo(Observable):
     """Estado cambiante del jugador.
 
     El inventario es ``list[str]`` con ids de catalogo EN ORDEN; la posicion 0
@@ -117,7 +118,7 @@ class JugadorVivo:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class SalidaViva:
+class SalidaViva(Observable):
 
     direccion: Direccion
     destino: int
@@ -161,7 +162,7 @@ class SalidaViva:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class EnemigoInstancia:
+class EnemigoInstancia(Observable):
     """UN enemigo concreto: instancia + tipo + vida propia (§2.2/§2.4)."""
 
     instancia: str
@@ -188,7 +189,7 @@ class EnemigoInstancia:
 
 
 @dataclass
-class TrampaInstancia:
+class TrampaInstancia(Observable):
     """UNA trampa concreta: instancia + tipo + armada o no."""
 
     instancia: str
@@ -211,7 +212,7 @@ class TrampaInstancia:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class SalaViva:
+class SalaViva(Observable):
     """Sala lista para jugar y dibujar (Flujo C hecho dato).
 
     * ``salidas``: estado vivo de puertas (lo que la Vista dibuja).
@@ -271,7 +272,7 @@ class SalaViva:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class EstadoPartida:
+class EstadoPartida(Observable):
     """Todo lo que forma una partida (K2, Flujo G). Campos fijos.
 
     Si C2 necesita un dato nuevo, lo agrega aqui Y avisa a C1 (regla 6.3),
@@ -294,6 +295,7 @@ class EstadoPartida:
     # C1 los guarda a bytes con struct: no cambiar su forma sin la regla 6.3.
     agenda: list[dict[str, Any]] = field(default_factory=list)
     pila_deshacer: list[dict[str, Any]] = field(default_factory=list)
+    agenda_seq: int = 0
     estado: EstadoJuego = "jugando"
     # §2.6/§4.11 doc oficial: semilla RNG + contadores para tabla puntajes.
     semilla: int = 0
@@ -336,16 +338,19 @@ class EstadoPartida:
 
     # -- serializacion para C1-8 (C2 entrega dict, C1 lo pasa a bytes) --
     def a_dict(self) -> dict[str, Any]:
-        resultado = {nombre: deepcopy(getattr(self, nombre)) for nombre in self.__dataclass_fields__
+        resultado = {nombre: limpio(getattr(self, nombre)) for nombre in self.__dataclass_fields__
                      if nombre not in ("conocimiento", "jugador", "salas")}
-        resultado["jugador"] = asdict(self.jugador)
-        resultado["salas"] = {sid: asdict(sala) for sid, sala in self.salas.items()}
+        resultado["jugador"] = limpio(self.jugador)
+        resultado["salas"] = {sid: limpio(sala) for sid, sala in self.salas.items()}
         resultado["conocimiento"] = self.conocimiento.a_dict()
         return resultado
 
     @classmethod
     def desde_dict(cls, data: dict[str, Any]) -> "EstadoPartida":
         d = dict(data)
+        ae = d.get('azar_estado')
+        if isinstance(ae, list):
+            d['azar_estado'] = (ae[0], tuple(ae[1]), ae[2])
         d["conocimiento"] = MapaConocido.desde_dict(d["conocimiento"]) if "conocimiento" in d else MapaConocido()
         d.setdefault("semilla", 0)
         d.setdefault("azar_llamadas", 0)

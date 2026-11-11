@@ -32,6 +32,8 @@ class CLIConfig:
     jugar: bool = False
     vista: bool = False
     cripta: str | None = None
+    checkpoint_cada: int = 20
+    hasta: int | None = None
 
 
 def parse_args(argv=None):
@@ -59,8 +61,13 @@ def parse_args(argv=None):
                         help="partida gráfica Pygame vía Sesión (solo habla con Sesión)")
     parser.add_argument("--cripta", default=None,
                         help="id de cripta directo (ahorra la petición de lista)")
+    parser.add_argument('--checkpoint-cada', type=_tamano, default=20,
+                        help='acciones entre checkpoints históricos (≥1)')
+    parser.add_argument('--hasta', type=int, help='tiempo histórico consultado en replay (≥0)')
     args = parser.parse_args(argv)
+    if args.hasta is not None and (args.hasta < 0 or args.replay is None):
+        parser.error('--hasta requiere --replay y un tiempo ≥0')
     return CLIConfig(cache_size=args.cache_size, replay=args.replay, bench=args.bench,
                      offline=args.offline, semilla=args.semilla, jugador=args.jugador,
                      guardar=args.guardar, cargar=args.cargar, jugar=args.jugar,
-                     vista=args.vista, cripta=args.cripta)
+                     vista=args.vista, cripta=args.cripta, checkpoint_cada=args.checkpoint_cada, hasta=args.hasta)

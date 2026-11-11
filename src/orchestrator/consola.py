@@ -16,7 +16,7 @@ from src.controller1.mergesort import mergesort
 AYUDA = ("comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar · "
          "pisar <inst> · recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · "
          "inventario [nombre|peso|valor] · mapa · ir a <id> · cancelar · "
-         "deshacer · foto · guardar [ruta] · "
+         "deshacer · historia <t|#k> · foto · guardar [ruta] · "
          "cargar <ruta> · fin · salir · ayuda")
 
 
@@ -122,6 +122,10 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
             continue
         if cmd == "foto":
             renderizar(sesion.foto(), salida)
+            continue
+        if cmd == "historia":
+            ok, mensaje, _ = sesion.paso(texto)
+            salida(mensaje if ok else "! " + mensaje)
             continue
         if cmd == "mapa":
             mapa = sesion.mapa_conocido()
