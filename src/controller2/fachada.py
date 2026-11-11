@@ -318,10 +318,9 @@ class Fachada:
     # -- puertas y movimiento §2.5 (abrir costo 50, mover costo 100) --
     def abrir(self, direccion: str) -> tuple[bool, str]:
         res = abrir_puerta(self.estado, direccion, self.agenda, self.reloj)
+        if res.ok and res.mensaje == "Ya estaba abierta.":
+            return self._ok(res.mensaje)
         if not res.ok:
-            # Ya abierta cuenta como éxito sin tiempo (Apéndice B: sin llave rechaza sin tiempo).
-            if res.mensaje == "Ya estaba abierta.":
-                return self._ok(res.mensaje)
             return self._fail(res.mensaje)
         self._apilar(self._inversa_accion(
             "abrir", {"sala": self.estado.sala_actual, "direccion": direccion},
@@ -711,6 +710,10 @@ class Fachada:
         return ev.tipo
 
     def avanzar(self) -> str:
+        if self.receptor_historia is not None and self.receptor_historia.activo:
+            proximo = self.agenda.ver_proximo()
+            self.receptor_historia._fase = 'evento'
+            self.receptor_historia._tiempo = proximo.t if proximo is not None else self.reloj.ahora
         resultado = self._avanzar_evento()
         if self.receptor_historia is not None and self.receptor_historia.activo:
             self._sync()

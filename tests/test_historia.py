@@ -34,6 +34,7 @@ def test_guardado_historia_roundtrip_y_rechazo_anteriores(tmp_path):
     esperado=[s.historia_accion(i) for i in range(1,4)]
     ruta=str(tmp_path/'v4.bin');s.guardar(ruta)
     assert (tmp_path/'v4.bin').read_bytes()[len(savegame.MAGIA)]==4
+    assert savegame.cargar_sala(ruta,1)['id']==1
     s.cargar(ruta)
     assert [s.historia_accion(i) for i in range(1,4)]==esperado
     s2=sesion(tmp_path);s2.cargar_en_frio(ruta)
@@ -168,3 +169,28 @@ def test_cada_paso_de_viaje_cuenta_y_undo_no_reanuda(tmp_path):
     assert s.avanzar_viaje()[0] and len(s.linea.acciones)==n+2
     assert s.paso('deshacer')[0]
     assert not s.foto().viaje['activo'] and s.estado.sala_actual==3
+
+
+def test_exito_sin_cambios_no_cuenta_ni_consume_tiempo(tmp_path):
+    s=sesion(tmp_path)
+    antes=s.estado.reloj;agenda=s.fachada.agenda.a_lista()
+    assert s.paso('abrir E')[0]
+    assert s.estado.reloj==antes and s.fachada.agenda.a_lista()==agenda
+    assert not s.linea.acciones
+
+
+@pytest.mark.parametrize('version',[1,2])
+@pytest.mark.parametrize('en_frio',[False,True])
+def test_guardados_p1_validos_rechazados_sin_modificar_sesion(tmp_path,version,en_frio):
+    s=sesion(tmp_path);s.paso('e')
+    ruta=str(tmp_path/f'p1-v{version}.bin')
+    if version==1:
+        from test_savegame import ESTADO
+        savegame.guardar(ruta,ESTADO)
+    else:
+        datos=s.estado.a_dict();datos.pop('conocimiento')
+        savegame.guardar(ruta,datos)
+    actual=s.estado.a_dict();historia=s.linea.a_dict()
+    cargar=s.cargar_en_frio if en_frio else s.cargar
+    with pytest.raises(GuardadoError,match='incompatible'):cargar(ruta)
+    assert s.estado.a_dict()==actual and s.linea.a_dict()==historia

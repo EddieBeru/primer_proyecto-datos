@@ -251,6 +251,7 @@ class Sesion:
             self.fachada._sync()
             self.linea = LineaTiempo(self.estado, self.checkpoint_cada)
             self.fachada.receptor_historia = self.linea
+        self._mensajes_antes = self.fachada.mensajes.ultimos()
         log_antes = len(self._mem._lineas)
         reloj_antes = self.estado.reloj
         if self.linea is not None: self.linea.comenzar()
@@ -261,6 +262,11 @@ class Sesion:
                 self._restaurar_transaccion_historica(log_antes)
             self.fachada.error = f'No se pudo ejecutar la acción: {exc}'
             return False, self.fachada.error, self.foto()
+        if ok and self.linea is not None and len(self.linea.registros) == self.linea._inicio:
+            # Un éxito sin cambios (p. ej. puerta ya abierta) no es una acción
+            # histórica y tampoco debe consumir el turno pendiente.
+            self.linea.descartar()
+            return True, msg, self.foto()
         if ok:
             if self.linea is not None:
                 self.fachada._sync()
@@ -320,6 +326,8 @@ class Sesion:
         self.linea._conocimiento = anterior['conocimiento']
         enlazar(self.estado,self.linea)
         del self._mem._lineas[log_antes:]
+        self.fachada.mensajes.limpiar()
+        for mensaje in self._mensajes_antes: self.fachada.mensajes.agregar(mensaje)
 
     def avanzar_viaje(self, grabar=True):
         assert self.fachada is not None

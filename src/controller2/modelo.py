@@ -1,9 +1,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Literal
-from copy import deepcopy
 from src.controller2.conocimiento import MapaConocido
 from src.controller2.registro_mutaciones import Observable, limpio
 

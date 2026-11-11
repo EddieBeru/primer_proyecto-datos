@@ -19,6 +19,13 @@ def _tamano(valor):
     return n
 
 
+def _checkpoint_cada(valor):
+    n = int(valor)
+    if n < 1:
+        raise argparse.ArgumentTypeError('--checkpoint-cada debe ser ≥1')
+    return n
+
+
 @dataclass
 class CLIConfig:
     cache_size: int = 25
@@ -61,7 +68,7 @@ def parse_args(argv=None):
                         help="partida gráfica Pygame vía Sesión (solo habla con Sesión)")
     parser.add_argument("--cripta", default=None,
                         help="id de cripta directo (ahorra la petición de lista)")
-    parser.add_argument('--checkpoint-cada', type=_tamano, default=20,
+    parser.add_argument('--checkpoint-cada', type=_checkpoint_cada, default=20,
                         help='acciones entre checkpoints históricos (≥1)')
     parser.add_argument('--hasta', type=int, help='tiempo histórico consultado en replay (≥0)')
     args = parser.parse_args(argv)

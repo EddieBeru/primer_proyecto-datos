@@ -65,17 +65,21 @@ class LineaTiempo:
 
     def presencia(self, ruta, pa, antes, pd, despues):
         if self.activo:
-            self.registrar_cambio({}, [list(ruta), pa, antes, pd, despues])
+            self.registrar_cambio(self.contexto(), [list(ruta), pa, antes, pd, despues])
 
     def cambio(self, ruta, antes, despues):
         if self.activo:
             pendientes = list(diferencias(antes, despues, ruta))
             inicio = len(self.registros)
             try:
-                for cambio in pendientes: self.registrar_cambio({}, cambio)
+                for cambio in pendientes: self.registrar_cambio(self.contexto(), cambio)
             except Exception:
                 del self.registros[inicio:]
                 raise
+
+    def contexto(self):
+        return {'reloj':self._tiempo,'fase':self._fase,
+                'orden':len(self.registros),'ordinal':len(self.acciones)+1}
 
     def registrar_cambio(self, contexto, inversa):
         """Registro interno ya desligado del estado vivo."""
@@ -83,6 +87,8 @@ class LineaTiempo:
         self.registros.append(deepcopy(inversa))
 
     def comenzar(self):
+        self._tiempo = self.estado.reloj
+        self._fase = "accion"
         self.activo = True
         self._inicio = len(self.registros)
         self._cortes_inicio = len(self.cortes)
