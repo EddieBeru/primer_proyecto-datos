@@ -165,3 +165,13 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   adjudican001 o la revisión transversal completa§5.6 a esta entrega004.
 
 - Regresión final004:464 aprobadas/1 omitida (14,39 s); git diff --check sin errores.
+
+## Corrección visual004 — 2026-11-10
+
+- Prompt literal: «remueve las esquinas redondeadas. eso aquí no se permite».
+- Uso: eliminar redondeo en el historial y su botón de acceso, retirar el token
+  de radio y corregir los criterios actuales de diseño. Los registros previos
+  que describen radios reflejan la implementación anterior, reemplazada aquí.
+- Validación: pruebas existentes de interfaz, regeneración y revisión de capturas
+  offline a1024×800 y640×480, y git diff --check.
+- Resultado de esta corrección:103 pruebas de interfaz aprobadas/1 omitida; capturas revisadas y ausencia de border_radius en src/view.

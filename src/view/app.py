@@ -1118,8 +1118,8 @@ class VistaApp:
         if self.pantalla == 'juego' and self.foto is not None and not self.panel_mapa and self.panel_historia is None:
             m = medidas(self.ventana); p = m.px
             rect = pygame.Rect(self.ventana.get_width()-p(176),p(8),p(160),p(32))
-            pygame.draw.rect(self.ventana,paleta.PANEL,rect,border_radius=p(8))
-            pygame.draw.rect(self.ventana,paleta.MURO,rect,m.trazo(),border_radius=p(8))
+            pygame.draw.rect(self.ventana,paleta.PANEL,rect)
+            pygame.draw.rect(self.ventana,paleta.MURO,rect,m.trazo())
             label = m.fuente(14).render('H  Historial',True,paleta.TEXTO)
             self.ventana.blit(label,label.get_rect(center=rect.center))
             self.hotspots.append((rect,pygame.K_h))

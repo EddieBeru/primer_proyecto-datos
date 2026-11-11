@@ -67,7 +67,7 @@ Los escenarios1–6 se contrastaron con el Apéndice B oficial; el escenario7 re
 - **FR-LIN-14** (medición): `--bench` mide memoria y tiempo de consulta con al menos tres valores de K y contra la alternativa sin puntos de control.
 
 - **FR-LIN-15 (solicitud del usuario, 2026-11-10)**: la interfaz gráfica permite explorar la historia mediante un panel visual integrado con el juego, con selección de tiempo o acción, navegación y secciones jerarquizadas para estadísticas, inventario, efectos, enemigos y mapa histórico. Identifica claramente el instante consultado y el estado actual; consultar no modifica ni revierte la partida.
-- **FR-LIN-16 (solicitud del usuario, 2026-11-10)**: la interfaz histórica mantiene la paleta, tipografía, escala y patrones de interacción existentes; usa una retícula base de8 px para espaciados, márgenes internos/externos y radios de borde. Texto y contenido deben adaptarse al espacio disponible sin recortes ni superposiciones. Selección, foco, estados vacíos y errores deben ser comprensibles sin depender solo del color.
+- **FR-LIN-16 (solicitud del usuario, 2026-11-10)**: la interfaz histórica mantiene la paleta, tipografía, escala y patrones de interacción existentes; usa una retícula base de8 px para espaciados, márgenes internos/externos; todos los paneles, controles, barras y nodos usan esquinas rectas. Texto y contenido deben adaptarse al espacio disponible sin recortes ni superposiciones. Selección, foco, estados vacíos y errores deben ser comprensibles sin depender solo del color.
 
 ### Key Entities
 

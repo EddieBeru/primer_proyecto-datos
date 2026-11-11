@@ -661,7 +661,7 @@ se corrigió la rama previa que apilaba esa apertura vacía.
 
 **UI/UX.** Panel H/Historial con navegación por tiempo/acción, foco, teclado y
 ratón, barra de vida, sprites de inventario, secciones y grafo del mapa histórico.
-Paleta/fuentes/escala compartidas; tokens de8/24/8 px para espacio/margen/radio.
+Paleta/fuentes/escala compartidas; tokens de8/24 px para espacio/margen y esquinas rectas, coherentes con el pixel-art.
 La geometría histórica se cachea por consulta; controles siguen visibles con
 listas largas y scroll. Capturas offline revisadas a1024×800 y640×480; pruebas
 a640×480,1024×800,1280×720 y1920×1080. El panel suspende movimiento/viaje y
@@ -674,3 +674,12 @@ grandes. §5.6 completo conserva su alcance transversal y espera también la car
 nueva de A. El recorrido manual humano de UI sigue pendiente (T033); capturas y
 eventos headless no se presentan como esa validación. Regresión final:464
 aprobadas/1 omitida (integración HTTP opcional), 14,39 s.
+
+### Corrección visual004 — 2026-11-10
+
+Por instrucción explícita del usuario («remueve las esquinas redondeadas. eso
+aquí no se permite»), se eliminan los radios de paneles, botones, campos,
+barras y nodos del historial, incluido su acceso desde el juego. La retícula
+de8 px se aplica al espaciado y los márgenes; no autoriza esquinas redondeadas.
+Se corrigen especificación, plan, tareas, contrato y capturas para mantener la
+estética de rectángulos duros ya documentada en la decisión30.

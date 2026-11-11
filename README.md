@@ -148,7 +148,7 @@ el movimiento y el viaje automático quedan suspendidos.
 El detalle agrupa vida/estadísticas, inventario con sprites, efectos, enemigos
 y el mapa conocido en ese instante. La selección y los estados de puertas se
 identifican también con etiquetas y símbolos. Usa la paleta y escala existentes,
-con retícula lógica de8 px para separaciones y radios.
+con retícula lógica de8 px para separaciones; todos los bordes son rectos.
 
 En consola: `historia 300` o `historia #5`. Configura los puntos de control con
 `--checkpoint-cada 20`; `--replay partida.log --hasta 300` imprime el mismo

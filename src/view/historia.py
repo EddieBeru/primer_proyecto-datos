@@ -1,7 +1,7 @@
 """Panel de historia: navegación y detalle visual sobre DTO inmutables de Sesión."""
 import pygame
 from src.view import paleta, texto
-from src.view.medidas import medidas, ESPACIO, MARGEN, RADIO
+from src.view.medidas import medidas, ESPACIO, MARGEN
 
 
 def coordenadas_historicas(mapa):
@@ -107,14 +107,14 @@ class PanelHistoria:
         self.botones=[]
         velo=pygame.Surface(superficie.get_size(),pygame.SRCALPHA);velo.fill((62,39,26,155));superficie.blit(velo,(0,0))
         caja=superficie.get_rect().inflate(-p(MARGEN*2),-p(MARGEN*2))
-        pygame.draw.rect(superficie,paleta.PANEL,caja,border_radius=p(RADIO))
-        pygame.draw.rect(superficie,paleta.MURO,caja,m.trazo(),border_radius=p(RADIO))
+        pygame.draw.rect(superficie,paleta.PANEL,caja)
+        pygame.draw.rect(superficie,paleta.MURO,caja,m.trazo())
         x,y=caja.x+p(24),caja.y+p(16)
         superficie.blit(titulo.render('Historial de la partida',True,paleta.TEXTO),(x,y))
         superficie.blit(chica.render('Consulta el pasado · tu partida sigue en el presente',True,paleta.SECUNDARIO),(x,y+p(32)))
         def boton(rect,etiqueta,accion,seleccion=False,foco=None):
-            pygame.draw.rect(superficie,paleta.TITULO if seleccion else paleta.FONDO_APP,rect,border_radius=p(RADIO))
-            pygame.draw.rect(superficie,paleta.TEXTO if foco==self.foco else paleta.MURO,rect,m.trazo(2 if foco==self.foco else 1),border_radius=p(RADIO))
+            pygame.draw.rect(superficie,paleta.TITULO if seleccion else paleta.FONDO_APP,rect)
+            pygame.draw.rect(superficie,paleta.TEXTO if foco==self.foco else paleta.MURO,rect,m.trazo(2 if foco==self.foco else 1))
             imagen=chica.render(etiqueta,True,paleta.TEXTO_CLARO if seleccion else paleta.TEXTO)
             superficie.blit(imagen,imagen.get_rect(center=rect.center));self.botones.append((rect,accion))
         boton(pygame.Rect(caja.right-p(112),y,p(88),p(32)),'Esc  Cerrar','cerrar',foco=5)
@@ -122,8 +122,8 @@ class PanelHistoria:
         boton(pygame.Rect(x,y,p(80),p(32)),'Acción','accion',self.modo=='accion',0)
         boton(pygame.Rect(x+p(88),y,p(80),p(32)),'Tiempo','tiempo',self.modo=='tiempo',1)
         campo=pygame.Rect(x+p(184),y,p(128),p(32))
-        pygame.draw.rect(superficie,paleta.FONDO_APP,campo,border_radius=p(RADIO))
-        pygame.draw.rect(superficie,paleta.TITULO if self.foco==2 else paleta.SECUNDARIO,campo,m.trazo(2),border_radius=p(RADIO))
+        pygame.draw.rect(superficie,paleta.FONDO_APP,campo)
+        pygame.draw.rect(superficie,paleta.TITULO if self.foco==2 else paleta.SECUNDARIO,campo,m.trazo(2))
         superficie.blit(fuente.render(('#' if self.modo=='accion' else 't=')+self.entrada,True,paleta.TEXTO),(campo.x+p(8),campo.y+p(8)))
         self.botones.append((campo,'entrada'))
         boton(pygame.Rect(x+p(320),y,p(88),p(32)),'Consultar','consultar',foco=2)
@@ -133,7 +133,7 @@ class PanelHistoria:
         y+=p(64)
         lista=pygame.Rect(x,y,p(184),caja.bottom-y-p(56))
         self._limite_lista=lista.right
-        pygame.draw.rect(superficie,paleta.FONDO_APP,lista,border_radius=p(RADIO))
+        pygame.draw.rect(superficie,paleta.FONDO_APP,lista)
         superficie.blit(chica.render(f'ACCIONES · {len(self.acciones)}',True,paleta.SECUNDARIO),(lista.x+p(8),lista.y+p(8)))
         visibles=max(1,(lista.height-p(40))//max(1,p(40)))
         self.lista_scroll=min(self.lista_scroll,max(0,len(self.acciones)-visibles))
@@ -160,8 +160,8 @@ class PanelHistoria:
         texto_linea(f'{etiqueta}   ·   TIEMPO {r.reloj}',paleta.TITULO,tit)
         texto_linea(f'Sala {r.sala_id} · {r.sala_nombre}')
         y+=p(8)
-        bar=pygame.Rect(x,y,w,p(16));pygame.draw.rect(sup,paleta.VIDA_FONDO,bar,border_radius=p(RADIO))
-        llena=bar.copy();llena.width=round(w*r.vida/max(1,r.vida_max));pygame.draw.rect(sup,paleta.VIDA,llena,border_radius=p(RADIO));y+=p(24)
+        bar=pygame.Rect(x,y,w,p(16));pygame.draw.rect(sup,paleta.VIDA_FONDO,bar)
+        llena=bar.copy();llena.width=round(w*r.vida/max(1,r.vida_max));pygame.draw.rect(sup,paleta.VIDA,llena);y+=p(24)
         texto_linea(f'Vida {r.vida}/{r.vida_max}    ATQ {r.ataque}    DEF {r.defensa}    VEL {r.velocidad}')
         y+=p(8);texto_linea('INVENTARIO',paleta.TITULO,tit)
         if not r.inventario: texto_linea('Mochila vacía',paleta.SECUNDARIO)
@@ -196,12 +196,12 @@ class PanelHistoria:
                         punto=((posiciones[sid][0]+posiciones[destino][0])//2,
                                (posiciones[sid][1]+posiciones[destino][1])//2)
                         fondo=marca.get_rect(center=punto).inflate(p(8),p(8))
-                        pygame.draw.rect(sup,paleta.PANEL,fondo,border_radius=p(RADIO))
+                        pygame.draw.rect(sup,paleta.PANEL,fondo)
                         sup.blit(marca,marca.get_rect(center=punto))
         for sid,nombre,estado,salidas in r.mapa:
             centro=posiciones[sid];nodo=pygame.Rect(0,0,p(56),p(40));nodo.center=centro
-            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.PANEL,nodo,border_radius=p(RADIO))
-            pygame.draw.rect(sup,paleta.MURO,nodo,m.trazo(2 if sid==r.sala_id else 1),border_radius=p(RADIO))
+            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.PANEL,nodo)
+            pygame.draw.rect(sup,paleta.MURO,nodo,m.trazo(2 if sid==r.sala_id else 1))
             etiqueta=texto.envolver(f'#{sid}'+(' ?' if estado=='avistada' else ''),ch,nodo.width-p(8),1)[0]
             imagen=ch.render(etiqueta,True,paleta.TEXTO_CLARO if sid==r.sala_id else paleta.TEXTO)
             sup.blit(imagen,imagen.get_rect(center=centro))
@@ -215,8 +215,8 @@ class PanelHistoria:
                 detalle_salidas.extend(texto.envolver(f'{d} → #{destino} · {costo} · {estado_puerta}',ch,w-p(32),100))
             alto=p(24*(len(lineas)+len(detalle_salidas))+16)
             caja=pygame.Rect(x,y,w,alto)
-            pygame.draw.rect(sup,paleta.FONDO_APP,caja,border_radius=p(RADIO))
-            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.SECUNDARIO,caja,m.trazo(),border_radius=p(RADIO))
+            pygame.draw.rect(sup,paleta.FONDO_APP,caja)
+            pygame.draw.rect(sup,paleta.TITULO if sid==r.sala_id else paleta.SECUNDARIO,caja,m.trazo())
             for linea in lineas:
                 sup.blit(ch.render(linea,True,paleta.TEXTO),(x+p(8),y+p(8)));y+=p(24)
             for linea in detalle_salidas:

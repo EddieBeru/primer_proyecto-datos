@@ -7,7 +7,6 @@ import pygame
 # Retícula lógica compartida; la escala se aplica con Medidas.px.
 ESPACIO = 8
 MARGEN = 24
-RADIO = 8
 
 _FUENTES: dict[tuple[int, bool], pygame.Font] = {}
 

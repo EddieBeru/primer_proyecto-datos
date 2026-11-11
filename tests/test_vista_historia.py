@@ -2,7 +2,7 @@
 import pygame
 import pytest
 from test_vista import app
-from src.view.historia import ESPACIO, MARGEN, RADIO
+from src.view.historia import ESPACIO, MARGEN
 
 
 def test_historia_foco_navegacion_y_cierre(app):
@@ -27,7 +27,7 @@ def test_consulta_invalida_conserva_resumen_y_tokens(app):
     valido=panel.resumen
     panel.modo='tiempo';panel.entrada='999999';panel.consultar()
     assert panel.error and panel.resumen is valido
-    assert all(v%8==0 for v in (ESPACIO,MARGEN,RADIO))
+    assert all(v%8==0 for v in (ESPACIO,MARGEN))
 
 
 @pytest.mark.parametrize('tamano',[(640,480),(1024,800),(1280,720),(1920,1080)])

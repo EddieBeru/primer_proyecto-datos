@@ -191,7 +191,7 @@ No incorporar una acción de restaurar al consultar. Incorporar acceso visible
 y ayuda contextual; elegir atajo solo después de comprobar los existentes.
 
 Usar tokens compartidos de8/16/24/32 px lógicos para separaciones, padding,
-márgenes y radios; convertirlos con `Medidas.px` para la escala de la ventana.
+márgenes; mantener esquinas rectas y convertirlos con `Medidas.px` para la escala de la ventana.
 El grosor del trazo puede ser1/2 px lógicos para conservar legibilidad: no se
 interpreta la retícula como obligación de dibujar contornos de8 px. Conservar
 la jerarquía tipográfica existente. Evitar constantes de estilo nuevas dispersas.

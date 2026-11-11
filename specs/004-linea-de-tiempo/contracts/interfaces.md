@@ -112,6 +112,6 @@ un panel visual con navegación y detalle jerarquizado; no accede al motor ni
 reconstruye historia. Reutiliza paleta, medidas, fuentes y recursos existentes.
 El panel recibe foco, bloquea movimiento y pasos automáticos mientras está
 abierto, y se cierra con Escape o control visible. La retícula base es8 px
-lógicos para espaciados, padding y radios, escalados mediante Medidas.
+lógicos para espaciados y padding, con esquinas rectas, escalados mediante Medidas.
 Esta solicitud de presentación está autorizada por el usuario; no constituye
 aprobación implícita de T002/T003 ni cambia todavía CONTRATOS.md.

@@ -89,7 +89,7 @@ cazadores nuevos se verifica cuando A entregue001.
 
 - Revisar primero los componentes y atajos actuales; usar paleta, fuentes y
   escala compartidas. Inspeccionar retícula de8 px lógicos en márgenes, padding
-  y radios, sin exigir8 px de grosor a los contornos.
+  con esquinas rectas y sin exigir8 px de grosor a los contornos.
 - Abrir desde el juego y navegar historia con teclado y ratón; comprobar foco
   visible, selección por tiempo/acción, Escape y retorno al juego sin movimiento
   accidental ni pasos de viaje acumulados.
