@@ -16,6 +16,7 @@ def mapa_de_arcos(arcos):
 
 
 def test_mas_arcos_menor_costo_y_desempate_descubierto_tarde():
+    """FR-NIE-11: costo mínimo y primer vecino de menor ID."""
     mapa = mapa_de_arcos([
         (100, [("N", 9, 1), ("S", 2, 3), ("E", 90, 30)]),
         (9, [("E", 90, 9)]), (2, [("E", 7, 1)]),
@@ -59,3 +60,16 @@ def test_busqueda_solo_recibe_adyacencia_del_conocimiento(proveedor_niebla):
 
 
 from fixtures_niebla import proveedor_niebla
+
+
+def test_adyacencia_consulta_cada_destino_una_vez(monkeypatch):
+    """FR-NIE-19: evitar consultas repetidas por salida."""
+    mapa = mapa_de_arcos([(1, [('S', 2, 1), ('N', 3, 1)]), (2, []), (3, [])])
+    consultas = []
+    original = mapa.sala
+    def contar(sid):
+        consultas.append(sid)
+        return original(sid)
+    monkeypatch.setattr(mapa, 'sala', contar)
+    assert [s.direccion for s in mapa.adyacentes(1)] == ['N', 'S']
+    assert consultas == [1, 3, 2]

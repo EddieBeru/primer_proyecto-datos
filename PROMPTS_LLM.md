@@ -73,3 +73,32 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
 | 2026-11-08 | Codex | «apruebo todos los contratos» / «hurry up» / «finish NOW» | Registrada autorización directa del usuario y enmienda K1/K2/K3/K5; T001 completa. Implementación adicional parcial de conocimiento/deltas, Dijkstra, antorcha/undo, receptor, viaje por pasos, mapa DTO, comentario de bitácora y v3/carga candidata. Suite completa320 aprobadas/1 omitida; ajuste posterior de aislamiento candidato validado con38 pruebas focalizadas. Corte solicitado por el usuario: faltan interfaces consola/Pygame, ampliar persistencia/replay, benchmarks y aceptación integrada001/004/referencia. Sin declarar completo002, commits ni push. |
 | 2026-11-08 | Codex | «que tal si empezamos el numero 4?» / respuestas a `$speckit-clarify` sobre conteo y renumeración de acciones, compatibilidad de guardados y tiempos repetidos | Aclarar y planificar `004-linea-de-tiempo`; actualizar spec, research, data model, contratos propuestos y validación. La revisión del modelo no sustituye al equipo ni al enunciado oficial P2. |
 | 2026-11-08 | Codex | «ajuta los documentos para que el máximo observado en la carga de benchmark deba ser ≤50 ms» | Definir máximo observado como criterio de pase y propagar la carga (100 calentamientos, 1 000 mediciones, 5 000+ acciones, K por defecto) por spec, plan, tasks, research y quickstart. |
+
+
+## Continuación de 002 — 2026-11-09
+
+- **Modelo:** Codex (familia GPT-6; variante no confirmada).
+- **Prompt literal:** «qué hay pendiente para la persona B?» y «terminemos 002».
+- **Uso:** revisión local de tareas, implementación y pruebas; correcciones de
+  consola/viaje, reposición visual tras cruce, consultas de mochila, aislamiento
+  de caché al cargar y detalles del mapa. Nuevas pruebas offline de conocimiento,
+  deltas, viaje, interfaces, persistencia y replay; benchmarks de mapa/rutas con
+  índice y heap propios frente a alternativas lineales. Resultados ejecutados y
+  limitaciones se registran en quickstart y DECISIONES.md; no se atribuye cierre
+  académico a pruebas sintéticas ni se implementa004 como parte de002.
+
+- **Aclaración literal posterior:** «ya estan las instrucciones en docs».
+  Uso: lectura íntegra de `docs/Cripta Parte II.md`, contraste de002, actualización
+  de fuentes y eliminación del bloqueo por enunciado ausente; trazabilidad de los
+  seis casos oficiales a IDs de requisito y pruebas automatizadas.
+
+- **Consulta literal durante la ejecución:** «what else». Uso: estado de pendientes
+  y rendimiento observado; ajuste documentado del muestreo de benchmarks después
+  de una corrida exhaustiva demasiado costosa. No se atribuyen resultados a la
+  matriz interrumpida; el diagnóstico inicial dirigido se distingue de la matriz
+  final con costos recíprocos válidos.
+
+- **Resultado ejecutado:** regresión final418 aprobadas/1 omitida (5,34 s);
+  `--bench` salida0 y matriz final36 cargas en el informe JSON versionable de
+  `docs/mediciones/`. Se publican fallos sintéticos de5 ms y el muestreo revisado;
+  quedan46/52 tareas cerradas y seis de aceptación/integración pendientes.

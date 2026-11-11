@@ -480,3 +480,108 @@ comparaciones se hacen dentro de la misma corrida).
     comparación empírica con las alternativas ni aceptación de5 ms: pendientes
     de T044–T048. No se modificaron modelos ponderados de001, contratos vigentes,
     guardado o replay; la integración permanece condicionada a T001.
+
+## C. Parte 2 — Niebla e «ir a» (002), 2026-11-09
+
+**Problema.** La precarga de salas es infraestructura y no conocimiento. El
+viaje debe usar solo salas exploradas y memoria de puertas, aceptar cancelación
+entre movimientos y permitir invertir cada paso sin copiar el mapa entero.
+
+**Alternativas.** Filtrar salas cargadas filtra infraestructura; las visitas
+físicas no representan la antorcha. Una copia por acción incumple la restricción
+de memoria. BFS ignora costos; compartir resultados de cazadores mezcla puertas
+vivas con memoria del jugador. Se comparan índice propio frente a búsqueda
+lineal y heap propio frente a cola de prioridad lineal en los benchmarks.
+
+**Elección.** `MapaConocido` con tablas hash propias redimensionables y registros
+inmutables; observación presencial separada de revelación remota; cambios
+antes/después por registro adjuntos a la inversa causal. Dijkstra neutral con
+heap e índice propios calcula cada paso sin caché de rutas, usando únicamente
+adyacencia conocida. Sesión ejecuta un movimiento ordinario y drena una vez;
+la UI espera al menos150 ms reales y procesa la entrada antes del siguiente paso.
+El receptor opcional para004 recibe deltas antes del descarte por tope cinco;
+002 no retiene la historia completa ni elige K.
+
+**Complejidad.** Índice: consulta esperadaO(1), inserción esperada amortizadaO(1),
+rehashO(n) al duplicar por carga0,75. DijkstraO((V+E)log(1+E)), espacioO(V+E)
+en la región conocida descubierta. Proyección completaO(VlogV+E) con mergesort;
+la UI la reutiliza por revisión. Revelación ordinaria depende de registros
+revelados/observados y sus salidas acotadas a cuatro; las expansiones se cuentan
+en el costo amortizado, no se esconden en las mediciones.
+
+**Validación funcional.** 415 pruebas aprobadas/1 omitida (HTTP optativo),
+5,33 s, con SDL dummy. Se corrigieron cruce visual automático sin reposición,
+consultas de mochila que cancelaban el viaje y copia superficial de la caché
+LRU candidata. Consola admite reloj/lector inyectados y muestra costos y memoria
+de puertas; EOF/KeyboardInterrupt cancelan. Guardado v3 y deltas sobreviven al
+roundtrip; las cargas corruptas preservan la sesión y el viaje. Evidencia y
+límites en `specs/002-niebla-ir-a/quickstart.md`.
+
+**Límites.** La entrega aislada no acredita costos/tiempos ponderados ni simetría
+física de001, historia004 o referencia oficial de5 ms.
+El recorrido con comandos por stdin y render headless no sustituye una sesión
+manual completa. §5.6 y la elección de K siguen fuera del alcance de002.
+
+
+**Fuentes y concordancia con el plan.** [Spec002](specs/002-niebla-ir-a/spec.md)
+y [plan002](specs/002-niebla-ir-a/plan.md). El diseño final conserva la elección
+del plan. Se eliminan consultas redundantes de adyacencia: cada destino se busca
+una vez por salida, conservando N,S,E,O. El enunciado íntegro aportado por el
+usuario, `docs/Cripta Parte II.md`, quedó leído y contrastado el2026-11-09;
+se retira el límite anterior por fuente P2 ausente, sin extenderlo a una supuesta
+entrega de la referencia oficial de rendimiento o de001/004.
+
+
+## Mediciones finales de002 — 2026-11-09
+
+Comando ejecutado con salida0: `.venv/bin/python -m src.main --bench`.
+Informe íntegro: [002-niebla-2026-11-09.json](docs/mediciones/002-niebla-2026-11-09.json).
+Semilla20261106; Python3.12.3, Linux, Intel Core i7-1185G7@3GHz. El informe incluye
+SO, CPU, base Git, estado modificado y SHA256 de las fuentes medidas. No se
+instancia vista ni red. Se conservaron todos los benchmarks anteriores.
+
+La matriz final contiene36 cargas: tres tamaños, cadenas/mallas/empates,
+conocimiento parcial/completo y puertas recordadas estables/desactualizadas.
+Los costos recíprocos son iguales y el grado es≤4. Cada carga comprueba igualdad
+de resultado entre heap y cola lineal antes de medir. El muestreo se ajustó a
+1000/100/10 consultas y100/10/1 calentamientos para100/1000/10000 salas: el plan
+original exigía1000 en todos los tamaños y resultó demasiado costoso. P2§6.3 no
+fija ese número. Se publica el cambio; p95 con10 muestras es aproximado. Los
+máximos observados son mediciones de esta ejecución, no garantías.
+
+Ejemplo: malla completamente conocida, memoria estable, ruta del inicio al final:
+
+| Salas | Consultas por alternativa | Heap mediana / p95 / máximo (ms) | Cola lineal mediana (ms) | Pico auxiliar heap (bytes) |
+|---:|---:|---:|---:|---:|
+| 100 | 1000 | 2.691 / 5.601 / 8.653 | 3.352 | 9280 |
+| 1000 | 100 | 34.766 / 40.203 / 42.801 | 40.554 | 71964 |
+| 10000 | 10 | 404.143 / 441.930 / 441.930 | 716.748 | 1413300 |
+
+**Resultado de rendimiento.** En la matriz completa, el máximo del heap fue
+23,142/86,251/452,053 ms para100/1000/10000 salas. Hubo581/1000/100 consultas por
+encima de5 ms, sobre12000/1200/120 consultas respectivamente. Estas cargas
+sintéticas no acreditan FR-NIE-19/SC-NIE-01. Falta la referencia oficial compatible;
+no se declara cumplido el presupuesto. El heap reduce la mediana frente a la
+cola lineal en la malla grande (404,143 frente a716,748 ms), con memoria auxiliar
+similar. Se conserva la estructura prevista en el plan, sin afirmar que ello
+resuelva todavía el límite temporal.
+
+**Consultas y revelación.** Para100/1000/10000 salas, la mediana de consulta por
+índice fue0,001004/0,001131/0,001652 ms; la alternativa lineal,
+0,001573/0,029619/0,180993 ms. Revelar las mismas dos salas produjo siempre cinco
+consultas y dos escrituras, sin rehash ordinario ni recorrido completo. Las
+secuencias de100/1000/10000 altas incluyeron5/8/11 expansiones y186/1530/12282
+registros movidos: ese costo no se excluye de la proporcionalidad amortizada.
+El mapa completo se mide separadamente; su extracción y orden no se confunden
+con una consulta puntual o revelación.
+
+**Optimización y límites.** La adyacencia consultaba cada destino en cada una de
+las cuatro vueltas por dirección; ahora filtra la dirección antes de buscarlo.
+La prueba de operaciones confirma una consulta por salida y conserva el orden
+N,S,E,O. La matriz final se ejecutó después de ese cambio. La matriz exhaustiva
+inicial fue interrumpida y no tiene resultados agregados publicados; el piloto
+dirigido anterior no es la referencia de esta tabla. No hay comparación temporal
+antes/después controlada con la misma carga, por lo que no se atribuye una razón
+de aceleración a la optimización. La justificación comprobada es reducir accesos
+redundantes. La aceptación de tiempos ponderados001, historia004 y referencia
+oficial permanece abierta. Esto no cierra§5.6 ni elige K.

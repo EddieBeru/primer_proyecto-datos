@@ -491,7 +491,7 @@ class Sesion:
 
     def _candidato_carga(self, ruta, en_frio):
         from src.controller1 import savegame
-        from copy import copy
+        from copy import copy, deepcopy
         data = savegame.cargar_p2(ruta)
         candidato = Sesion(backend=self.backend, cache_size=self.cache_size, jugador=self.jugador)
         if en_frio:
@@ -501,7 +501,7 @@ class Sesion:
             assert self.fachada is not None and self.budget is not None
             candidato.info = self.info
             candidato.budget = copy(self.budget)
-            candidato.cache = copy(self.cache)
+            candidato.cache = deepcopy(self.cache)
             candidato.almacen = None  # No escribir almacén activo durante validación.
             candidato.loader = RoomLoader(data["cripta_id"], self.loader.plano,
                 candidato.budget, candidato.cache, backend=self.backend)

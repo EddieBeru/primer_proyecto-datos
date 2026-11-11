@@ -65,24 +65,32 @@ def renderizar(foto, salida=print) -> None:
     salida(f"  presupuesto: {foto.presupuesto}")
 
 
-def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin") -> int:
+def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin",
+          *, leer_viaje=None, reloj=time.monotonic) -> int:
     """Loop de consola; mientras hay viaje acepta consultas/cancelación sin bloquear."""
     salida(AYUDA)
     renderizar(sesion.foto(), salida)
     prompt_viaje = False
+    proximo_paso = reloj() + 0.15
     while True:
         try:
-            if sesion.fachada and sesion.fachada.viaje.activo and entrada is input:
-                if not prompt_viaje:
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
-                    prompt_viaje = True
-                listo, _, _ = select.select([sys.stdin], [], [], 0.15)
-                if not listo:
-                    _, _, foto = sesion.avanzar_viaje()
-                    renderizar(foto, salida)
+            if sesion.fachada and sesion.fachada.viaje.activo and (entrada is input or leer_viaje is not None):
+                espera = max(0.0, proximo_paso - reloj())
+                if leer_viaje is not None:
+                    texto = leer_viaje(espera)  # None: vence plazo; "": EOF.
+                else:
+                    if not prompt_viaje:
+                        sys.stdout.write("> ")
+                        sys.stdout.flush()
+                        prompt_viaje = True
+                    listo, _, _ = select.select([sys.stdin], [], [], espera)
+                    texto = sys.stdin.readline() if listo else None
+                if texto is None:
+                    if reloj() >= proximo_paso:
+                        _, _, foto = sesion.avanzar_viaje()
+                        renderizar(foto, salida)
+                        proximo_paso = reloj() + 0.15
                     continue
-                texto = sys.stdin.readline()
                 if not texto:
                     raise EOFError
                 texto = texto.strip()
@@ -90,6 +98,7 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
             else:
                 texto = entrada("> ").strip()
         except (EOFError, KeyboardInterrupt):
+            sesion.paso("cancelar")
             salida("\nsesión interrumpida.")
             return 130
         if not texto:
@@ -118,6 +127,8 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
             mapa = sesion.mapa_conocido()
             for sala in mapa.salas:
                 salida(f"{sala['id']}  {sala.get('nombre') or sala.get('etiqueta')}  [{sala.get('estado')}]")
+                for puerta in sala.get("salidas", ()):
+                    salida(f"  {puerta['direccion']}→{puerta['destino']} costo {puerta['costo']} [{puerta['estado']}]")
             continue
         if cmd in ("inventario", "inv"):
             partes = texto.split()
@@ -145,6 +156,8 @@ def bucle(sesion, entrada=input, salida=print, save_default: str = "partida.bin"
                 salida(f"! no se pudo cargar: {e}")
             continue
         ok, msg, foto = sesion.paso(texto)
+        if cmd == "ir" and ok:
+            proximo_paso = reloj() + 0.15
         if not ok and msg:
             salida(f"! {msg}")
         elif msg:

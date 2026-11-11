@@ -77,7 +77,10 @@ consulta el estado actual. El cruce manual por puertas sigue disponible.
 
 En Pygame, **M** abre el mapa gráfico de nodos cuadrados y conexiones
 direccionales; **↑/↓/←/→** selecciona la sala vecina en esa dirección y **Enter**
-inicia el viaje. **Escape** lo cancela; WASD/flechas regresan al control manual.
+inicia el viaje. El panel muestra las salidas, costos y puertas recordadas de la
+sala seleccionada. **Escape** lo cancela; WASD/flechas regresan al control manual.
+Consultar u ordenar la mochila conserva el viaje. Una carga fallida también lo
+conserva; guardar, pausar y cargar correctamente lo detienen.
 
 ## Ventana y controles de Pygame
 

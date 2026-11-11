@@ -45,3 +45,58 @@ def test_receptor_obtiene_deltas_antes_de_descartar_y_truncamiento(sesion_niebla
     assert ses.fachada.pila.intervalos == 5
     ses.paso("deshacer")
     assert colector.truncamientos == 1
+
+
+def test_receptor_inicio_evento_y_reaplicacion_bidireccional():
+    from fixtures_niebla import crear_proveedor_niebla, crear_jugador_niebla
+    from src.controller2.fachada import Fachada
+    from src.controller2.modelo import EstadoPartida
+    from src.controller2.conocimiento import MapaConocido
+    class Colector:
+        def __init__(self):
+            self.lotes = []
+        def registrar_cambios(self, contexto, lote):
+            self.lotes.append((contexto, lote))
+        def truncar_ultimo_intervalo(self):
+            pass
+    proveedor = crear_proveedor_niebla()
+    estado = EstadoPartida('niebla', 'v1', 'cat1', INICIO, -1, 'salida', 20,
+        crear_jugador_niebla(), salas={s.id:s for s in proveedor._salas.valores()})
+    estado.jugador.efectos.clear()
+    colector = Colector()
+    f = Fachada(estado, proveedor, proveedor.catalogo, receptor_cambios=colector)
+    assert colector.lotes[0][0]['clase'] == 'inicio'
+    # Evento local ordinario: cierre en la sala actual.
+    f.agenda.programar(1, 'cierre_puerta', {'sala': INICIO, 'direccion':'E'})
+    f.avanzar()
+    assert any(contexto['clase'] == 'evento' for contexto, _ in colector.lotes)
+    reconstruido = MapaConocido()
+    for contexto, lote in colector.lotes:
+        for cambio in lote:
+            reconstruido.aplicar(cambio)
+    assert reconstruido == estado.conocimiento
+    for contexto, lote in reversed(colector.lotes):
+        for cambio in reversed(lote):
+            reconstruido.aplicar(cambio, adelante=False)
+    assert reconstruido.a_dict() == {'salas': [], 'puertas': []}
+
+
+def test_entrada_con_antorcha_revela_sin_activar_y_deshace(sesion_niebla):
+    """FR-NIE-06/07/08: Apéndice B, entrada con antorcha y su retroceso."""
+    ses = sesion_niebla
+    assert ses.paso('usar antorcha')[0]
+    antes = ses.estado.conocimiento.a_dict()
+    # Entrar a5 revela LEJANA/999, sin disparar sus enemigos/trampas.
+    ses.estado.salas[VECINA].enemigos.clear()
+    ses.estado.salas[VECINA].trampas.clear()
+    ses.proveedor.consultas_contenido.clear()
+    for enemigo in ses.estado.salas[LEJANA].enemigos:
+        enemigo.activa = False
+    assert ses.paso('e')[0]
+    assert ses.estado.conocimiento.sala(LEJANA).estado == 'explorada'
+    assert all(t.armada for t in ses.estado.salas[LEJANA].trampas)
+    assert all(not e.activa for e in ses.estado.salas[LEJANA].enemigos)
+    assert ses.proveedor.consultas_contenido == []
+    assert ses.paso('deshacer')[0]
+    assert ses.estado.sala_actual == INICIO
+    assert ses.estado.conocimiento.a_dict() == antes

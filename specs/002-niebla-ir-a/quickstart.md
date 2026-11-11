@@ -158,3 +158,111 @@ oficiales, recorrido manual y dependencias externas de001/004 y de la referencia
 Revisión visual del usuario (2026-11-08): aprobó la apariencia del mapa. Este
 visto bueno no registra el recorrido manual de todos
 los escenarios ni sustituye la regresión pendiente tras los últimos retoques.
+
+## Verificación ampliada — 2026-11-09
+
+Checklist de calidad: 16/16 puntos completos (solo lectura). Se seleccionó002
+con `SPECIFY_FEATURE_DIRECTORY` absoluto y `SPECIFY_FEATURE_NO_PERSIST=1`, porque
+el estado local de Spec Kit conserva004; no se cambió la capacidad activa global.
+No hay `.specify/extensions.yml`: no hay hooks previos ni posteriores registrados.
+
+Regresión final tras las correcciones y ampliaciones de pruebas:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 415 passed, 1 skipped in 5.33s
+```
+
+La omitida sigue siendo la integración HTTP optativa. `git diff --check` y la
+compilación de los módulos modificados también pasan. El resultado inicial de
+esta sesión fue354 aprobadas/1 omitida: se añadieron61 casos efectivos.
+
+Evidencia adicional:
+
+- `tests/test_consola_viaje.py`: sondeo y reloj inyectados; mapa/foto/inventario/
+  ayuda conservan continuación; mostrar error de carga permite el siguiente
+  paso; guardar y cargar correctamente detienen; EOF/KeyboardInterrupt→130
+  cancelan sin tiempo. No se usa terminal ni espera real en estas pruebas.
+- `tests/test_vista.py`: separación mínima150 ms, cancelación sostenida antes de
+  avance, panel sin movimiento, U revierte, reposición junto a puerta y
+  `en_puerta`, mochila sin cancelación, caché por revisión, fallo de carga conserva
+  controlador y temporizador. El mapa muestra costos/estados desde el DTO.
+- `tests/test_sesion.py`: cargas normales/en frío con duplicados, destinos,
+  referencias de puerta y deltas inválidos conservan estado/viaje; roundtrip v3
+  permite deshacer; replay conserva conocimiento, sala, reloj y RNG. Candidato
+  LRU aislado: una escritura de caché anterior al fallo no toca la activa.
+- `tests/test_deltas_conocimiento.py`: colector recibe inicio/acción/evento,
+  reaplicación y reversión recuperan el mapa esperado; más de cinco intervalos
+  recibidos antes del descarte y truncamiento comprobados. Esto prueba el puerto
+  de002, no implementa ni acepta004.
+- `tests/test_bench_niebla.py`: heap/cola lineal equivalentes en cadenas, mallas,
+  empates, conocimiento parcial y recuerdos desactualizados; conteo de rehash
+  incluye cada registro movido. Las alternativas son implementaciones propias.
+
+Recorridos adicionales, diferenciados de una sesión manual humana:
+
+1. Ejecutable real `python -m src.main --jugar --offline ... --cripta
+   cripta-ejemplo` en directorio temporal, con comandos por stdin: `mapa`, destino
+   no explorado, `foto`, guardar, cargar, salir. Salida0; archivo creado,
+   costos/salidas visibles y destino inválido rechazado. Transcripción temporal:
+   `/tmp/cripta-002-consola.txt`.
+2. Pygame con `OfflineBackend` y SDL dummy: iniciar, abrir mapa con M, dibujar
+   captura1024×800 y revisar visualmente. Sala inicial identificada, dos vecinas
+   solo avistadas sin nombre, conexiones y detalles de costos/puertas legibles.
+   Captura temporal: `/tmp/cripta-002-mapa.png`. No equivale a jugar manualmente
+   todos los escenarios; T049 conserva esa parte pendiente.
+
+Pendientes externos: entrega ponderada001/coherencia física,
+referencia oficial offline e historia004 para T052. No se solicitaron servicios
+remotos ni se modificó código de cazadores/historia.
+
+
+## Fuente oficial disponible y contrastada — 2026-11-09
+
+El usuario indicó que las instrucciones ya están en docs. Se leyó completo
+`docs/Cripta Parte II.md`; el contraste de002 con §§3.3–3.4,5.3,6.1–6.3,7.3 y
+Apéndice B no encontró contradicciones esenciales nuevas. Se retira el bloqueo
+por fuente ausente: T003 satisface ahora su condición de contraste. Las notas
+anteriores sobre fuente faltante conservan únicamente valor histórico. La
+referencia oficial para rendimiento y las entregas001/004 siguen pendientes.
+
+| Caso Apéndice B | Requisitos | Prueba automatizada |
+|---|---|---|
+| Destino no explorado | FR-NIE-10 | test_controles_sin_tiempo_destino_actual_y_no_explorada |
+| Puerta recordada abierta pero cerrada | FR-NIE-05/13/14/15 | test_puerta_cerrada_no_abre_aun_con_llave |
+| Enemigos dormidos | FR-NIE-12/14 | test_dormidos_muertos_durante_drenaje_sin_dano_detienen_por_enemigos |
+| Entrada con antorcha | FR-NIE-06/07 | test_entrada_con_antorcha_revela_sin_activar_y_deshace |
+| Pergamino tras entrada con antorcha | FR-NIE-08 | test_entrada_con_antorcha_revela_sin_activar_y_deshace |
+| Pergamino durante viaje | FR-NIE-17 | test_pergamino_revierte_solo_ultimo_paso_y_cancela |
+
+La parte histórica de FR-NIE-08 sigue esperando004 real, aunque las pruebas
+locales de conocimiento/guardado/undo pasen.
+
+
+## Cierre de mediciones y regresión local — 2026-11-09
+
+`--bench` terminó con salida0: matriz final36 cargas, semilla20261106,
+1000/100/10 consultas por alternativa y100/10/1 calentamientos según tamaño.
+Ver [informe JSON](../../docs/mediciones/002-niebla-2026-11-09.json) y la sección
+«Mediciones finales de002» de [DECISIONES.md](../../DECISIONES.md). Se midieron
+índice/lineal, mapa completo, heap/cola lineal, memoria auxiliar, revelación y
+expansiones. Las36 comprobaciones de equivalencia pasaron. El método cambió por
+el costo excesivo del muestreo inicial; motivación y límites en research/plan.
+
+El máximo del heap en las cargas de100/1000/10000 salas fue23,142/86,251/452,053 ms.
+No se acredita5 ms en estas cargas ni se certifica la referencia oficial ausente.
+T045 se cierra como medición ejecutada con incumplimientos publicados y repetición
+tras optimizar adyacencia; no como aprobación de FR-NIE-19. T048 consolida datos y
+límites. Las tareas de aceptación integrada permanecen abiertas.
+
+Regresión después del contraste oficial y la generación simétrica final:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 418 passed, 1 skipped in 5.34s
+```
+
+Estado final de esta ejecución:46/52 tareas cerradas; pendientes T046/T047
+(integración001 y referencia), T049 (recorrido manual completo), T050 (cierre de
+regresión integrada, aunque la regresión local pasó), T051 (aceptación integral)
+y T052 (conocimiento histórico con004 real). El enunciado P2 ya está contrastado.

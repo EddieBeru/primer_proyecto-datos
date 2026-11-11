@@ -125,3 +125,21 @@ Ejecutar escenarios 1–11 de spec y regresiones de Sesión/vista/guardado/bitá
 ## Complexity Tracking
 
 Sin excepciones. Hash: acceso esperado O(1), expansión amortizada; las mediciones de revelación incluyen rehash. Dijkstra: O((Vκ+Eκ) log(1+Eκ)) tiempo y O(Vκ+Eκ) memoria en la región conocida descubierta. Extraer registros del mapa conocido cuesta O(Vconocido+Econocido); construir la proyección ordenada por ID mediante mergesort cuesta O(Vconocido log Vconocido+Econocido). La vista reutiliza la proyección mientras el panel esté abierto y no cambie la revisión del conocimiento, sin reconstruirla en cada foto ordinaria. La consulta del mapa completo se mide por separado de la revelación incremental.
+
+
+## Actualización de fuente — 2026-11-09
+
+El contraste de002 con `docs/Cripta Parte II.md` está realizado; ver research.
+Se retira la condición de fuente íntegra ausente. Permanecen integración001,
+historia004 y medición sobre referencia oficial. El diseño sigue coincidiendo
+con este plan; la reducción de consultas repetidas en adyacencia es una mejora
+local que conserva estructura, reglas, desempate y complejidad.
+
+
+### Método final de benchmark
+
+La matriz final conserva36 cargas, pero aplica1000/100/10 consultas y100/10/1
+calentamientos para100/1000/10000 salas. Motivo, diagnóstico y límites en research.
+Los grafos finales respetan simetría de costos y puertas recíprocas. La diferencia
+frente al plan original es el número de repeticiones para mantener `--bench`
+práctico; no cambia los requisitos, estructuras ni las reglas del juego.

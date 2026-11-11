@@ -706,6 +706,7 @@ class VistaApp:
                     if sala.get("estado") == "explorada":
                         ok, _, self.foto = self.ses.paso(f"ir a {sala['id']}")
                         self.panel_mapa = False
+                        self._viaje_reloj = pygame.time.get_ticks()
                         return f"ir a {sala['id']}" if ok else None
                 return None
             if self.panel_mapa and key == pygame.K_ESCAPE:
@@ -720,11 +721,10 @@ class VistaApp:
                 self.ses.paso("cancelar")
                 self.foto = self.ses.foto()
                 return "cancelar"
-            if self.ses.fachada.viaje.activo:
-                self.ses.paso("cancelar")
-                self.foto = self.ses.foto()
             direccion = entrada.mover_para_tecla(key)
             if direccion is not None:
+                self.ses.paso("cancelar")
+                self.foto = self.ses.foto()
                 return self._paso_libre(direccion)
             if key == pygame.K_SPACE:
                 accion = self.atacar_objetivo()
@@ -834,6 +834,9 @@ class VistaApp:
             return "@error"
 
     def _accion_local(self, accion: str) -> str:
+        if accion == "@pausa" and self.ses.fachada.viaje.activo:
+            self.ses.paso("cancelar")
+            self.foto = self.ses.foto()
         if accion == "@pausa":
             self.pantalla = "pausa"
         elif accion == "@tab-inv":
@@ -1144,7 +1147,7 @@ class VistaApp:
         max_x = max(x for x, _ in coordenadas.values())
         min_y = min(y for _, y in coordenadas.values())
         max_y = max(y for _, y in coordenadas.values())
-        zona = pygame.Rect(caja.x + p(40), caja.y + p(82), caja.width - p(80), caja.height - p(142))
+        zona = pygame.Rect(caja.x + p(40), caja.y + p(82), caja.width - p(80), caja.height - p(210))
         celdas_x, celdas_y = max_x - min_x + 1, max_y - min_y + 1
         paso = max(p(40), min(p(132), zona.width // celdas_x, zona.height // celdas_y))
         lado = max(p(28), min(p(82), paso - p(18)))
@@ -1206,6 +1209,17 @@ class VistaApp:
                 img = fuente_chica.render(texto, True, (255, 250, 235))
                 self.ventana.blit(img, img.get_rect(center=(x, yy)))
 
+        elegida = por_id[seleccion]
+        detalle = (f"#{seleccion} {elegida.get('nombre', '')}" if elegida.get("estado") == "explorada"
+                   else f"#{seleccion} Sala avistada")
+        self.ventana.blit(fuente.render(detalle, True, claro),
+                          (caja.x + p(26), caja.bottom - p(108)))
+        for i, salida in enumerate(elegida.get("salidas", ())):
+            texto = (f"{salida['direccion']} → {salida['destino']} · costo {salida['costo']} · "
+                     f"{salida['estado']}")
+            self.ventana.blit(fuente_chica.render(texto, True, claro),
+                (caja.x + p(26) + (i % 2) * (caja.width // 2), caja.bottom - p(84) + (i // 2) * p(18)))
+
         leyenda_y = caja.bottom - p(42)
         pygame.draw.line(self.ventana, (90, 210, 125), (caja.x + p(26), leyenda_y + p(6)),
                          (caja.x + p(54), leyenda_y + p(6)), 4)
@@ -1248,6 +1262,37 @@ class VistaApp:
             self.hotspots = []
             self.foco_menu = None
 
+    def actualizar_movimiento(self, held, ahora):
+        """Una actualización: entrada sostenida antes del próximo cruce."""
+        if self.pantalla != "juego" or self.foto is None or self.panel_mapa:
+            return
+        dx = dy = 0
+        vistos = []
+        for tecla, direccion in entrada.MOVER.items():
+            if held[tecla] and direccion not in vistos:
+                vistos.append(direccion)
+                ix, iy = VECTOR_DIRECCION[direccion]
+                dx += ix
+                dy += iy
+        if dx or dy:
+            self.ses.paso("cancelar")
+            self.foto = self.ses.foto()
+            self._viaje_reloj = ahora
+            self._mover_libre(dx, dy)
+        elif self.ses.fachada.viaje.activo and ahora - self._viaje_reloj >= 150:
+            anterior = self.foto.sala_id
+            ok, mensaje, self.foto = self.ses.avanzar_viaje()
+            self._viaje_reloj = ahora
+            self._refrescar_inv()
+            if self.foto.sala_id != anterior:
+                self._aparecer_tras_retroceso(anterior)
+            if mensaje:
+                self._avisar(mensaje)
+            if not ok:
+                self.ultimo_error = mensaje
+            if self.foto.estado != "jugando":
+                self.pantalla = "fin"
+
     def ejecutar(self) -> int:
         """Bucle real: leer teclas -> Sesión -> dibujar -> FPS (Parte 1 §7)."""
         while self.corriendo:
@@ -1259,25 +1304,7 @@ class VistaApp:
                     self.pantalla = "error"
             if self.pantalla == "juego" and self.foto is not None:
                 try:
-                    held = pygame.key.get_pressed()
-                    dx = dy = 0
-                    vistos = set()
-                    for tecla, direccion in entrada.MOVER.items():
-                        if held[tecla] and direccion not in vistos:
-                            vistos.add(direccion)
-                            ix, iy = VECTOR_DIRECCION[direccion]
-                            dx += ix
-                            dy += iy
-                    if self.ses.fachada.viaje.activo and (dx or dy) and not self.panel_mapa:
-                        self.ses.paso("cancelar")
-                        self.foto = self.ses.foto()
-                    elif self.ses.fachada.viaje.activo and not self.panel_mapa:
-                        ahora = pygame.time.get_ticks()
-                        if ahora - self._viaje_reloj >= 150:
-                            _, _, self.foto = self.ses.avanzar_viaje()
-                            self._viaje_reloj = ahora
-                    if (dx or dy) and not self.panel_mapa:  # un solo paso por frame, ya normalizado
-                        self._mover_libre(dx, dy)
+                    self.actualizar_movimiento(pygame.key.get_pressed(), pygame.time.get_ticks())
                 except Exception as e:
                     self.ultimo_error = str(e)
                     self.pantalla = "error"

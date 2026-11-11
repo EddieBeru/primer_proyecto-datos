@@ -56,3 +56,11 @@ def test_validar_versiones(monkeypatch):
     monkeypatch.setattr(endpoints, "version_catalogo",
                         lambda b=None: CatalogVersion(version="k9"))
     assert savegame.validar_versiones(ESTADO) == (True, False)
+
+
+@pytest.mark.parametrize('version', [1, 2])
+def test_p2_rechaza_versiones_anteriores(tmp_path, version):
+    ruta = tmp_path/'vieja.bin'
+    ruta.write_bytes(savegame.MAGIA + bytes([version]) + b'contenido legado')
+    with pytest.raises(GuardadoError, match='incompatib'):
+        savegame.cargar_p2(str(ruta))

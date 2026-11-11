@@ -1274,3 +1274,98 @@ def test_escala_proporcional_1080p_y_4k_sin_reescalar_frame(app):
     rect = next(r for r, tecla in app.hotspots if tecla == pygame.K_h)
     app.manejar_evento(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center))
     assert not app.mostrar_ayudas
+
+
+def test_viaje_reloj_cancelacion_sostenida_y_reposicion(app, monkeypatch):
+    from collections import defaultdict
+    app.ses.estado.sala_en_curso().enemigos.clear()
+    # Revelar vecina; el cruce usa el movimiento ordinario.
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    assert app.ses.paso('ir a 2')[0]
+    app.foto = app.ses.foto()
+    app._viaje_reloj = 1000
+    app.actualizar_movimiento(defaultdict(bool), 1149)
+    assert app.foto.sala_id == 1
+    app.actualizar_movimiento(defaultdict(bool), 1150)
+    assert app.foto.sala_id == 2
+    assert app.en_puerta
+    assert app.pos_jugador != (0.5, 0.5)
+    app.ses.estado.sala_en_curso().enemigos.clear()
+    assert app.ses.paso('ir a 1')[0]
+    app.foto = app.ses.foto()
+    monkeypatch.setattr(app, '_mover_libre', lambda dx, dy: None)
+    app.actualizar_movimiento(defaultdict(bool, {pygame.K_w: True}), 1400)
+    assert not app.ses.fachada.viaje.activo
+    assert app.foto.sala_id == 2
+
+
+def test_mapa_no_avanza_y_escape_cancela_sin_pausa(app):
+    from collections import defaultdict
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    app.ses.paso('ir a 2')
+    app.foto = app.ses.foto()
+    app.manejar_tecla(pygame.K_m)
+    app.actualizar_movimiento(defaultdict(bool), 99999)
+    assert app.foto.sala_id == 1
+    app.manejar_tecla(pygame.K_ESCAPE)
+    assert not app.panel_mapa and not app.ses.fachada.viaje.activo
+    assert app.pantalla == 'juego'
+
+
+def test_u_cancela_y_revierte_viaje(app):
+    from collections import defaultdict
+    app.ses.estado.sala_en_curso().enemigos.clear()
+    app.ses.estado.jugador.inventario.append('pergamino-01')
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    assert app.ses.paso('ir a 2')[0]
+    app.foto = app.ses.foto()
+    app._viaje_reloj = 0
+    app.actualizar_movimiento(defaultdict(bool), 150)
+    assert app.foto.sala_id == 2
+    app.manejar_tecla(pygame.K_u)
+    assert app.foto.sala_id == 1
+    app.actualizar_movimiento(defaultdict(bool), 9999)
+    assert app.foto.sala_id == 1 and not app.ses.fachada.viaje.activo
+
+
+def test_consultar_mochila_y_tecla_sin_uso_conservan_viaje(app):
+    app.ses.estado.sala_en_curso().enemigos.clear()
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    assert app.ses.paso('ir a 2')[0]
+    app.foto = app.ses.foto()
+    for tecla in (pygame.K_c, pygame.K_TAB, pygame.K_z):
+        app.manejar_tecla(tecla)
+        assert app.ses.fachada.viaje.activo
+        assert app.ses.estado.sala_actual == 1
+
+
+def test_carga_fallida_preserva_viaje_y_temporizador(app):
+    app.ses.estado.sala_en_curso().enemigos.clear()
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    assert app.ses.paso('ir a 2')[0]
+    app.foto = app.ses.foto()
+    app._viaje_reloj = 1234
+    antes = app.ses.estado.a_dict()
+    with pytest.raises(Exception):
+        app.cargar_partida('archivo-inexistente-002.bin')
+    assert app.ses.estado.a_dict() == antes
+    assert app.ses.fachada.viaje.activo
+    assert app._viaje_reloj == 1234
+
+
+def test_mapa_cacheado_por_revision_y_datos_sin_fugas(app, monkeypatch):
+    llamadas = []
+    original = app.ses.mapa_conocido
+    def contar():
+        llamadas.append(True)
+        return original()
+    monkeypatch.setattr(app.ses, 'mapa_conocido', contar)
+    app.manejar_tecla(pygame.K_m)
+    mapa = app._mapa_actual()
+    app._mapa_actual()
+    assert len(llamadas) == 1
+    assert all('nombre' not in s for s in mapa.salas if s['estado'] == 'avistada')
+    app.ses.estado.conocimiento.revelar(1, app.ses.proveedor.datos_sala, True)
+    app.foto = app.ses.foto()
+    app._mapa_actual()
+    assert len(llamadas) == 2

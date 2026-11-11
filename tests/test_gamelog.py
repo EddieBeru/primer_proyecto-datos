@@ -45,3 +45,33 @@ def test_nunca_sobrescribe(tmp_path):
     b = Bitacora(ruta)
     b.anotar("nueva")
     assert b.leer() == ["vieja", "nueva"]
+
+
+@pytest.mark.parametrize('linea', ['#ir-a', '#ir-a 2 extra', '#ir-a x', '#ir-a 2.0', '#ir-a  2', '#otra 2'])
+def test_comentario_viaje_rechaza_corrupcion(linea):
+    from src.controller2.bitacora import BitacoraMemoria
+    b = BitacoraMemoria()
+    with pytest.raises(ValueError):
+        b.anotar(linea)
+    assert b.leer() == []
+
+
+def test_comentario_viaje_estricto_y_header():
+    from src.controller2.bitacora import BitacoraMemoria, parsear
+    b = BitacoraMemoria()
+    b.anotar('#ir-a -12')
+    assert parsear(b.leer()[0]) == {'comentario': 'ir-a', 'destino': -12}
+    with pytest.raises(ValueError):
+        b.anotar('#cripta incompleto')
+
+
+def test_reproductor_c2_ignora_comentario_sin_iniciar_viaje():
+    from src.controller2.bitacora import reproducir
+    class FachadaFalsa:
+        def __init__(self):
+            self.movimientos = []
+        def mover(self, direccion):
+            self.movimientos.append(direccion)
+    f = FachadaFalsa()
+    reproducir(f, ['#ir-a 12', '0|mover|jugador|E'])
+    assert f.movimientos == ['E']

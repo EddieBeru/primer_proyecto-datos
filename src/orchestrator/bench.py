@@ -281,4 +281,7 @@ def correr_todo() -> dict:
     out.update(bench_buffer())
     out.update(bench_cancelacion())
     out.update(bench_ciclo_completo())
+    from src.orchestrator.bench_niebla import bench_conocimiento, bench_ir_a
+    out.update(bench_conocimiento())
+    out.update(bench_ir_a())
     return out
