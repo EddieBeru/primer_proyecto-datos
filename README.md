@@ -136,3 +136,24 @@ Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` 
   contenido) que viaja en el guardado; la vista dibuja velo con halo y lo
   levanta mientras dure el efecto `antorcha`. La consola avisa cómo iluminar.
   Todo probado offline con `paquete_demo/` (sala 3 «Capilla oscura»).
+
+### Historial de la partida (004)
+
+En Pygame, pulsa **H** o el botón **Historial**. El panel muestra el pasado sin
+alterar la partida: navega con ←/→ o los botones, elige **Acción** o **Tiempo**,
+escribe un número y pulsa Enter para consultar. Tab recorre controles; ↑/↓ o
+la rueda desplazan el detalle; Escape cierra. Mientras el panel tiene foco,
+el movimiento y el viaje automático quedan suspendidos.
+
+El detalle agrupa vida/estadísticas, inventario con sprites, efectos, enemigos
+y el mapa conocido en ese instante. La selección y los estados de puertas se
+identifican también con etiquetas y símbolos. Usa la paleta y escala existentes,
+con retícula lógica de8 px para separaciones y radios.
+
+En consola: `historia 300` o `historia #5`. Configura los puntos de control con
+`--checkpoint-cada 20`; `--replay partida.log --hasta 300` imprime el mismo
+resumen sin abrir Pygame. El uso del pergamino recorta la rama histórica; cada
+paso de viaje cuenta por separado. Los guardados nuevos de Sesión son **v4** y
+conservan la historia completa; los v1/v2/v3 se rechazan explícitamente.
+
+[Captura del panel a1024×800](docs/mediciones/004-historia-ui-1024.png).

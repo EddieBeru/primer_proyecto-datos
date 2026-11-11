@@ -17,6 +17,7 @@ from src.orchestrator.sesion import Sesion
 from src.view import capas, entrada, paleta, pantallas, ui
 from src.view.display import Display, RESOLUCIONES
 from src.view.medidas import medidas
+from src.view.historia import PanelHistoria
 from src.view.sfx import Sonidos
 from src.view.sprites import LID_STAGES, SpriteManager, zona_caja
 
@@ -35,7 +36,7 @@ JUNTO_A_PUERTA = {"N": (0.5, 0.10), "S": (0.5, 0.90),
 AYUDA = ("WASD/flechas caminar libre · E abrir · Espacio atacar (cerca) · "
          "F recoger (cerca) · X objetivo (Shift+X atrás) · R usar · Enter equipar · "
          "Q soltar · Tab/U/T · C orden mochila (Shift+C atrás) · "
-         "M mapa · ↑↓ elegir · Enter viajar · Esc cancelar/cerrar · "
+         "H historial · M mapa · ↑↓ elegir · Enter viajar · Esc cancelar/cerrar · "
          "pisar trampas las dispara · F1 dev · G guardar · Esc pausa · "
          "F2 controles · F10 ajustes · F11 pantalla completa")
 
@@ -111,6 +112,7 @@ class VistaApp:
         self.rebobina_ttl = 0  # destello de rebobinado tras usar el pergamino
         self.cripta_actual: str | None = None  # para "jugar de nuevo" en fin
         self.panel_mapa = False
+        self.panel_historia = None
         self.sel_mapa = 0
         self._mapa_cache = None
         self._mapa_revision = -1
@@ -679,6 +681,16 @@ class VistaApp:
         if key == pygame.K_F11:
             self._cambiar_display(completa=not self.display.completa)
             return "@pantalla-completa"
+        if self.panel_historia is not None:
+            evento = pygame.event.Event(pygame.KEYDOWN, key=key, mod=pygame.key.get_mods(), unicode='')
+            if not self.panel_historia.evento(evento):
+                self.panel_historia = None
+                self._viaje_reloj = pygame.time.get_ticks()
+            return '@historia'
+        if key == pygame.K_h and self.pantalla == 'juego' and self.foto is not None:
+            self.panel_mapa = False
+            self.panel_historia = PanelHistoria(self.ses)
+            return '@historia-abrir'
         if key == pygame.K_F10 and self.pantalla in ("inicio", "pausa", "juego"):
             return self._abrir_panel("ajustes")
         if key == pygame.K_F2 and self.pantalla in ("inicio", "pausa", "juego", "ajustes"):
@@ -810,6 +822,11 @@ class VistaApp:
         Los botones de menú son atajos del teclado: mismo código de acción
         (los hotspots los publica `dibujar` desde `pantallas`).
         """
+        if self.panel_historia is not None:
+            if not self.panel_historia.evento(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1), pos):
+                self.panel_historia = None
+                self._viaje_reloj = pygame.time.get_ticks()
+            return '@historia-clic'
         if self.pantalla == "juego" and self.panel_mapa:
             return None
         for rect, tecla in self.hotspots:
@@ -1098,6 +1115,16 @@ class VistaApp:
                 self.aviso_ttl -= 1
         if self.zoom_ttl is not None and self.pantalla in ("carga", "juego"):
             self._dibujar_zoom()
+        if self.pantalla == 'juego' and self.foto is not None and not self.panel_mapa and self.panel_historia is None:
+            m = medidas(self.ventana); p = m.px
+            rect = pygame.Rect(self.ventana.get_width()-p(176),p(8),p(160),p(32))
+            pygame.draw.rect(self.ventana,paleta.PANEL,rect,border_radius=p(8))
+            pygame.draw.rect(self.ventana,paleta.MURO,rect,m.trazo(),border_radius=p(8))
+            label = m.fuente(14).render('H  Historial',True,paleta.TEXTO)
+            self.ventana.blit(label,label.get_rect(center=rect.center))
+            self.hotspots.append((rect,pygame.K_h))
+        if self.panel_historia is not None and self.pantalla == 'juego':
+            self.panel_historia.dibujar(self.ventana,self.sprites)
         if self.panel_mapa and self.foto is not None and self.pantalla == "juego":
             mapa = self._mapa_actual()
             p = medidas(self.ventana).px
@@ -1234,6 +1261,12 @@ class VistaApp:
     def manejar_evento(self, evento) -> None:
         """Entrada física -> coordenadas del lienzo -> acción de UI/juego."""
         anterior = self.pantalla
+        if self.panel_historia is not None and self.pantalla == 'juego' and evento.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.MOUSEWHEEL):
+            pos = self.display.coordenadas(getattr(evento,'pos',pygame.mouse.get_pos()))
+            if not self.panel_historia.evento(evento,pos):
+                self.panel_historia = None
+                self._viaje_reloj = pygame.time.get_ticks()
+            return
         if evento.type == pygame.QUIT:
             self.corriendo = False
         elif evento.type == pygame.VIDEORESIZE:
@@ -1264,7 +1297,7 @@ class VistaApp:
 
     def actualizar_movimiento(self, held, ahora):
         """Una actualización: entrada sostenida antes del próximo cruce."""
-        if self.pantalla != "juego" or self.foto is None or self.panel_mapa:
+        if self.pantalla != "juego" or self.foto is None or self.panel_mapa or self.panel_historia is not None:
             return
         dx = dy = 0
         vistos = []
