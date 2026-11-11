@@ -196,3 +196,23 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   en minúscula». Se añade mayúscula inicial a textos visibles y etiquetas de
   objetos, conservando siglas/datos originales. Se regeneran capturas y se
   valida con494 pruebas aprobadas/1 omitida (6,19 s), antes del commit local.
+
+## Título y subtítulo sin fondo blanco — 2026-11-10
+
+- Prompt literal: «el titulo y su subtitulo tiene un fondo blanco que no me
+  gusta. además que el subtitulo no está ni centrado».
+- Cambio: retirar ambos respaldos blancos del encabezado sobre arte; centrar
+  cada línea del subtítulo y usar contorno oscuro de glifos para legibilidad.
+- Validación:133 pruebas aprobadas/1 omitida; capturas actualizadas a640×480,
+  1024×800 y1280×720 y selección revisada a resolución nativa. Sin recorrido
+  humano interactivo. `git diff --check` sin errores.
+
+## Proporción del título — 2026-11-10
+
+- Prompt literal: «el tamaño del titulo no está proporcional. en ventanas
+  pequeñas es muy grande y en ventanas grandes es muy pequeño».
+- Cambio: tamaño final proporcional al arte de la caja, ajuste gradual por
+  ancho y eliminación del doble escalado/fallback a fuente de botón.
+- Validación:137 aprobadas/1 omitida; pruebas de proporción hasta4K, capturas
+  actualizadas y revisión visual a640×480 y1920×1080. Se documenta la excepción
+  del encabezado compacto en `docs/diseno-ui.md`.

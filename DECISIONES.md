@@ -728,3 +728,31 @@ subtítulos y leyendas del mapa. Se conserva el resto del texto y las siglas,
 sin alterar identificadores ni datos del motor. Se regeneran los tres mosaicos.
 Regresión final con esta corrección: **494 aprobadas/1 omitida**,6,19 s;
 `git diff --check` sin errores.
+
+### Títulos sobre arte sin panel blanco — 2026-11-10
+
+Por corrección explícita del usuario, `_caja_menu` elimina los rectángulos
+blancos del título y subtítulo. Ambos se dibujan directamente sobre el arte,
+con texto claro y contorno oscuro limitado a los glifos. Cada línea del
+subtítulo se centra respecto al mismo eje del título, también cuando envuelve.
+La pareja texto claro/contorno oscuro supera4.5:1; no se afirma conformidad
+global sobre el arte. Se actualizan los mosaicos de640×480,1024×800 y1280×720
+y se revisa la selección a tamaño nativo. Validación dirigida:133 aprobadas/
+1 omitida (vista, historial y tipografía),4,57 s; `git diff --check` sin errores.
+
+### Proporción del título al redimensionar — 2026-11-10
+
+Se reemplaza la selección entre dos tamaños fijos del título sobre la caja por
+un tamaño proporcional al alto real del arte, calculado en píxeles finales.
+El ajuste anterior mantenía demasiado grande el texto pequeño y podía caer a
+la fuente de botón en ventanas grandes. El nuevo cálculo aplica la escala una
+sola vez, mide el ancho y ajusta gradualmente, con mínimo18 px para este título
+compacto y peso600 si es menor de24 px. No cambia los mínimos de texto continuo.
+Ejemplo «Elige tu cripta»:19 px a640×480,31 a1024×800,28 a1280×720,
+42 a1920×1080 y84 a3840×2160. La escala sigue la caja y su espacio vertical.
+Se conservan subtítulo centrado y ausencia de fondos blancos.
+
+Validación dirigida:137 aprobadas/1 omitida (4,63 s). Pruebas de proporción,
+crecimiento y encaje de cuatro títulos entre640×480 y4K. Se regeneran los tres
+mosaicos y se revisan capturas nativas a640×480 y1920×1080. Revisión headless;
+`git diff --check` sin errores.

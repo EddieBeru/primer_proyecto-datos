@@ -270,6 +270,19 @@ def rect_caja_menu(sup: pygame.Surface) -> pygame.Rect:
     return rect
 
 
+def _fuente_titulo_caja(sup: pygame.Surface, titulo: str):
+    """Tamaño final proporcional al arte, sin aplicar dos veces la escala."""
+    rect = rect_caja_menu(sup)
+    escala = rect.h / CAJA_MENU_ALTO
+    ideal = max(18, round((T_DISPLAY if titulo == 'CRIPTA' else 32) * escala))
+    ancho = max(1, rect.w - round(32 * escala))
+    for tamano in range(ideal, 17, -1):
+        candidata = _fuente(tamano, negrita=True)
+        if candidata.size(titulo)[0] <= ancho:
+            return candidata
+    return _fuente(18, negrita=True)
+
+
 def _caja_menu(sup: pygame.Surface, sprites: SpriteManager | None,
                titulo: str | None = None, color: tuple = DORADO,
                sub: str | None = None,
@@ -284,24 +297,26 @@ def _caja_menu(sup: pygame.Surface, sprites: SpriteManager | None,
     rect = rect_caja_menu(sup)
     if sprites is not None:
         capas.dibujar_caja_cuerpo(sup, sprites, rect)
+    def texto_centrado(fuente, contenido, y):
+        imagen = fuente.render(contenido, True, paleta.TEXTO_CLARO)
+        contorno = fuente.render(contenido, True, paleta.TEXTO)
+        destino = imagen.get_rect(midtop=(rect.centerx, y))
+        grosor = max(1, p(1))
+        for dx, dy in ((-1,-1),(0,-1),(1,-1),(-1,0),(1,0),(-1,1),(0,1),(1,1)):
+            sup.blit(contorno, destino.move(dx*grosor, dy*grosor))
+        sup.blit(imagen, destino)
+
+    fuente_t = m.estilo('h1')
     if titulo:
-        fuente_t = m.fuente(T_BOTON, negrita=True)
-        for tam in ((max(24,p(T_DISPLAY)),) if titulo=="CRIPTA" else (28,24)):
-            candidata = m.fuente(tam, negrita=True)
-            if candidata.size(titulo)[0] <= rect.w - p(44):
-                fuente_t = candidata
-                break
-        imagen = fuente_t.render(titulo, True, paleta.TEXTO)
-        respaldo = imagen.get_rect(center=rect.center).inflate(16, 8)
-        pygame.draw.rect(sup, paleta.PANEL, respaldo)
-        sup.blit(imagen, imagen.get_rect(center=rect.center))
+        fuente_t = _fuente_titulo_caja(sup, titulo)
+        texto_centrado(fuente_t, titulo, rect.centery-fuente_t.get_height()//2)
     if sub:
         fuente_sub = m.estilo('auxiliar')
         lineas = _texto.envolver(sub, fuente_sub, rect.w - 16, 3)
-        respaldo = pygame.Rect(0, 0, rect.w - 8, len(lineas)*fuente_sub.get_linesize()+8)
-        respaldo.midtop = (rect.centerx, rect.centery + fuente_t.get_height()//2 + 8)
-        pygame.draw.rect(sup, paleta.PANEL, respaldo)
-        _texto.etiqueta(sup, fuente_sub, sub, respaldo.inflate(-8,-8), GRIS, max_lineas=3)
+        y = rect.centery + fuente_t.get_height()//2 + m.ui_px(8)
+        for linea in lineas:
+            texto_centrado(fuente_sub, linea, y)
+            y += fuente_sub.get_linesize()
     if sprites is not None:
         capas.dibujar_caja_tapa(sup, sprites, rect, stage)
     return rect

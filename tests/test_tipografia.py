@@ -98,3 +98,21 @@ def test_objetos_y_tooltip_con_mayuscula_inicial():
     assert texto._AYUDA_TEXTO == 'Nombre extenso'
     texto.iniciar_frame()
     texto.dibujar_ayuda(sup)
+
+
+@pytest.mark.parametrize('titulo', ('Elige tu cripta', 'Versión anterior', 'Algo salió mal', 'CRIPTA'))
+def test_titulo_proporcional_al_arte_sin_salto_a_fuente_de_boton(titulo):
+    from src.view.pantallas import _fuente_titulo_caja, rect_caja_menu
+    pygame.font.init()
+    anteriores = None
+    for tamano in ((640,480),(1024,800),(1920,1080),(3840,2160)):
+        sup = pygame.Surface(tamano)
+        rect = rect_caja_menu(sup)
+        f = _fuente_titulo_caja(sup,titulo)
+        assert f.size(titulo)[0] < rect.w
+        proporcion = f.tamano / rect.h
+        if anteriores:
+            previo, razon = anteriores
+            assert f.tamano > previo
+            assert proporcion == pytest.approx(razon, rel=.12)
+        anteriores = f.tamano, proporcion

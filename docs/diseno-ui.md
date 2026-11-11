@@ -29,6 +29,13 @@ texto corriente. Peso700 se reserva a títulos grandes/alertas críticas; no se
 utilizan pesos100–300. El tracking de títulos se permite solamente mientras
 no produzca colisiones. El tamaño de sprites sigue su escala de juego propia.
 
+Corrección del usuario: los encabezados sobre la caja del menú mantienen su
+proporción respecto al arte al redimensionar. Se calculan en píxeles finales,
+con mínimo18 px para este encabezado compacto (peso600 por debajo de24 px),
+y crecen con el arte en ventanas grandes. Esta excepción del encabezado no
+reduce los mínimos de cuerpo, botones ni auxiliares. El logo conserva su
+escala decorativa propia; nunca se aplica dos veces el factor de ventana.
+
 ## Adaptación a Pygame
 
 Los estilos se resuelven desde un único módulo compartido. Se usan archivos de
