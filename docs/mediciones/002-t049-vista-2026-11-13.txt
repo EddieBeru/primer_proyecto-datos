@@ -1,0 +1,42 @@
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.12.3)
+=== VISTA 1024x800 (1024, 800) ===
+cruce manual E: 1 -> 2 pos: [0.1, 0.5]
+mapa avistada sin nombre: OK | nodos: [(1, 'explorada'), (2, 'explorada'), (3, 'avistada'), (4, 'avistada')]
+selección tras ←: 1 explorada
+viaje activo tras Enter: True hacia 1
+U durante viaje: sala 1 | viaje activo: False
+cruce manual de vuelta: sala 1 -> 2
+panel tras M: True sel: 2
+selección tras ←: 1 explorada
+viaje tras Enter: True hacia 1
+ESC cancela viaje: True -> False
+panel: True
+selección tras ↓: 4 avistada
+Enter sobre avistada: intención None | viaje activo: False
+ESC con panel: viaje True -> False | panel: False
+pausa: pausa
+guardado: True
+carga válida: sala 2 | viaje activo: False
+carga inexistente falló como debe: GuardadoError
+sesión conservada: sala 2 == 2 | viaje activo: False
+=== VISTA 640x480 (640, 480) ===
+cruce manual E: 1 -> 2 pos: [0.1, 0.5]
+mapa avistada sin nombre: OK | nodos: [(1, 'explorada'), (2, 'explorada'), (3, 'avistada'), (4, 'avistada')]
+selección tras ←: 1 explorada
+viaje activo tras Enter: True hacia 1
+U durante viaje: sala 1 | viaje activo: False
+cruce manual de vuelta: sala 1 -> 2
+panel tras M: True sel: 2
+selección tras ←: 1 explorada
+viaje tras Enter: True hacia 1
+ESC cancela viaje: True -> False
+panel: True
+selección tras ↓: 4 avistada
+Enter sobre avistada: intención None | viaje activo: False
+ESC con panel: viaje True -> False | panel: False
+pausa: pausa
+guardado: True
+carga válida: sala 2 | viaje activo: False
+carga inexistente falló como debe: GuardadoError
+sesión conservada: sala 2 == 2 | viaje activo: False
+«vista T049 terminada»

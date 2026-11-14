@@ -316,3 +316,52 @@ y no se modificaron contratos, formatos de partida/log/foto ni reglas del motor.
 
 Pendientes tras este cierre: T046/T047 (001 y referencia oficial), T049
 (recorrido manual) y T051 (revisión de matriz y prompts; PROMPTS_LLM.md).
+
+## T049 — 2026-11-13
+
+Recorrido manual offline ejecutado con ejecutables reales y reloj/lector
+inyectados (pasos de viaje deterministas, sin terminal real), diferenciado de
+una partida humana. Transcripciones completas y capturas en `docs/mediciones/`
+(`002-t049-*.txt`, `002-t049-vista-*.png`). Consola en dos fases, semilla
+20261113, guardados v4 en directorio temporal:
+
+- **Fase A — `paquete_demo` tal cual** (enemigos, oleadas cada 3000 y trampas
+  vivos; combate reactivo del conductor, como una persona): `mapa` inicial con
+  salidas/costos/puertas; `ir a 3` rechazado sin tiempo (destino no explorado);
+  oleada programada a t=3000 y combatida; recogida y equipado de espada y
+  escudo del propio demo; viaje 2→1 detenido por daño de trampas al entrar
+  (`viaje detenido: dano`, §2.10/FR-NIE-12) y viaje 1→2 limpio completo. Al
+  re-entrar en la sala 1, `llamas-01` aplica quemadura 80×3=240 que el antídoto
+  no cura y la partida termina en `fin: derrota`. Limitación real registrada:
+  el demo no permite recorrer las ramas de viaje limpio ni la rama
+  antorcha+deshacer en una partida real (el pergamino está en la sala 5 y
+  volver a la sala 1 con llamas armadas es mortal).
+- **Fase B — fixture limpia** (sin enemigos, oleadas ni trampas, para las ramas
+  que el demo no contiene): todas las ramas del recorrido previsto: mapa;
+  rechazo de destino no explorado; cruce manual y recogidas; viajes 2→1 y
+  2→1→3 completados; antorcha con revelación inmediata y `deshacer` con
+  pergamino (el mapa anterior y posterior al retroceso concuerdan: la sala 2
+  vuelve a avistada); con el viaje 5→3 pendiente, `foto` lo conserva, la carga
+  de un archivo inexistente muestra un error amable y conserva sesión y viaje
+  (confirmado con `foto`), `cancelar` detiene antes del segundo cruce con
+  motivo visible y el reloj del último paso, y la carga válida instala la
+  partida con viaje inactivo; `ir a 999` sigue rechazándose sin tiempo;
+  `salir` → 0.
+- **Vista Pygame (headless SDL dummy) a 1024×800 y 640×480**: cruce manual por
+  proximidad sin paso automático adicional (reposo junto a la puerta); M abre
+  el mapa: salas exploradas con nombre y avistadas sin nombre (el DTO no
+  incluye `nombre` en avistadas); ↑/↓/←/→ seleccionan en cada dirección;
+  Enter inicia el viaje solo hacia exploradas (sobre una avistada no hace
+  nada); U durante el recorrido cancela el viaje y rebobina la última acción
+  cerrada con 1 pergamino (un viaje sin pasos aún no tiene inversa: revierte
+  el cruce anterior); Escape cancela el viaje con el panel abierto y también
+  fuera del panel; en pausa G guarda y la carga válida restaura; la carga
+  inexistente lanza `GuardadoError` con la sesión y el viaje intactos.
+  Capturas: juego/mapa/viaje a 1024×800 y mapa a 640×480, legibles en ambos
+  tamaños.
+
+`README.md` actualizado: guardado v4 (el flujo rechaza v1/v2/v3), U durante el
+recorrido, Escape fuera del panel y que el mapa no exponga nombres de
+avistadas. Queda registrada la diferencia entre estos recorridos dirigidos y
+una partida humana completa; T046/T047 siguen bloqueando la aceptación
+completa de002.
