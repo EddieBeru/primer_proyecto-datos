@@ -163,6 +163,40 @@ y la revisión transversal completa§5.6 permanecen fuera del cierre aislado004.
 - `bf3a16f`: captura atómica y exclusión de acciones sin cambios.
 - `b34baf6`: explorador visual, controles, ayuda y capturas.
 
+### Recorrido del panel — T033 — 2026-11-13
+
+Recorrido headless con ejecutables reales (Sesión sobre `paquete_demo`,
+fixture limpia sin enemigos/trampas/oleadas para un historial determinista de
+8 acciones: movimientos, recoger, equipar y esperar; reloj inyectado por el
+controlador). Transcripción y capturas en `docs/mediciones/004-t033-*`.
+
+- Apertura con H; resumen inicial en la última acción (#8). Navegación con
+  ←/→ y con clic en Anterior/Siguiente; foco con Tab.
+- Consulta inválida por tiempo (`999999`): error visible «Tiempo histórico
+  inválido o futuro.» y el resumen válido anterior se conserva; consulta
+  válida por tiempo retorna al instante correcto (T=5000).
+- Scroll del detalle con ↑/↓ y rueda; con contenido extenso el máximo de
+  desplazamiento es113 y los controles siguen visibles.
+- Contenido extenso (nombre de sala de~300 caracteres e inventario de40
+  ítems largos, mediante resumen sintético igual que la prueba automatizada):
+  el texto se ajusta por líneas sin recortes ni solapes
+  ([normal](../../docs/mediciones/004-t033-panel-largo-1024x800.png) y
+  [desplazado al final](../../docs/mediciones/004-t033-panel-largo-scroll-1024x800.png)).
+- Cierre con Escape y con clic en Cerrar; el panel sale y la partida queda
+  intacta: estado (`a_dict`), bitácora, pila de deshacer, reloj, posición,
+  sala y viaje automático idénticos antes/después de todo el recorrido.
+- Capturas a tamaños admitidos con controles íntegros: [640×480](../../docs/mediciones/004-t033-panel-640x480.png),
+  [1024×800](../../docs/mediciones/004-t033-panel-1024x800.png),
+  [1280×720](../../docs/mediciones/004-t033-panel-1280x720.png),
+  [1600×900](../../docs/mediciones/004-t033-panel-1600x900.png) y
+  [1920×1080](../../docs/mediciones/004-t033-panel-1920x1080.png); más la
+  captura del error a1024×800. A640×480 los botones Anterior/Siguiente
+  envuelven a una segunda fila y la lista de acciones se desplaza.
+
+Omisión igual que el resto del cierre aislado004: es recorrido dirigido
+headless con inspección visual del agente, no una partida humana interactiva
+con ratón en ventana real; no se declara aceptación humana de la interfaz.
+
 Checklist de calidad existente:16/16 marcados, sin modificar el archivo de
 checklist. Su nota histórica sobre ausencia del enunciado está desactualizada;
 la fuente normativa y el contraste actual constan en research.md. La revisión

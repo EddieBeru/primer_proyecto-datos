@@ -251,3 +251,23 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   --check` sin errores; commits `db9be79` (T052/T050) y `e285829` (T049).
   Recorridos dirigidos, no partidas humanas; queda registrado en quickstart.
   El commit de T051 queda pendiente de autorización.
+
+## T033 panel de historia — 2026-11-13
+
+- Modelo: GLM-5.3-Flash Free vía OpenCode (misma sesión que la sección
+  anterior).
+- Prompt literal: «dale» (tras preguntar «¿Comiteo el hito T051 y sigo con
+  T033?»); autoriza el commit y el recorrido del panel.
+- Aclaraciones de la misma sesión: el usuario indica que 001 y 003 pertenecen
+  a la persona A y él es la persona B, por lo que T046/T047 quedan fuera de
+  su alcance; se corrige el registro de T051 en consecuencia.
+- Uso: T033 como recorrido headless del panel de historia con ejecutables
+  reales y fixture limpia (apertura, navegación por teclado y ratón, consulta
+  inválida y válida, scroll con contenido extenso, cierre y verificación de
+  ausencia de mutaciones); capturas a los tamaños admitidos en
+  `docs/mediciones/004-t033-*`; ayuda completada en `README.md`; registro en
+  quickstart y cierre de la casilla en `tasks.md` de004.
+- Validación: verificación de controles íntegros en las cinco resoluciones;
+  igualdad de `a_dict`, bitácora, pila, reloj, posición, sala y viaje antes y
+  después del recorrido. Regresión completa y commit en la sección de T033
+  del quickstart de004; recorrido dirigido, no partida humana interactiva.

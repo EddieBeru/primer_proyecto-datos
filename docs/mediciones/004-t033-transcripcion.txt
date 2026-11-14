@@ -1,0 +1,19 @@
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.12.3)
+acciones en historial: 8
+abrir H: panel True | resumen.accion 8
+←: resumen.accion 7
+→: resumen.accion 8
+clic anterior: resumen.accion 7
+clic siguiente: resumen.accion 8
+consulta inválida: error True | resumen conservado True
+consulta válida por tiempo: True reloj 5000
+scroll/rueda: scroll 0
+largo: scroll_max 113
+cerrar ESC: panel True
+sin mutaciones: True
+cerrar clic: panel True
+(640, 480) controles fuera: ninguno
+(1280, 720) controles fuera: ninguno
+(1600, 900) controles fuera: ninguno
+(1920, 1080) controles fuera: ninguno
+«panel T033 terminado»

@@ -147,8 +147,11 @@ Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` 
 En Pygame, pulsa **H** o el botón **Historial**. El panel muestra el pasado sin
 alterar la partida: navega con ←/→ o los botones, elige **Acción** o **Tiempo**,
 escribe un número y pulsa Enter para consultar. Tab recorre controles; ↑/↓ o
-la rueda desplazan el detalle; Escape cierra. Mientras el panel tiene foco,
-el movimiento y el viaje automático quedan suspendidos.
+la rueda desplazan el detalle; Escape o el botón **Cerrar** salen. Una consulta
+inválida (futura o no numérica) muestra el error y conserva el último resumen
+válido. Mientras el panel tiene foco, el movimiento y el viaje automático
+quedan suspendidos, y nada de lo consultado cambia la partida, la bitácora ni
+la pila de deshacer.
 
 El detalle agrupa vida/estadísticas, inventario con sprites, efectos, enemigos
 y el mapa conocido en ese instante. La selección y los estados de puertas se
@@ -161,4 +164,6 @@ resumen sin abrir Pygame. El uso del pergamino recorta la rama histórica; cada
 paso de viaje cuenta por separado. Los guardados nuevos de Sesión son **v4** y
 conservan la historia completa; los v1/v2/v3 se rechazan explícitamente.
 
-[Captura del panel a1024×800](docs/mediciones/004-historia-ui-1024.png).
+[Captura del panel a1024×800](docs/mediciones/004-historia-ui-1024.png). El
+recorrido T033 añade capturas con error, contenido extenso y los tamaños
+admitidos: ver `docs/mediciones/004-t033-panel-*.png` y su transcripción.
