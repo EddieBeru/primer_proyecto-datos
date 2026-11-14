@@ -216,3 +216,38 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
 - Validación:137 aprobadas/1 omitida; pruebas de proporción hasta4K, capturas
   actualizadas y revisión visual a640×480 y1920×1080. Se documenta la excepción
   del encabezado compacto en `docs/diseno-ui.md`.
+
+## Cierre de 002: T052, T050, T049 y T051 — 2026-11-13
+
+- Modelo: GLM-5.3-Flash Free vía OpenCode (asistente de código en terminal;
+  sin atribución de proveedor adicional).
+- Prompts literales: «empieza» (tras el informe de pendientes); «sí» (autoriza
+  el commit por hito de T049); «no entiendo lo que dice la 47»; «pero no
+  entiendo a que paquete se refiere. ya no hay entregables de parte del profe
+  para este proyecto, te refieres a algo en su servidor?»; «pues creo que
+  queda irresolvible».
+- Prompts previos en la misma sesión (paráfrasis): preguntar qué queda en el
+  proyecto; pedir ejecutar T050 y T052; pedir el siguiente paso.
+- Uso: T052 verificada contra el 004 real con tres pruebas nuevas
+  (reconstrucción por frontera de acción, concordancia deltas 002↔historia
+  004, validación/conservación v4) y T050 con la regresión completa; T049
+  ejecutada como recorrido offline con ejecutables reales y reloj/lector
+  inyectados (consola en dos fases: demo real con oleadas/trampas y fixture
+  limpia para las ramas ausentes del demo; vista headless SDL dummy a
+  1024×800 y 640×480 con capturas en `docs/mediciones/002-t049-*`), con
+  actualización de `README.md` (v4, U en recorrido, Escape fuera del panel);
+  T051 como revisión de matriz FR/escenarios, declaración de pendientes
+  (T046 bloqueada por la entrega de001 de la persona A, fuera del alcance de
+  B; T047 como bloqueo externo sin resolución prevista según el equipo) y
+  este registro.
+- Aclaraciones registradas: se explicó que el «paquete oficial» de T047 es la
+  cripta de referencia del enunciado §6.1 (no un servidor ni un entregable
+  nuevo); con la evaluación del equipo de que no se publicará, T047 se
+  declara bloqueo externo definitivo y la aceptación formal de002 queda
+  incompleta, sin sustitutos sintéticos. El usuario aclaró además que 001 y
+  003 pertenecen a la persona A y que él es la persona B, por lo que ambos
+  bloqueos de002 quedan fuera de su alcance.
+- Validación: regresión completa501 aprobadas/1 omitida (6,48 s), `git diff
+  --check` sin errores; commits `db9be79` (T052/T050) y `e285829` (T049).
+  Recorridos dirigidos, no partidas humanas; queda registrado en quickstart.
+  El commit de T051 queda pendiente de autorización.

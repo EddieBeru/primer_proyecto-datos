@@ -114,7 +114,7 @@ Dependencia común: T004–T007. Estas tareas pueden escribirse contra los contr
 - [X] T048 Consolidar `DECISIONES.md` con problema, alternativas, elección de índice/heap/núcleo propio, complejidad, mediciones reales y límites; justificar separación de rutas frente a001 y frontera de historia004. Enlazar evidencia sintética y, cuando exista, oficial, sin adjudicar trabajo§5.6 completo ni elección K a002. Dep.: T045; actualizar después de T047 si procede. Requisitos: FR-NIE-20.
 - [X] T049 Ejecutar recorrido manual offline de `specs/002-niebla-ir-a/quickstart.md` en consola y Pygame y actualizar ayuda en `README.md`: mapa/viaje/cancelar, undo, guardar/cargar y cruce manual conservado. Usar fixtures para ramas que paquete_demo no contiene; registrar resultados/limitaciones, sin afirmar escenarios no recorridos. Dep.: T041,T042. Requisitos: FR-NIE-18, FR-NIE-21. Evidencia 2026-11-13 en quickstart y `docs/mediciones/002-t049-*`: consola fase A (demo real: rechazos, oleadas, viajes detenidos por daño de trampas, derrota por quemadura) y fase B (fixture limpia con todas las ramas: viaje, consultas conservan, carga inválida conserva, cancelación a mitad, antorcha+deshacer, guardar/cargar); vista headless a 1024×800 y 640×480 (mapa sin nombres de avistadas, Enter solo a exploradas, U y Escape cancelan, cruce manual por proximidad, pausa/guardar/cargar). README actualizado (v4, U, Escape, avistadas sin nombre).
 - [X] T050 Ejecutar regresión `python -m pytest tests/ -q` con SDL dummy y sin CRIPTA_API_REAL; resolver regresiones propias y documentar resultado en `specs/002-niebla-ir-a/quickstart.md`, conservando restricciones y separación de capas. Dep.: T043,T046,T049. Requisitos: P2§2.5/6.3/7.1. Evidencia 2026-11-13 en quickstart (501 aprobadas/1 omitida; sin regresiones; T046/T049 siguen abiertas por su propio alcance).
-- [ ] T051 Revisar matriz FR/escenarios en `specs/002-niebla-ir-a/tasks.md` y registrar prompts/usos/resultados en `PROMPTS_LLM.md`; cerrar solo tareas verificadas y declarar pendientes de contratos, enunciado,001,004 o referencia. La entrega aislada de002 puede validarse con proveedores y colectores falsos, pero la aceptación completa de FR-NIE-08 espera la integración histórica real de T052. La aceptación completa de002 requiere T003 con contraste resuelto, T046,T047,T050,T052 y todas sus evidencias; no dar por terminada004. Dep.: T048,T049 y evidencias disponibles; cierre completo espera T047,T050,T052. Requisitos: P2§2.5/2.6.
+- [X] T051 Revisar matriz FR/escenarios en `specs/002-niebla-ir-a/tasks.md` y registrar prompts/usos/resultados en `PROMPTS_LLM.md`; cerrar solo tareas verificadas y declarar pendientes de contratos, enunciado,001,004 o referencia. La entrega aislada de002 puede validarse con proveedores y colectores falsos, pero la aceptación completa de FR-NIE-08 espera la integración histórica real de T052. La aceptación completa de002 requiere T003 con contraste resuelto, T046,T047,T050,T052 y todas sus evidencias; no dar por terminada004. Dep.: T048,T049 y evidencias disponibles; cierre completo espera T047,T050,T052. Requisitos: P2§2.5/2.6. Revisión 2026-11-13 en la sección «T051» de este archivo: 18/21 FR con evidencia completa; FR-NIE-05/11/12 pendientes de T046 (entrega de001 de la persona A, fuera del alcance de B) y FR-NIE-19/20 de T047 (referencia oficial no publicada, evaluada como bloqueo externo sin resolución prevista); escenario 2 comparte la pendencia de T046; SC-NIE-01/02 sujetos a T047. Prompts 2026-11-09–2026-11-13 registrados en `PROMPTS_LLM.md`. La aceptación formal de002 queda incompleta por T046/T047, ambos bloqueos externos; no se da por terminada004.
 - [X] T052 Verificar en `tests/test_deltas_conocimiento.py`, `tests/test_savegame.py` y `tests/test_sesion.py`, tras integrar004, el conocimiento histórico antes y después de entrada, revelación con antorcha y retroceso; comprobar reconstrucción correcta y conservación de la historia al guardar/cargar. Registrar evidencia o bloqueo en `specs/002-niebla-ir-a/quickstart.md`. El colector falso no cierra esta aceptación de FR-NIE-08; no implementar historia/checkpoints de004 dentro de002. Dep.: T043,T046,T050 y entrega externa004 compatible; mantener pendiente mientras no esté disponible. Requisitos: FR-NIE-08. Evidencia 2026-11-13 en quickstart: tres pruebas nuevas contra004 real (reconstrucción por frontera, concordancia deltas 002↔historia 004, validación/conservación v4). FR-NIE-08 histórico verificado; la dependencia T046 (001) sigue abierta para la aceptación completa de002.
 
 ## Dependencias y orden de ejecución
@@ -299,3 +299,43 @@ la matriz final completa con muestreo revisado documentado. La referencia oficia
 permanece pendiente. Regresión final418 aprobadas/1 omitida en5,34 s; no cierra
 T050 integrada porque sus dependencias T046/T049 siguen abiertas. Quedan seis
 tareas: T046,T047,T049,T050,T051,T052. No se declara aceptación completa de002.
+
+
+## T051 — revisión de matriz y cierre — 2026-11-13
+
+Revisión de la matriz FR/escenarios contra el estado de casillas y las
+evidencias registradas (T049 cerrada el mismo día; T050/T052 cerradas el
+2026-11-13; T003 satisfecha con el enunciado íntegro recibido el 2026-11-09).
+
+**Requisitos (21 FR).** Con evidencia offline completa: FR-NIE-01–04, 06–10,
+13–18 y 21 (18 de 21). Con implementación cerrada pero aceptación integrada
+pendiente: FR-NIE-05, FR-NIE-11 y FR-NIE-12 — su validación incluye T046
+(entrega real de001: costos/tiempos ponderados, simetría y observación de
+puertas desde ambos extremos); los falsos cubren el diseño, no la aceptación.
+Con evidencia sintética disponible y aceptación oficial pendiente:
+FR-NIE-19 y FR-NIE-20 — T045/T048 midieron con índice/heap propios (mediana
+2,691 ms en malla de100; máximos 23,142/86,251/452,053 ms y 581/1000/100
+consultas sobre5 ms en las cargas sintéticas más duras: no se acredita el
+umbral) y la proporcionalidad de revelación se verificó con conteo constante
+y expansiones incluidas; T047 (referencia oficial) no puede cerrarse sin el
+paquete del enunciado §6.1.
+
+**Escenarios (11).** Validados por pruebas y/o recorridos: 1, 3–11
+(escenario 11 con T049 incluida). El escenario 2 (puerta recordada abierta
+pero cerrada en realidad) comparte la pendencia de T046.
+
+**Criterios de sistema.** SC-NIE-01 y SC-NIE-02 quedan sujetos a T047;
+SC-NIE-03 cubierta por T040–T043 con la parte histórica verificada por T052
+contra004 real.
+
+**Pendientes declaradas.** T046: bloqueo externo — la entrega de001
+(terreno-cazador) pertenece a la persona A según la división del trabajo del
+proyecto; la persona B (002) solo la consume y 001 aún no tiene plan, tasks
+ni implementación en el repositorio. T047: bloqueo externo sin resolución
+prevista — la cripta de referencia del enunciado §6.1 no ha sido publicada y
+el equipo la evalúa como no disponible (evaluación 2026-11-13, por confirmar
+con el docente); la tarea misma ordena mantenerla pendiente sin sustitutos
+sintéticos. **La aceptación formal completa de002 queda declarada
+incompleta** por T046/T047, ambos bloqueos externos al alcance de B; todo lo
+verificable sin esas entregas está cerrado y evidenciado. No se da por
+terminada004 ni se adjudica a002 el trabajo §5.6 completo ni la elección de K.
