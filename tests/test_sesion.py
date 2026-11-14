@@ -412,6 +412,40 @@ def test_roundtrip_conocimiento_deltas_y_undo(tmp_path):
     assert ses.estado.conocimiento.a_dict() == antes
 
 
+def test_historia_conocimiento_entrada_antorcha_undo_carga(tmp_path):
+    """FR-NIE-08 (T052): con004 real, el conocimiento histórico se reconstruye."""
+    from src.controller2.linea_tiempo import conocimiento_serializado
+    ses = nueva_sesion(tmp_path, checkpoint_cada=2)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    ses.proveedor.catalogo.update(ses.backend.fake._fichas)
+    ses.estado.jugador.vida_max = ses.estado.jugador.vida_actual = 1000
+    ses.estado.jugador.inventario.extend(['antorcha-01', 'pergamino-01'])
+    inicio = conocimiento_serializado(ses.estado)
+    assert ses.paso('usar antorcha-01')[0]
+    torch = conocimiento_serializado(ses.estado)
+    assert ses.paso('s')[0]
+    entrada = conocimiento_serializado(ses.estado)
+    assert inicio != torch != entrada
+    # La reconstrucción de004 devuelve el conocimiento de cada frontera:
+    # inicio de002, antorcha (acción 1) y entrada (acción 2).
+    assert ses.linea.reconstruir(0)['conocimiento'] == inicio
+    assert ses.linea.reconstruir(ses.linea.acciones[1][0])['conocimiento'] == torch
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == entrada
+    mapa_previo = ses.historia_accion(1).mapa
+    mapa_entrada = ses.historia_accion(2).mapa
+    assert sum(f[2] == 'explorada' for f in mapa_entrada) > sum(f[2] == 'explorada' for f in mapa_previo)
+    # El retroceso restaura la rama histórica hasta la antorcha.
+    assert ses.paso('deshacer')[0]
+    assert conocimiento_serializado(ses.estado) == torch
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == torch
+    ruta = str(tmp_path/'t052.bin')
+    ses.guardar(ruta)
+    ses.cargar_en_frio(ruta)
+    assert ses.historia_accion(1).mapa == mapa_previo
+    assert ses.historia_accion(2).mapa == mapa_entrada
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == torch
+
+
 def test_replay_viaje_equivale_a_movimientos_individuales(tmp_path):
     """FR-NIE-16: replay ignora comentario y conserva determinismo."""
     ses = nueva_sesion(tmp_path)

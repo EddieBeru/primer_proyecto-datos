@@ -266,3 +266,53 @@ Estado final de esta ejecución:46/52 tareas cerradas; pendientes T046/T047
 (integración001 y referencia), T049 (recorrido manual completo), T050 (cierre de
 regresión integrada, aunque la regresión local pasó), T051 (aceptación integral)
 y T052 (conocimiento histórico con004 real). El enunciado P2 ya está contrastado.
+
+
+## T052 y T050 — 2026-11-13
+
+La entrega de004 (línea de tiempo, DECISIONES §D, 2026-11-10) ya es compatible:
+formato v4, diario de escrituras, checkpoints y receptor de deltas en
+`src/controller2/linea_tiempo.py`, conectado por la Sesión como
+`receptor_historia`. Con eso se ejecutó T052 contra el 004 real, no el colector
+falso de T043, en los tres archivos que la tarea indica:
+
+- `tests/test_sesion.py::test_historia_conocimiento_entrada_antorcha_undo_carga`:
+  sesión real con antorcha y entrada; `LineaTiempo.reconstruir` devuelve en cada
+  frontera de acción el conocimiento exacto de ese momento (inicio de002,
+  antorcha, entrada); el retroceso restaura la rama histórica hasta la antorcha
+  y P1 concuerda; guardar/cargar v4 conserva `historia_accion(1..2)` y la
+  reconstrucción final.
+- `tests/test_deltas_conocimiento.py::test_receptor_historia_004_concuerda_con_deltas_002`:
+  colector de002 y línea de004 montados a la vez; re-aplicar los deltas
+  recibidos reproduce `estado.conocimiento` y las reconstrucciones históricas
+  coinciden frontera a frontera; la lejana pasa de ausente a avistada (antorcha)
+  y a explorada (entrada), y el deshacer la devuelve a avistada en ambas
+  representaciones.
+- `tests/test_savegame.py::test_historia_v4_conserva_y_valida_conocimiento`:
+  roundtrip v4 conserva la historia completa; un guardado con conocimiento que
+  no coincide con metadatos se rechaza con «conocimiento inválido» y un
+  checkpoint histórico alterado con «historia inválida»; en ambos casos la
+  sesión y su rama histórica quedan intactas.
+
+Evidencia adicional previa que se mantiene vigente:
+`tests/test_historia.py::test_historia_antorcha_entrada_undo_y_guardado` y
+`tests/test_sesion.py::test_roundtrip_conocimiento_deltas_y_undo`. Con esto la
+parte histórica de FR-NIE-08 queda verificada contra004 real. La dependencia
+formal T046 (costo/tiempo ponderado de001, simetría y observación) sigue
+abierta y bloquea la aceptación completa de002; este cierre no la alcanza.
+
+T050: regresión integrada completa, con SDL dummy y sin `CRIPTA_API_REAL`:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 501 passed, 1 skipped in 8.64s (antes: 498; +3 pruebas de T052)
+git diff --check  # sin errores
+```
+
+La omitida es la integración HTTP optativa de vista. No se resolvieron
+regresiones: no hubo fallos. Se conserva la separación de capas (004 no consulta
+el motor al reconstruir; 002 sigue sin retener la historia completa ni elegir K)
+y no se modificaron contratos, formatos de partida/log/foto ni reglas del motor.
+
+Pendientes tras este cierre: T046/T047 (001 y referencia oficial), T049
+(recorrido manual) y T051 (revisión de matriz y prompts; PROMPTS_LLM.md).

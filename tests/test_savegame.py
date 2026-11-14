@@ -64,3 +64,40 @@ def test_p2_rechaza_versiones_anteriores(tmp_path, version):
     ruta.write_bytes(savegame.MAGIA + bytes([version]) + b'contenido legado')
     with pytest.raises(GuardadoError, match='incompatib'):
         savegame.cargar_p2(str(ruta))
+
+
+def test_historia_v4_conserva_y_valida_conocimiento(tmp_path):
+    """FR-NIE-08 (T052): la historia v4 conserva el conocimiento; la carga lo valida."""
+    from copy import deepcopy
+    from test_sesion import CRIPTA_ID, nueva_sesion
+    ses = nueva_sesion(tmp_path, checkpoint_cada=2)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    ses.proveedor.catalogo.update(ses.backend.fake._fichas)
+    ses.estado.jugador.inventario.extend(['antorcha-01', 'pergamino-01'])
+    assert ses.paso('usar antorcha-01')[0] and ses.paso('s')[0]
+    ruta = str(tmp_path/'v4-t052.bin')
+    ses.guardar(ruta)
+    historia = ses.linea.a_dict()
+    mapas = [ses.historia_accion(i).mapa for i in (1, 2)]
+    # Roundtrip válido: la historia completa sigue reconstruyendo el conocimiento.
+    ses.cargar_en_frio(ruta)
+    assert ses.linea.a_dict() == historia
+    assert [ses.historia_accion(i).mapa for i in (1, 2)] == mapas
+    actual = ses.estado.a_dict()
+    # El conocimiento del guardado se valida contra metadatos vivos.
+    data = savegame.cargar_historia(ruta)
+    mal = deepcopy(data)
+    next(r for r in mal['conocimiento']['salas'] if r['estado'] == 'explorada')['nombre'] = 'Falso'
+    falsa = str(tmp_path/'conocimiento-falso.bin')
+    savegame.guardar(falsa, mal)
+    with pytest.raises(GuardadoError, match='conocimiento inválido'):
+        ses.cargar(falsa)
+    assert ses.estado.a_dict() == actual and ses.linea.a_dict() == historia
+    # Un checkpoint histórico alterado tampoco se instala.
+    mal = deepcopy(data)
+    mal['historia']['checkpoints'][-1][2]['conocimiento']['salas'] = []
+    falsa = str(tmp_path/'checkpoint-falso.bin')
+    savegame.guardar(falsa, mal)
+    with pytest.raises(GuardadoError, match='historia inválida'):
+        ses.cargar(falsa)
+    assert ses.estado.a_dict() == actual and ses.linea.a_dict() == historia
