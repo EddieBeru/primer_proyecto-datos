@@ -1,0 +1,511 @@
+{
+  "scope": "Microbenchmark de estructuras: construcción y consumo/consultas; no mide resolubilidad ni200ms.",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "seed": 300316,
+  "warmups": 2,
+  "repetitions": 7,
+  "clock": "time.perf_counter_ns",
+  "limitations": [
+    "Una ejecución local; resultados sensibles a carga y recolector.",
+    "Las marcas densas requieren ordinales compactos, nunca max(id).",
+    "Texto medido con ids ASCII de16 y256 caracteres; el prototipo FNV1a64 procesa bytes con acumulador64 bits. No se presupone costo constante para longitudes ilimitadas.",
+    "La variante texto→entero es una alternativa descartable: _hash_entero desplaza enteros largos y su costo en bytes puede ser cuadrático; no se presenta como diseño lineal en bytes.",
+    "No acredita complejidad del diagnóstico de ciclos ni meta temporal en cripta publicada."
+  ],
+  "results": [
+    {
+      "alternative": "fifo_lista_cabeza",
+      "n": 1000,
+      "samples_ms": [
+        0.090052,
+        0.088239,
+        0.087723,
+        0.08944,
+        0.089713,
+        0.097231,
+        0.096932
+      ],
+      "median_ms": 0.089713,
+      "min_ms": 0.087723,
+      "max_ms": 0.097231,
+      "checksum": 499500
+    },
+    {
+      "alternative": "fifo_pop_cero",
+      "n": 1000,
+      "samples_ms": [
+        0.120421,
+        0.201662,
+        0.115222,
+        0.130861,
+        0.116942,
+        0.11559,
+        0.115543
+      ],
+      "median_ms": 0.116942,
+      "min_ms": 0.115222,
+      "max_ms": 0.201662,
+      "checksum": 499500
+    },
+    {
+      "alternative": "fifo_enlazada",
+      "n": 1000,
+      "samples_ms": [
+        1.045787,
+        0.236164,
+        0.230656,
+        0.230507,
+        0.267132,
+        0.216793,
+        0.213415
+      ],
+      "median_ms": 0.230656,
+      "min_ms": 0.213415,
+      "max_ms": 1.045787,
+      "checksum": 499500
+    },
+    {
+      "alternative": "pertenencia_marcas_densas",
+      "n": 1000,
+      "samples_ms": [
+        0.054646,
+        0.054084,
+        0.052517,
+        0.051539,
+        0.051307,
+        0.051313,
+        0.095027
+      ],
+      "median_ms": 0.052517,
+      "min_ms": 0.051307,
+      "max_ms": 0.095027,
+      "checksum": 499500
+    },
+    {
+      "alternative": "fifo_lista_cabeza",
+      "n": 4000,
+      "samples_ms": [
+        0.344992,
+        0.332623,
+        0.329293,
+        0.331855,
+        0.335551,
+        0.329963,
+        0.343889
+      ],
+      "median_ms": 0.332623,
+      "min_ms": 0.329293,
+      "max_ms": 0.344992,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "fifo_pop_cero",
+      "n": 4000,
+      "samples_ms": [
+        0.985991,
+        0.997255,
+        0.982268,
+        1.020085,
+        0.990175,
+        0.973702,
+        0.980241
+      ],
+      "median_ms": 0.985991,
+      "min_ms": 0.973702,
+      "max_ms": 1.020085,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "fifo_enlazada",
+      "n": 4000,
+      "samples_ms": [
+        0.834777,
+        1.11017,
+        1.117926,
+        1.631257,
+        1.124406,
+        1.014847,
+        1.491106
+      ],
+      "median_ms": 1.117926,
+      "min_ms": 0.834777,
+      "max_ms": 1.631257,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "pertenencia_marcas_densas",
+      "n": 4000,
+      "samples_ms": [
+        0.309915,
+        0.332509,
+        0.311174,
+        0.220291,
+        0.363681,
+        0.210532,
+        0.202348
+      ],
+      "median_ms": 0.309915,
+      "min_ms": 0.202348,
+      "max_ms": 0.363681,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "fifo_lista_cabeza",
+      "n": 16000,
+      "samples_ms": [
+        1.50013,
+        1.462651,
+        1.48572,
+        1.690402,
+        1.687657,
+        1.861466,
+        1.680772
+      ],
+      "median_ms": 1.680772,
+      "min_ms": 1.462651,
+      "max_ms": 1.861466,
+      "checksum": 127992000
+    },
+    {
+      "alternative": "fifo_pop_cero",
+      "n": 16000,
+      "samples_ms": [
+        19.109292,
+        19.140162,
+        19.624198,
+        19.210632,
+        19.499169,
+        19.355632,
+        19.069877
+      ],
+      "median_ms": 19.210632,
+      "min_ms": 19.069877,
+      "max_ms": 19.624198,
+      "checksum": 127992000
+    },
+    {
+      "alternative": "fifo_enlazada",
+      "n": 16000,
+      "samples_ms": [
+        7.08237,
+        4.938318,
+        5.350662,
+        3.899636,
+        4.105877,
+        4.093028,
+        6.586103
+      ],
+      "median_ms": 4.938318,
+      "min_ms": 3.899636,
+      "max_ms": 7.08237,
+      "checksum": 127992000
+    },
+    {
+      "alternative": "pertenencia_marcas_densas",
+      "n": 16000,
+      "samples_ms": [
+        0.814577,
+        1.149062,
+        0.877439,
+        0.962325,
+        0.872363,
+        0.833363,
+        0.850276
+      ],
+      "median_ms": 0.872363,
+      "min_ms": 0.814577,
+      "max_ms": 1.149062,
+      "checksum": 127992000
+    },
+    {
+      "alternative": "fifo_lista_cabeza",
+      "n": 32000,
+      "samples_ms": [
+        2.995809,
+        2.989852,
+        2.753056,
+        2.899396,
+        3.176193,
+        2.995203,
+        3.469541
+      ],
+      "median_ms": 2.995203,
+      "min_ms": 2.753056,
+      "max_ms": 3.469541,
+      "checksum": 511984000
+    },
+    {
+      "alternative": "fifo_pop_cero",
+      "n": 32000,
+      "samples_ms": [
+        84.637845,
+        83.017046,
+        81.792701,
+        80.150056,
+        84.858565,
+        82.813515,
+        85.420736
+      ],
+      "median_ms": 83.017046,
+      "min_ms": 80.150056,
+      "max_ms": 85.420736,
+      "checksum": 511984000
+    },
+    {
+      "alternative": "fifo_enlazada",
+      "n": 32000,
+      "samples_ms": [
+        13.631454,
+        8.474862,
+        9.458635,
+        15.423429,
+        8.179492,
+        8.818106,
+        13.930813
+      ],
+      "median_ms": 9.458635,
+      "min_ms": 8.179492,
+      "max_ms": 15.423429,
+      "checksum": 511984000
+    },
+    {
+      "alternative": "pertenencia_marcas_densas",
+      "n": 32000,
+      "samples_ms": [
+        1.70245,
+        1.668602,
+        1.847196,
+        1.695084,
+        1.769094,
+        1.682804,
+        1.748059
+      ],
+      "median_ms": 1.70245,
+      "min_ms": 1.668602,
+      "max_ms": 1.847196,
+      "checksum": 511984000
+    },
+    {
+      "alternative": "indice_propio_entero",
+      "n": 1000,
+      "samples_ms": [
+        4.788349,
+        4.45126,
+        4.564137,
+        5.405017,
+        4.554256,
+        4.593957,
+        5.071042
+      ],
+      "median_ms": 4.593957,
+      "min_ms": 4.45126,
+      "max_ms": 5.405017,
+      "checksum": 499500
+    },
+    {
+      "alternative": "busqueda_lineal",
+      "n": 1000,
+      "samples_ms": [
+        10.332944,
+        10.135694,
+        10.232494,
+        10.047289,
+        10.353564,
+        11.054364,
+        10.604417
+      ],
+      "median_ms": 10.332944,
+      "min_ms": 10.047289,
+      "max_ms": 11.054364,
+      "checksum": 499500
+    },
+    {
+      "alternative": "indice_propio_texto_codificado",
+      "n": 1000,
+      "samples_ms": [
+        10.424273,
+        10.285705,
+        10.294528,
+        10.41449,
+        10.483147,
+        10.48292,
+        10.618796
+      ],
+      "median_ms": 10.424273,
+      "min_ms": 10.285705,
+      "max_ms": 10.618796,
+      "checksum": 499500,
+      "id_max_chars": 16,
+      "includes": "conversión UTF8→entero, construcción y consulta"
+    },
+    {
+      "alternative": "indice_propio_texto_fnv1a64",
+      "n": 1000,
+      "samples_ms": [
+        10.581472,
+        11.004283,
+        10.408614,
+        11.297211,
+        10.576975,
+        10.842259,
+        11.068927
+      ],
+      "median_ms": 10.842259,
+      "min_ms": 10.408614,
+      "max_ms": 11.297211,
+      "checksum": 499500,
+      "id_max_chars": 16,
+      "includes": "construcción y consulta"
+    },
+    {
+      "alternative": "busqueda_lineal_texto",
+      "n": 1000,
+      "samples_ms": [
+        11.455203,
+        10.292514,
+        10.299157,
+        10.61289,
+        10.429037,
+        10.462447,
+        10.681037
+      ],
+      "median_ms": 10.462447,
+      "min_ms": 10.292514,
+      "max_ms": 11.455203,
+      "checksum": 499500,
+      "id_max_chars": 16,
+      "includes": "construcción y consulta"
+    },
+    {
+      "alternative": "indice_propio_entero",
+      "n": 4000,
+      "samples_ms": [
+        18.202989,
+        21.158189,
+        18.328209,
+        19.460924,
+        21.235309,
+        19.901144,
+        19.806479
+      ],
+      "median_ms": 19.806479,
+      "min_ms": 18.202989,
+      "max_ms": 21.235309,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "busqueda_lineal",
+      "n": 4000,
+      "samples_ms": [
+        168.328145,
+        171.795412,
+        187.317102,
+        175.44951,
+        176.975311,
+        174.223612,
+        166.754415
+      ],
+      "median_ms": 174.223612,
+      "min_ms": 166.754415,
+      "max_ms": 187.317102,
+      "checksum": 7998000
+    },
+    {
+      "alternative": "indice_propio_texto_codificado",
+      "n": 4000,
+      "samples_ms": [
+        45.681218,
+        47.757693,
+        46.665277,
+        49.149652,
+        44.987858,
+        45.988868,
+        53.876476
+      ],
+      "median_ms": 46.665277,
+      "min_ms": 44.987858,
+      "max_ms": 53.876476,
+      "checksum": 7998000,
+      "id_max_chars": 16,
+      "includes": "conversión UTF8→entero, construcción y consulta"
+    },
+    {
+      "alternative": "indice_propio_texto_fnv1a64",
+      "n": 4000,
+      "samples_ms": [
+        45.781108,
+        50.935475,
+        52.872897,
+        47.768569,
+        43.243354,
+        54.755046,
+        44.899105
+      ],
+      "median_ms": 47.768569,
+      "min_ms": 43.243354,
+      "max_ms": 54.755046,
+      "checksum": 7998000,
+      "id_max_chars": 16,
+      "includes": "construcción y consulta"
+    },
+    {
+      "alternative": "busqueda_lineal_texto",
+      "n": 4000,
+      "samples_ms": [
+        181.871579,
+        168.696345,
+        184.690198,
+        169.079656,
+        169.484298,
+        168.867912,
+        168.973833
+      ],
+      "median_ms": 169.079656,
+      "min_ms": 168.696345,
+      "max_ms": 184.690198,
+      "checksum": 7998000,
+      "id_max_chars": 16,
+      "includes": "construcción y consulta"
+    },
+    {
+      "alternative": "indice_propio_texto_codificado_largo",
+      "n": 4000,
+      "samples_ms": [
+        403.575315,
+        380.139469,
+        392.359769,
+        395.868653,
+        395.193636,
+        380.11098,
+        385.264891
+      ],
+      "median_ms": 392.359769,
+      "min_ms": 380.11098,
+      "max_ms": 403.575315,
+      "checksum": 7998000,
+      "id_max_chars": 256,
+      "includes": "construcción y consulta, incluyendo codificación/hash"
+    },
+    {
+      "alternative": "indice_propio_texto_fnv1a64_largo",
+      "n": 4000,
+      "samples_ms": [
+        545.148786,
+        531.120174,
+        535.859877,
+        531.709381,
+        535.062555,
+        535.167343,
+        544.271645
+      ],
+      "median_ms": 535.167343,
+      "min_ms": 531.120174,
+      "max_ms": 545.148786,
+      "checksum": 7998000,
+      "id_max_chars": 256,
+      "includes": "construcción y consulta, incluyendo codificación/hash"
+    }
+  ]
+}

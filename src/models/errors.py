@@ -56,3 +56,11 @@ class GuardadoError(CriptaError):
     """Archivo de partida dañado o inexistente. Error amable, no crash."""
 
     pass
+
+
+class InicioNoPermitidoError(CriptaError):
+    """Inicio bloqueado; `resultado` conserva el reporte presentable."""
+
+    def __init__(self, resultado):
+        self.resultado = resultado
+        super().__init__("La verificación no permite iniciar la cripta")

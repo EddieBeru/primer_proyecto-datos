@@ -48,3 +48,31 @@ def test_ids_enteros_estrictos(sala_id):
         DatosSala(sala_id, "Sala", ())
     with pytest.raises(TypeError):
         DatosSalida("N", sala_id, 1, (2, "N"))
+
+
+def test_datos_salida_comparte_llave_estado_y_costo_default():
+    salida = DatosSalida("E", 9, 100, (2, "E"))
+    assert salida.llave is None and salida.cerrada_inicial is False
+    con_llave = DatosSalida("E", 9, 1, (2, "E"), "llave-A", True)
+    assert (con_llave.llave, con_llave.cerrada_inicial, con_llave.costo) == (
+        "llave-A", True, 1)
+
+
+def test_constructor_comun_preserva_orden_fuente_y_puertas_paralelas():
+    from src.models.rooms import Exit, Room
+    from src.models.conocimiento import preparar_metadatos
+
+    sala = Room(1, "A", {"E": Exit(2), "N": Exit(3), "O": Exit(2)})
+    plano = preparar_metadatos((sala, Room(2, "B"), Room(3, "C")))
+    assert tuple(x.direccion for x in plano[1].salidas) == ("N", "E", "O")
+    assert plano[1].salidas[1].puerta_id != plano[1].salidas[2].puerta_id
+
+
+def test_constructor_comun_rechaza_reciprocidad_contradictoria():
+    from src.models.rooms import Exit, Room
+    from src.models.conocimiento import preparar_metadatos
+
+    adelante = Room(1, "A", {"E": Exit(2, llave="llave-a")})
+    atras = Room(2, "B", {"O": Exit(1, llave="llave-b")})
+    with pytest.raises(ValueError, match="recíprocas"):
+        preparar_metadatos((adelante, atras))

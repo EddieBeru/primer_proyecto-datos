@@ -1,0 +1,1176 @@
+{
+  "capacidad": "003-resolubilidad",
+  "semilla": 300316,
+  "interprete": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "plataforma": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+  "commit": "b81b1af",
+  "repeticiones": 7,
+  "calentamientos": 2,
+  "muestras": [
+    {
+      "familia": "cadena",
+      "semilla": 300316,
+      "salas": 130,
+      "salidas": 129,
+      "llaves": 129,
+      "ubicaciones": 129,
+      "bytes_ids": 1956,
+      "capacidad_indice_ids": 256,
+      "colisiones_ids": 25,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 129,
+      "visitas": {
+        "salas": 130,
+        "salidas": 129,
+        "llaves": 129,
+        "ubicaciones": 129
+      },
+      "fases_ns": {
+        "compilacion": 1302086,
+        "propagacion": 78738,
+        "resumen": 178631
+      },
+      "muestras_total_local_ns": [
+        1603814,
+        1596262,
+        1592534,
+        1590976,
+        1590074,
+        1760068,
+        1570262
+      ],
+      "muestras_algoritmo_ns": [
+        1517365,
+        1516718,
+        1511599,
+        1505476,
+        1504322,
+        1513447,
+        1507407
+      ],
+      "muestras_texto_ns": [
+        48813,
+        41894,
+        40285,
+        40579,
+        39612,
+        40428,
+        40197
+      ],
+      "mediana_ns": 1592534,
+      "maximo_ns": 1760068,
+      "memoria_max_bytes": 119972,
+      "bytes_reporte": 4103,
+      "comparador_repetido": {
+        "muestras_ns": [
+          13408106,
+          13313762,
+          13361975,
+          13271094,
+          13257614,
+          13174079,
+          13019566
+        ],
+        "mediana_ns": 13271094,
+        "maximo_ns": 13408106
+      }
+    },
+    {
+      "familia": "cadena",
+      "semilla": 300316,
+      "salas": 514,
+      "salidas": 513,
+      "llaves": 513,
+      "ubicaciones": 513,
+      "bytes_ids": 8100,
+      "capacidad_indice_ids": 1024,
+      "colisiones_ids": 77,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 513,
+      "visitas": {
+        "salas": 514,
+        "salidas": 513,
+        "llaves": 513,
+        "ubicaciones": 513
+      },
+      "fases_ns": {
+        "compilacion": 6159108,
+        "propagacion": 370741,
+        "resumen": 869975
+      },
+      "muestras_total_local_ns": [
+        7212574,
+        8056827,
+        7126680,
+        7709199,
+        6940129,
+        7646806,
+        7207691
+      ],
+      "muestras_algoritmo_ns": [
+        7514982,
+        6773797,
+        7154878,
+        6821803,
+        6886895,
+        7465416,
+        6596646
+      ],
+      "muestras_texto_ns": [
+        201829,
+        164090,
+        162182,
+        161878,
+        168217,
+        157217,
+        158159
+      ],
+      "mediana_ns": 7212574,
+      "maximo_ns": 8056827,
+      "memoria_max_bytes": 532352,
+      "bytes_reporte": 16775,
+      "comparador_repetido": {
+        "muestras_ns": [
+          644518217,
+          660872932,
+          654111111,
+          646751984,
+          671040767,
+          656175465,
+          665822641
+        ],
+        "mediana_ns": 656175465,
+        "maximo_ns": 671040767
+      }
+    },
+    {
+      "familia": "cadena",
+      "semilla": 300316,
+      "salas": 2050,
+      "salidas": 2049,
+      "llaves": 2049,
+      "ubicaciones": 2049,
+      "bytes_ids": 33724,
+      "capacidad_indice_ids": 4096,
+      "colisiones_ids": 524,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 2049,
+      "visitas": {
+        "salas": 2050,
+        "salidas": 2049,
+        "llaves": 2049,
+        "ubicaciones": 2049
+      },
+      "fases_ns": {
+        "compilacion": 23514766,
+        "propagacion": 1533255,
+        "resumen": 13107108
+      },
+      "muestras_total_local_ns": [
+        34027639,
+        164612384,
+        31379018,
+        35225657,
+        33792795,
+        41006157,
+        37618678
+      ],
+      "muestras_algoritmo_ns": [
+        32845307,
+        30555392,
+        32416073,
+        40764759,
+        30985264,
+        30806095,
+        30079582
+      ],
+      "muestras_texto_ns": [
+        770696,
+        678743,
+        659752,
+        691353,
+        663444,
+        651940,
+        646770
+      ],
+      "mediana_ns": 35225657,
+      "maximo_ns": 164612384,
+      "memoria_max_bytes": 2377404,
+      "bytes_reporte": 70356,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "cadena",
+      "semilla": 300316,
+      "salas": 8194,
+      "salidas": 8193,
+      "llaves": 8193,
+      "ubicaciones": 8193,
+      "bytes_ids": 138172,
+      "capacidad_indice_ids": 16384,
+      "colisiones_ids": 2151,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 8193,
+      "visitas": {
+        "salas": 8194,
+        "salidas": 8193,
+        "llaves": 8193,
+        "ubicaciones": 8193
+      },
+      "fases_ns": {
+        "compilacion": 109355977,
+        "propagacion": 7114474,
+        "resumen": 44853728
+      },
+      "muestras_total_local_ns": [
+        170657163,
+        159656843,
+        162116042,
+        160691685,
+        157946512,
+        151047821,
+        149703354
+      ],
+      "muestras_algoritmo_ns": [
+        148562267,
+        183201646,
+        166333003,
+        167024487,
+        156305917,
+        195649623,
+        168604679
+      ],
+      "muestras_texto_ns": [
+        3005318,
+        3107373,
+        3463835,
+        3083715,
+        2874774,
+        2813955,
+        2804487
+      ],
+      "mediana_ns": 159656843,
+      "maximo_ns": 170657163,
+      "memoria_max_bytes": 10392164,
+      "bytes_reporte": 291540,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "ciclo",
+      "semilla": 300316,
+      "salas": 130,
+      "salidas": 129,
+      "llaves": 129,
+      "ubicaciones": 129,
+      "bytes_ids": 1956,
+      "capacidad_indice_ids": 256,
+      "colisiones_ids": 25,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "no_resoluble",
+      "orden_valido": 0,
+      "visitas": {
+        "salas": 130,
+        "salidas": 129,
+        "llaves": 129,
+        "ubicaciones": 129
+      },
+      "fases_ns": {
+        "compilacion": 1190931,
+        "propagacion": 1356,
+        "resumen": 379338
+      },
+      "muestras_total_local_ns": [
+        2378197,
+        2417663,
+        2380225,
+        2485530,
+        2382984,
+        2364693,
+        2363758
+      ],
+      "muestras_algoritmo_ns": [
+        1683168,
+        1637234,
+        1623416,
+        1623093,
+        1724478,
+        1630848,
+        1623481
+      ],
+      "muestras_texto_ns": [
+        777290,
+        735286,
+        730602,
+        730629,
+        726559,
+        734393,
+        727081
+      ],
+      "mediana_ns": 2380225,
+      "maximo_ns": 2485530,
+      "memoria_max_bytes": 125464,
+      "bytes_reporte": 17723,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "ciclo",
+      "semilla": 300316,
+      "salas": 514,
+      "salidas": 513,
+      "llaves": 513,
+      "ubicaciones": 513,
+      "bytes_ids": 8100,
+      "capacidad_indice_ids": 1024,
+      "colisiones_ids": 77,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "no_resoluble",
+      "orden_valido": 0,
+      "visitas": {
+        "salas": 514,
+        "salidas": 513,
+        "llaves": 513,
+        "ubicaciones": 513
+      },
+      "fases_ns": {
+        "compilacion": 5304203,
+        "propagacion": 3287,
+        "resumen": 1874234
+      },
+      "muestras_total_local_ns": [
+        10957731,
+        10657101,
+        10665254,
+        10980675,
+        11363342,
+        10680017,
+        11833340
+      ],
+      "muestras_algoritmo_ns": [
+        7332545,
+        8613120,
+        7180607,
+        7819463,
+        7642591,
+        9352649,
+        7637485
+      ],
+      "muestras_texto_ns": [
+        3505013,
+        3289374,
+        3247926,
+        3903397,
+        3382244,
+        3238443,
+        3177950
+      ],
+      "mediana_ns": 10957731,
+      "maximo_ns": 11833340,
+      "memoria_max_bytes": 587468,
+      "bytes_reporte": 70715,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "ciclo",
+      "semilla": 300316,
+      "salas": 2050,
+      "salidas": 2049,
+      "llaves": 2049,
+      "ubicaciones": 2049,
+      "bytes_ids": 33724,
+      "capacidad_indice_ids": 4096,
+      "colisiones_ids": 524,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "no_resoluble",
+      "orden_valido": 0,
+      "visitas": {
+        "salas": 2050,
+        "salidas": 2049,
+        "llaves": 2049,
+        "ubicaciones": 2049
+      },
+      "fases_ns": {
+        "compilacion": 24483618,
+        "propagacion": 4241,
+        "resumen": 26634492
+      },
+      "muestras_total_local_ns": [
+        59205417,
+        65047651,
+        58458958,
+        49188782,
+        61987668,
+        51531050,
+        50482434
+      ],
+      "muestras_algoritmo_ns": [
+        36178622,
+        46937496,
+        35760655,
+        35774587,
+        44779955,
+        34325012,
+        35450197
+      ],
+      "muestras_texto_ns": [
+        13754747,
+        13512719,
+        13769224,
+        13561814,
+        14610256,
+        16904330,
+        19603587
+      ],
+      "mediana_ns": 58458958,
+      "maximo_ns": 65047651,
+      "memoria_max_bytes": 2972616,
+      "bytes_reporte": 290054,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "ciclo",
+      "semilla": 300316,
+      "salas": 8194,
+      "salidas": 8193,
+      "llaves": 8193,
+      "ubicaciones": 8193,
+      "bytes_ids": 138172,
+      "capacidad_indice_ids": 16384,
+      "colisiones_ids": 2151,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "no_resoluble",
+      "orden_valido": 0,
+      "visitas": {
+        "salas": 8194,
+        "salidas": 8193,
+        "llaves": 8193,
+        "ubicaciones": 8193
+      },
+      "fases_ns": {
+        "compilacion": 127690966,
+        "propagacion": 5882,
+        "resumen": 64528727
+      },
+      "muestras_total_local_ns": [
+        257548957,
+        235155108,
+        252395075,
+        248398761,
+        255935345,
+        236163383,
+        251524000
+      ],
+      "muestras_algoritmo_ns": [
+        175424823,
+        178860135,
+        193236150,
+        182362653,
+        172876857,
+        195062064,
+        184713812
+      ],
+      "muestras_texto_ns": [
+        66877136,
+        64834667,
+        66463623,
+        63385645,
+        61593097,
+        63265076,
+        63045618
+      ],
+      "mediana_ns": 251524000,
+      "maximo_ns": 257548957,
+      "memoria_max_bytes": 13527968,
+      "bytes_reporte": 1187078,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "pendientes",
+      "semilla": 300316,
+      "salas": 131,
+      "salidas": 516,
+      "llaves": 130,
+      "ubicaciones": 130,
+      "bytes_ids": 1965,
+      "capacidad_indice_ids": 256,
+      "colisiones_ids": 26,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 130,
+      "visitas": {
+        "salas": 131,
+        "salidas": 516,
+        "llaves": 130,
+        "ubicaciones": 130
+      },
+      "fases_ns": {
+        "compilacion": 2330744,
+        "propagacion": 152067,
+        "resumen": 195128
+      },
+      "muestras_total_local_ns": [
+        2833859,
+        2805926,
+        2877387,
+        2744344,
+        2840200,
+        2775110,
+        2988027
+      ],
+      "muestras_algoritmo_ns": [
+        2743466,
+        2807333,
+        2694578,
+        2728840,
+        2721136,
+        2760134,
+        2675443
+      ],
+      "muestras_texto_ns": [
+        56246,
+        42072,
+        40392,
+        42055,
+        42328,
+        42214,
+        42729
+      ],
+      "mediana_ns": 2833859,
+      "maximo_ns": 2988027,
+      "memoria_max_bytes": 120788,
+      "bytes_reporte": 4129,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "pendientes",
+      "semilla": 300316,
+      "salas": 515,
+      "salidas": 2052,
+      "llaves": 514,
+      "ubicaciones": 514,
+      "bytes_ids": 8109,
+      "capacidad_indice_ids": 1024,
+      "colisiones_ids": 78,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 514,
+      "visitas": {
+        "salas": 515,
+        "salidas": 2052,
+        "llaves": 514,
+        "ubicaciones": 514
+      },
+      "fases_ns": {
+        "compilacion": 10560377,
+        "propagacion": 743306,
+        "resumen": 914420
+      },
+      "muestras_total_local_ns": [
+        11929848,
+        11862300,
+        12091873,
+        11743353,
+        11770581,
+        11779919,
+        12788421
+      ],
+      "muestras_algoritmo_ns": [
+        11552394,
+        11559437,
+        11629530,
+        19596178,
+        11792071,
+        12707182,
+        13066740
+      ],
+      "muestras_texto_ns": [
+        176204,
+        161811,
+        168611,
+        162362,
+        210473,
+        298766,
+        319804
+      ],
+      "mediana_ns": 11862300,
+      "maximo_ns": 12788421,
+      "memoria_max_bytes": 548120,
+      "bytes_reporte": 16801,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "pendientes",
+      "semilla": 300316,
+      "salas": 2051,
+      "salidas": 8196,
+      "llaves": 2050,
+      "ubicaciones": 2050,
+      "bytes_ids": 33733,
+      "capacidad_indice_ids": 4096,
+      "colisiones_ids": 524,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 2050,
+      "visitas": {
+        "salas": 2051,
+        "salidas": 8196,
+        "llaves": 2050,
+        "ubicaciones": 2050
+      },
+      "fases_ns": {
+        "compilacion": 44793844,
+        "propagacion": 4883906,
+        "resumen": 4360559
+      },
+      "muestras_total_local_ns": [
+        54881174,
+        52300898,
+        73233629,
+        53267987,
+        52943158,
+        55542057,
+        63853371
+      ],
+      "muestras_algoritmo_ns": [
+        53497617,
+        55762114,
+        60512315,
+        51501185,
+        64943216,
+        54737329,
+        53419677
+      ],
+      "muestras_texto_ns": [
+        737875,
+        668812,
+        666075,
+        666495,
+        657817,
+        663860,
+        662936
+      ],
+      "mediana_ns": 54881174,
+      "maximo_ns": 73233629,
+      "memoria_max_bytes": 3142460,
+      "bytes_reporte": 70384,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "pendientes",
+      "semilla": 300316,
+      "salas": 8195,
+      "salidas": 32772,
+      "llaves": 8194,
+      "ubicaciones": 8194,
+      "bytes_ids": 138181,
+      "capacidad_indice_ids": 16384,
+      "colisiones_ids": 2151,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 8194,
+      "visitas": {
+        "salas": 8195,
+        "salidas": 32772,
+        "llaves": 8194,
+        "ubicaciones": 8194
+      },
+      "fases_ns": {
+        "compilacion": 211720250,
+        "propagacion": 15857795,
+        "resumen": 27756988
+      },
+      "muestras_total_local_ns": [
+        247015706,
+        273615560,
+        251583668,
+        278063446,
+        260127639,
+        276557445,
+        255024973
+      ],
+      "muestras_algoritmo_ns": [
+        270692104,
+        259883911,
+        283567817,
+        253732138,
+        269066181,
+        251145730,
+        273589305
+      ],
+      "muestras_texto_ns": [
+        2952452,
+        4164007,
+        3463292,
+        2986269,
+        2718626,
+        2659259,
+        2958645
+      ],
+      "mediana_ns": 260127639,
+      "maximo_ns": 278063446,
+      "memoria_max_bytes": 12631716,
+      "bytes_reporte": 291568,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "alternativas",
+      "semilla": 300316,
+      "salas": 131,
+      "salidas": 130,
+      "llaves": 129,
+      "ubicaciones": 129,
+      "bytes_ids": 1956,
+      "capacidad_indice_ids": 256,
+      "colisiones_ids": 25,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 129,
+      "visitas": {
+        "salas": 131,
+        "salidas": 130,
+        "llaves": 129,
+        "ubicaciones": 129
+      },
+      "fases_ns": {
+        "compilacion": 1302263,
+        "propagacion": 75524,
+        "resumen": 170315
+      },
+      "muestras_total_local_ns": [
+        1598774,
+        1575726,
+        1596865,
+        1753491,
+        1586858,
+        1589684,
+        1575073
+      ],
+      "muestras_algoritmo_ns": [
+        1788081,
+        1548201,
+        1536539,
+        1532577,
+        1523679,
+        1545625,
+        1562664
+      ],
+      "muestras_texto_ns": [
+        121067,
+        44198,
+        40378,
+        39951,
+        39865,
+        40422,
+        40040
+      ],
+      "mediana_ns": 1589684,
+      "maximo_ns": 1753491,
+      "memoria_max_bytes": 113096,
+      "bytes_reporte": 4103,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "alternativas",
+      "semilla": 300316,
+      "salas": 515,
+      "salidas": 514,
+      "llaves": 513,
+      "ubicaciones": 513,
+      "bytes_ids": 8100,
+      "capacidad_indice_ids": 1024,
+      "colisiones_ids": 77,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 513,
+      "visitas": {
+        "salas": 515,
+        "salidas": 514,
+        "llaves": 513,
+        "ubicaciones": 513
+      },
+      "fases_ns": {
+        "compilacion": 5594727,
+        "propagacion": 321303,
+        "resumen": 800545
+      },
+      "muestras_total_local_ns": [
+        6619636,
+        6674617,
+        8248929,
+        8691319,
+        7792131,
+        7630874,
+        15457139
+      ],
+      "muestras_algoritmo_ns": [
+        8323485,
+        6785915,
+        7088137,
+        9044374,
+        12204495,
+        6875071,
+        6781589
+      ],
+      "muestras_texto_ns": [
+        181305,
+        165243,
+        162061,
+        162266,
+        165707,
+        162371,
+        161787
+      ],
+      "mediana_ns": 7792131,
+      "maximo_ns": 15457139,
+      "memoria_max_bytes": 532800,
+      "bytes_reporte": 16775,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "alternativas",
+      "semilla": 300316,
+      "salas": 2051,
+      "salidas": 2050,
+      "llaves": 2049,
+      "ubicaciones": 2049,
+      "bytes_ids": 33724,
+      "capacidad_indice_ids": 4096,
+      "colisiones_ids": 524,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 2049,
+      "visitas": {
+        "salas": 2051,
+        "salidas": 2050,
+        "llaves": 2049,
+        "ubicaciones": 2049
+      },
+      "fases_ns": {
+        "compilacion": 25318723,
+        "propagacion": 1611592,
+        "resumen": 3877569
+      },
+      "muestras_total_local_ns": [
+        40984302,
+        31189231,
+        31907117,
+        32535744,
+        40505344,
+        34216565,
+        31901288
+      ],
+      "muestras_algoritmo_ns": [
+        29634668,
+        30694179,
+        40589772,
+        33175426,
+        32812494,
+        31697607,
+        41302298
+      ],
+      "muestras_texto_ns": [
+        779994,
+        672137,
+        666275,
+        650926,
+        659860,
+        661491,
+        668498
+      ],
+      "mediana_ns": 32535744,
+      "maximo_ns": 40984302,
+      "memoria_max_bytes": 2377988,
+      "bytes_reporte": 70356,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "alternativas",
+      "semilla": 300316,
+      "salas": 8195,
+      "salidas": 8194,
+      "llaves": 8193,
+      "ubicaciones": 8193,
+      "bytes_ids": 138172,
+      "capacidad_indice_ids": 16384,
+      "colisiones_ids": 2151,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 8193,
+      "visitas": {
+        "salas": 8195,
+        "salidas": 8194,
+        "llaves": 8193,
+        "ubicaciones": 8193
+      },
+      "fases_ns": {
+        "compilacion": 101214429,
+        "propagacion": 6653419,
+        "resumen": 42854352
+      },
+      "muestras_total_local_ns": [
+        182202408,
+        163893927,
+        163579823,
+        169929544,
+        165882326,
+        163844855,
+        167608997
+      ],
+      "muestras_algoritmo_ns": [
+        161071750,
+        156656690,
+        161251567,
+        163813202,
+        165740557,
+        158095780,
+        161498920
+      ],
+      "muestras_texto_ns": [
+        4525213,
+        3733154,
+        3297907,
+        3641456,
+        2747260,
+        3714331,
+        3499351
+      ],
+      "mediana_ns": 165882326,
+      "maximo_ns": 182202408,
+      "memoria_max_bytes": 10392748,
+      "bytes_reporte": 291540,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "desconexion",
+      "semilla": 300316,
+      "salas": 131,
+      "salidas": 129,
+      "llaves": 129,
+      "ubicaciones": 129,
+      "bytes_ids": 1956,
+      "capacidad_indice_ids": 256,
+      "colisiones_ids": 25,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 129,
+      "visitas": {
+        "salas": 131,
+        "salidas": 129,
+        "llaves": 129,
+        "ubicaciones": 129
+      },
+      "fases_ns": {
+        "compilacion": 1235162,
+        "propagacion": 75678,
+        "resumen": 167264
+      },
+      "muestras_total_local_ns": [
+        1552016,
+        1553652,
+        1625078,
+        1593595,
+        1587009,
+        1629526,
+        1704223
+      ],
+      "muestras_algoritmo_ns": [
+        1534132,
+        1554483,
+        1613759,
+        1531781,
+        1534096,
+        1513386,
+        1517948
+      ],
+      "muestras_texto_ns": [
+        68851,
+        41960,
+        40359,
+        63800,
+        67546,
+        53687,
+        39643
+      ],
+      "mediana_ns": 1593595,
+      "maximo_ns": 1704223,
+      "memoria_max_bytes": 113096,
+      "bytes_reporte": 4103,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "desconexion",
+      "semilla": 300316,
+      "salas": 515,
+      "salidas": 513,
+      "llaves": 513,
+      "ubicaciones": 513,
+      "bytes_ids": 8100,
+      "capacidad_indice_ids": 1024,
+      "colisiones_ids": 77,
+      "maximo_ids_por_cubeta": 3,
+      "estado": "resoluble",
+      "orden_valido": 513,
+      "visitas": {
+        "salas": 515,
+        "salidas": 513,
+        "llaves": 513,
+        "ubicaciones": 513
+      },
+      "fases_ns": {
+        "compilacion": 5449257,
+        "propagacion": 301902,
+        "resumen": 9256477
+      },
+      "muestras_total_local_ns": [
+        6847387,
+        6812265,
+        6988977,
+        7387442,
+        6783110,
+        7295648,
+        7287962
+      ],
+      "muestras_algoritmo_ns": [
+        7345244,
+        7438142,
+        6821891,
+        7342756,
+        6616801,
+        7466855,
+        6611585
+      ],
+      "muestras_texto_ns": [
+        255766,
+        185768,
+        156666,
+        157906,
+        157305,
+        156850,
+        164200
+      ],
+      "mediana_ns": 6988977,
+      "maximo_ns": 7387442,
+      "memoria_max_bytes": 532800,
+      "bytes_reporte": 16775,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "desconexion",
+      "semilla": 300316,
+      "salas": 2051,
+      "salidas": 2049,
+      "llaves": 2049,
+      "ubicaciones": 2049,
+      "bytes_ids": 33724,
+      "capacidad_indice_ids": 4096,
+      "colisiones_ids": 524,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 2049,
+      "visitas": {
+        "salas": 2051,
+        "salidas": 2049,
+        "llaves": 2049,
+        "ubicaciones": 2049
+      },
+      "fases_ns": {
+        "compilacion": 23283005,
+        "propagacion": 2682736,
+        "resumen": 3512951
+      },
+      "muestras_total_local_ns": [
+        30653657,
+        44795976,
+        31094388,
+        32083523,
+        32748797,
+        37725600,
+        41001055
+      ],
+      "muestras_algoritmo_ns": [
+        30675868,
+        29942205,
+        29915449,
+        41129129,
+        29513343,
+        30671060,
+        30818499
+      ],
+      "muestras_texto_ns": [
+        748000,
+        766285,
+        679225,
+        661280,
+        659853,
+        649602,
+        650479
+      ],
+      "mediana_ns": 32748797,
+      "maximo_ns": 44795976,
+      "memoria_max_bytes": 2378036,
+      "bytes_reporte": 70356,
+      "comparador_repetido": null
+    },
+    {
+      "familia": "desconexion",
+      "semilla": 300316,
+      "salas": 8195,
+      "salidas": 8193,
+      "llaves": 8193,
+      "ubicaciones": 8193,
+      "bytes_ids": 138172,
+      "capacidad_indice_ids": 16384,
+      "colisiones_ids": 2151,
+      "maximo_ids_por_cubeta": 5,
+      "estado": "resoluble",
+      "orden_valido": 8193,
+      "visitas": {
+        "salas": 8195,
+        "salidas": 8193,
+        "llaves": 8193,
+        "ubicaciones": 8193
+      },
+      "fases_ns": {
+        "compilacion": 117183085,
+        "propagacion": 6871872,
+        "resumen": 16461567
+      },
+      "muestras_total_local_ns": [
+        156910601,
+        162949541,
+        160795018,
+        156615551,
+        159966530,
+        160638683,
+        156701066
+      ],
+      "muestras_algoritmo_ns": [
+        155652132,
+        157787446,
+        148989540,
+        151875929,
+        149605836,
+        151500713,
+        146939812
+      ],
+      "muestras_texto_ns": [
+        3140008,
+        2943532,
+        3453460,
+        3475253,
+        2943630,
+        2682359,
+        2662550
+      ],
+      "mediana_ns": 159966530,
+      "maximo_ns": 162949541,
+      "memoria_max_bytes": 10664732,
+      "bytes_reporte": 291540,
+      "comparador_repetido": null
+    }
+  ]
+}

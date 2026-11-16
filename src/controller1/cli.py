@@ -41,6 +41,8 @@ class CLIConfig:
     cripta: str | None = None
     checkpoint_cada: int = 20
     hasta: int | None = None
+    verificar: str | None = None
+    forzar: bool = False
 
 
 def parse_args(argv=None):
@@ -68,13 +70,24 @@ def parse_args(argv=None):
                         help="partida gráfica Pygame vía Sesión (solo habla con Sesión)")
     parser.add_argument("--cripta", default=None,
                         help="id de cripta directo (ahorra la petición de lista)")
+    parser.add_argument("--verificar", default=None, metavar="CRIPTA",
+                        help="verifica resolubilidad sin iniciar partida ni vista")
+    parser.add_argument("--forzar", action="store_true",
+                        help="permite iniciar una cripta demostrablemente no resoluble")
     parser.add_argument('--checkpoint-cada', type=_checkpoint_cada, default=20,
                         help='acciones entre checkpoints históricos (≥1)')
     parser.add_argument('--hasta', type=int, help='tiempo histórico consultado en replay (≥0)')
     args = parser.parse_args(argv)
     if args.hasta is not None and (args.hasta < 0 or args.replay is None):
         parser.error('--hasta requiere --replay y un tiempo ≥0')
+    if args.verificar and (args.replay or args.cargar or args.bench):
+        parser.error('--verificar no se combina con --replay, --cargar ni --bench')
+    if args.verificar and args.cripta and args.verificar != args.cripta:
+        parser.error('--verificar y --cripta deben identificar la misma cripta')
+    if args.forzar and (args.replay or args.cargar or args.bench):
+        parser.error('--forzar solo aplica a partidas nuevas')
     return CLIConfig(cache_size=args.cache_size, replay=args.replay, bench=args.bench,
                      offline=args.offline, semilla=args.semilla, jugador=args.jugador,
                      guardar=args.guardar, cargar=args.cargar, jugar=args.jugar,
-                     vista=args.vista, cripta=args.cripta, checkpoint_cada=args.checkpoint_cada, hasta=args.hasta)
+                     vista=args.vista, cripta=args.cripta, checkpoint_cada=args.checkpoint_cada,
+                     hasta=args.hasta, verificar=args.verificar, forzar=args.forzar)

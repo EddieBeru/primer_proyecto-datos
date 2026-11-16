@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, Iterator, TypeVar
 
-Clave = int | tuple[int, str]
+Clave = int | str | tuple[int, str]
 V = TypeVar("V")
 _DIRECCIONES = ("N", "S", "E", "O")
 _MASCARA = (1 << 64) - 1
@@ -34,6 +34,12 @@ def _hash_entero(valor: int) -> int:
 def _hash_clave(clave: Clave) -> int:
     if type(clave) is int:
         return _hash_entero(clave)
+    if type(clave) is str:
+        valor = 0xCBF29CE484222325
+        for byte in clave.encode("utf-8"):
+            valor ^= byte
+            valor = (valor * 0x100000001B3) & _MASCARA
+        return valor
     if type(clave) is not tuple or len(clave) != 2 or type(clave[0]) is not int:
         raise TypeError("clave debe ser entero o extremo (entero, dirección)")
     if type(clave[1]) is not str or clave[1] not in _DIRECCIONES:
@@ -45,6 +51,7 @@ def _hash_clave(clave: Clave) -> int:
 class _Entrada(Generic[V]):
     clave: Clave
     valor: V
+    hash: int
     siguiente: _Entrada[V] | None = None
 
 
@@ -63,6 +70,7 @@ class TablaIndice(Generic[V]):
             tamano *= 2
         self._cubetas: list[_Entrada[V] | None] = [None] * tamano
         self._cantidad = 0
+        self.salas_en_orden = ()
 
     @property
     def capacidad(self) -> int:
@@ -74,13 +82,16 @@ class TablaIndice(Generic[V]):
     def _indice(self, clave: Clave) -> int:
         return _hash_clave(clave) & (self.capacidad - 1)
 
-    def _buscar(self, clave: Clave) -> _Entrada[V] | None:
-        entrada = self._cubetas[self._indice(clave)]
+    def _buscar_hash(self, clave: Clave, hash_clave: int) -> _Entrada[V] | None:
+        entrada = self._cubetas[hash_clave & (self.capacidad - 1)]
         while entrada is not None:
-            if entrada.clave == clave:
+            if entrada.hash == hash_clave and entrada.clave == clave:
                 return entrada
             entrada = entrada.siguiente
         return None
+
+    def _buscar(self, clave: Clave) -> _Entrada[V] | None:
+        return self._buscar_hash(clave, _hash_clave(clave))
 
     def __contains__(self, clave: Clave) -> bool:
         return self._buscar(clave) is not None
@@ -96,15 +107,29 @@ class TablaIndice(Generic[V]):
         return defecto if entrada is None else entrada.valor
 
     def __setitem__(self, clave: Clave, valor: V) -> None:
-        entrada = self._buscar(clave)
+        hash_clave = _hash_clave(clave)
+        entrada = self._buscar_hash(clave, hash_clave)
         if entrada is not None:
             entrada.valor = valor
             return
         if (self._cantidad + 1) * 4 > self.capacidad * 3:
             self._expandir()
-        indice = self._indice(clave)
-        self._cubetas[indice] = _Entrada(clave, valor, self._cubetas[indice])
+        indice = hash_clave & (self.capacidad - 1)
+        self._cubetas[indice] = _Entrada(clave, valor, hash_clave, self._cubetas[indice])
         self._cantidad += 1
+
+    def insertar_si_ausente(self, clave: Clave, valor: V) -> tuple[V, bool]:
+        """Inserta solo si falta; devuelve el valor vigente y si fue nuevo."""
+        hash_clave = _hash_clave(clave)
+        entrada = self._buscar_hash(clave, hash_clave)
+        if entrada is not None:
+            return entrada.valor, False
+        if (self._cantidad + 1) * 4 > self.capacidad * 3:
+            self._expandir()
+        indice = hash_clave & (self.capacidad - 1)
+        self._cubetas[indice] = _Entrada(clave, valor, hash_clave, self._cubetas[indice])
+        self._cantidad += 1
+        return valor, True
 
     def _expandir(self) -> None:
         anteriores = self._cubetas
@@ -112,7 +137,7 @@ class TablaIndice(Generic[V]):
         for entrada in anteriores:
             while entrada is not None:
                 siguiente = entrada.siguiente
-                indice = self._indice(entrada.clave)
+                indice = entrada.hash & (self.capacidad - 1)
                 entrada.siguiente = self._cubetas[indice]
                 self._cubetas[indice] = entrada
                 entrada = siguiente

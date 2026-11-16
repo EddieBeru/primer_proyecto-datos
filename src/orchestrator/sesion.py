@@ -34,6 +34,7 @@ from src.controller2.victoria import entrada_desde_estado
 from src.models.errors import CriptaError, GuardadoError
 from src.models.errors import NotFoundError
 from src.models.conocimiento import preparar_metadatos, MapaDTO
+from src.estructuras.tabla_indice import TablaIndice
 
 MAX_DRENAJE = 500
 
@@ -52,7 +53,7 @@ class ProveedorSesion:
         # Mejoras 2026-10: callback para guardar vecinas dormidas en el estado
         # (enemigos por todo el mapa sin pedir contenido extra).
         self.registrador = registrador
-        self._armadas: set[int] = set()
+        self._armadas = TablaIndice()
         self._metadatos = preparar_metadatos(loader.plano.values())
 
     def datos_sala(self, sala_id):
@@ -86,7 +87,7 @@ class ProveedorSesion:
         sv.objetos_suelo = [o.ficha.id for o in sl.objetos]
         sv.trampas = [TrampaInstancia(t.instancia, t.ficha.id, n, t.armada)
                       for t in sl.trampas]
-        self._armadas.add(n)
+        self._armadas[n] = True
         return sv
 
     def _precargar_vecinas(self, n: int) -> None:
@@ -104,11 +105,15 @@ class ProveedorSesion:
             room = self.loader.plano.get(n)
             if room is None:
                 return
-            vecinas = mergesort({
-                s.sala for s in room.salidas.values()
-                if s.sala != n and s.sala in self.loader.plano
-                and s.sala not in self._armadas
-            }, clave=int)
+            vecinas = []
+            vistas = TablaIndice()
+            for salida in room.salidas.values():
+                destino = salida.sala
+                if (destino != n and destino in self.loader.plano
+                        and destino not in self._armadas and destino not in vistas):
+                    vistas[destino] = True
+                    vecinas.append(destino)
+            vecinas = mergesort(vecinas, clave=int)
             if not vecinas:
                 return
             self.loader.asegurar_salas(vecinas)
@@ -156,20 +161,72 @@ class Sesion:
         self.estado: EstadoPartida | None = None
         self.fachada: Fachada | None = None
         self.info = None
+        self._preparacion_inicio = None
+        self._reporte_resolubilidad = None
         self._mem = BitacoraMemoria()
         self._volcadas = 0
         self._archivo: Bitacora | None = Bitacora(log_ruta) if log_ruta else None
 
     # -- ciclo de vida --
-    def iniciar(self, cripta_id: str, semilla: int = 0) -> FotoEstado:
+    def preparar_inicio(self, cripta_id: str, contar_lista: bool = True):
+        """Obtiene solo datos generales, plano y ubicaciones; no crea partida."""
+        from src.algoritmos.resolubilidad import verificar_resolubilidad
+        from src.models.resolubilidad import UbicacionesLlaves, ResultadoResolubilidad
+        from src.controller1 import endpoints
+        from src.controller1.endpoints import esqueleto_completo
+        try:
+            if self.backend is endpoints:
+                info, budget = iniciar_cripta(cripta_id, contar_lista=contar_lista)
+            else:
+                info = self.backend.info_cripta(cripta_id)
+                budget = BudgetAdapter(info.presupuesto_solicitudes)
+            if hasattr(self.backend, "esqueleto_completo"):
+                plano = self.backend.esqueleto_completo(cripta_id, budget, info=info)
+            else:
+                plano = esqueleto_completo(cripta_id, budget, info=info)
+            proveedor_llaves = getattr(self.backend, "ubicaciones_llaves", None)
+            almacen_llaves = None
+            if self.cache_ruta is not None:
+                from src.controller1.almacen_llaves import AlmacenLlaves
+                ruta_llaves = f"{self.cache_ruta}.llaves-{cripta_id.encode('utf-8').hex()}.json"
+                almacen_llaves = AlmacenLlaves(ruta_llaves)
+                ubicaciones = almacen_llaves.obtener(cripta_id, info.version)
+            else:
+                ubicaciones = None
+            if ubicaciones is None:
+                if proveedor_llaves is None:
+                    ubicaciones = UbicacionesLlaves(cripta_id, info.version, False, ())
+                else:
+                    ubicaciones = proveedor_llaves(cripta_id, budget, info.version)
+                if almacen_llaves is not None and ubicaciones.completa:
+                    almacen_llaves.guardar(ubicaciones)
+            resultado = verificar_resolubilidad(info, plano, ubicaciones)
+            version, datos, presupuesto = info.version, info, budget
+        except (CriptaError, ValueError, TypeError) as exc:
+            resultado = ResultadoResolubilidad(
+                cripta_id, getattr(locals().get("info"), "version", ""),
+                "incompleta", str(exc))
+            version, datos, presupuesto, plano = resultado.version_cripta, None, None, None
+        self._reporte_resolubilidad = resultado
+        self._preparacion_inicio = (cripta_id, version, datos, presupuesto, plano,
+                                    resultado, contar_lista)
+        return resultado
+
+    def reporte_inicio(self):
+        return self._reporte_resolubilidad
+
+    def iniciar(self, cripta_id: str, semilla: int = 0, forzar: bool = False,
+                contar_lista: bool = True) -> FotoEstado:
         """Prepara todo y deja la foto inicial (Flujos B + H + §2.4)."""
         from src.controller1 import endpoints as ep
-        if self.backend is ep:
-            from src.controller1.session import iniciar_cripta
-            info, budget = iniciar_cripta(cripta_id)
-        else:
-            info = self.backend.info_cripta(cripta_id)
-            budget = BudgetAdapter(info.presupuesto_solicitudes)
+        preparado = self._preparacion_inicio
+        if preparado is None or preparado[0] != cripta_id:
+            self.preparar_inicio(cripta_id, contar_lista=contar_lista)
+            preparado = self._preparacion_inicio
+        _, version_preparada, info, budget, plano, resultado, _ = preparado
+        from src.models.errors import InicioNoPermitidoError
+        if resultado.estado == "incompleta" or (resultado.estado == "no_resoluble" and not forzar):
+            raise InicioNoPermitidoError(resultado)
         self.info = info
         self.budget = budget
         # info.version ya es la versión de la cripta: pedir version_cripta
@@ -177,7 +234,6 @@ class Sesion:
         ver_cat = self.backend.version_catalogo(budget)
         self.cache = self._abrir_cache(ver_cat.version)
         self.almacen = self._abrir_almacen(ver_cat.version)
-        plano = self.backend.esqueleto_completo(cripta_id, budget, info=info)
         self.loader = RoomLoader(cripta_id, plano, budget, self.cache,
                                  backend=self.backend, almacen=self.almacen)
         self.proveedor = ProveedorSesion(self.loader, registrador=self._registrar_vecinas)

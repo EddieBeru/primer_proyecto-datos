@@ -61,3 +61,18 @@ def test_conteo_distinto_lanza_error_propio(monkeypatch):
     monkeypatch.setattr(endpoints, "esqueleto", lambda i, p=1, b=None: PAGS[1])
     with pytest.raises(UnexpectedResponseError):
         endpoints.esqueleto_completo("c1", None, info=_info(salas_total=99, paginas=1))
+
+
+def test_salida_resolubilidad_admite_costo_llave_y_cierre_con_defaults():
+    salida = Exit.from_dict({"sala": 9})
+    assert (salida.costo, salida.llave, salida.cerrada_inicial) == (100, None, False)
+    extendida = Exit.from_dict({"sala": 9, "costo": 1, "llave": "llave-a",
+                                "cerrada": True})
+    assert (extendida.costo, extendida.llave, extendida.cerrada_inicial) == (
+        1, "llave-a", True)
+
+
+@pytest.mark.parametrize("costo", [True, 0, -1, 1.5, "3", None])
+def test_costo_de_salida_debe_ser_entero_positivo(costo):
+    with pytest.raises((TypeError, ValueError)):
+        Exit.from_dict({"sala": 9, "costo": costo})

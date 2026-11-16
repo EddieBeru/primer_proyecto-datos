@@ -17,6 +17,7 @@ from src.models.objects import (
 )
 from src.models.roomContents import ContenidoResponse
 from src.models.rooms import Room, SkeletonPage
+from src.models.resolubilidad import UbicacionesLlaves
 from src.models.types import Entidad
 
 client = Client()
@@ -92,8 +93,11 @@ def _validar_lote(ids: Sequence) -> list:
     ids = list(ids)
     if not 1 <= len(ids) <= 10:
         raise ValueError(f"Lote debe traer 1-10 ids, llegaron {len(ids)}")
-    if len(set(ids)) != len(ids):
-        raise ValueError("Lote con ids repetidos, API responde 400")
+    vistos = []
+    for valor in ids:
+        if valor in vistos:
+            raise ValueError("Lote con ids repetidos, API responde 400")
+        vistos.append(valor)
     return ids
 
 # Endpoints de la API
@@ -123,6 +127,31 @@ def esqueleto(id: str, pagina: int = 1, budget=None) -> SkeletonPage:
         return client.make_request(f"criptas/{id}/salas?pagina={pagina}", model=SkeletonPage)
 
     return _pedir_con_reintento(budget, _pedir)
+
+
+def ubicaciones_llaves(id: str, budget=None, version_cripta=None) -> UbicacionesLlaves:
+    """Consulta ubicaciones versionadas, adaptando la forma legada publicada.
+
+    El endpoint público actual devuelve únicamente ``{"llaves": [...]}`` y no
+    pagina el resultado. En esa forma exacta, el id y versión vienen del
+    contexto ya validado de la cripta y HTTP 200 representa la lista completa.
+    Otras formas siguen requiriendo el DTO versionado estricto.
+    """
+    def _pedir():
+        payload = client.make_request(f"criptas/{id}/llaves")
+        if type(payload) is dict and len(payload) == 1 and "llaves" in payload:
+            if type(version_cripta) is not str or not version_cripta:
+                raise UnexpectedResponseError(
+                    "respuesta legada de llaves requiere versión validada de cripta")
+            payload = {"cripta_id": id, "version_cripta": version_cripta,
+                       "completa": True, "llaves": payload["llaves"]}
+        return UbicacionesLlaves.desde_dict(payload)
+    resultado = _pedir_con_reintento(budget, _pedir)
+    if resultado.cripta_id != id:
+        raise UnexpectedResponseError("id de cripta distinto en ubicaciones de llaves")
+    if version_cripta is not None and resultado.version_cripta != version_cripta:
+        raise UnexpectedResponseError("versión de cripta distinta en ubicaciones de llaves")
+    return resultado
 
 def contenido(id: str, salas: Sequence[int], budget=None) -> ContenidoResponse:
     lote = _validar_lote(salas)

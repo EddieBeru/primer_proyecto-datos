@@ -36,6 +36,9 @@ class FakeBackend:
     def esqueleto_completo(self, cripta_id, budget=None, info=None):
         return dict(self.fake._salas)
 
+    def ubicaciones_llaves(self, cripta_id, budget=None, version_cripta=None):
+        return self.fake.ubicaciones_llaves(cripta_id, budget, version_cripta)
+
     def contenido(self, cripta_id, salas, budget=None):
         return ContenidoResponse(
             contenido=[self.fake._contenido[s] for s in salas])
@@ -64,7 +67,7 @@ def nueva_sesion(tmp_path, **kw):
 
 
 RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n", "abrir S",
-                 "s", "s", "o", "recoger llave-salida-01", "abrir E", "e"]
+                 "s", "recoger llave-salida-01", "s", "abrir O", "o", "abrir E", "e"]
 
 
 def test_iniciar_deja_foto_y_header(tmp_path):

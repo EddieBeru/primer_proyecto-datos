@@ -756,3 +756,154 @@ Validación dirigida:137 aprobadas/1 omitida (4,63 s). Pruebas de proporción,
 crecimiento y encaje de cuatro títulos entre640×480 y4K. Se regeneran los tres
 mosaicos y se revisan capturas nativas a640×480 y1920×1080. Revisión headless;
 `git diff --check` sin errores.
+
+## Resolubilidad003 — diseño y evidencia estructural,2026-11-16
+
+**Estado:** elección de diseño sustentada en microbenchmarks locales; verificador
+completo pendiente de implementación/medición. No se declara aceptación de200 ms.
+Plan: [003](specs/003-resolubilidad/plan.md); decisiones D01–D08 y alternativas en
+[research.md](specs/003-resolubilidad/research.md). Cada decisión referencia FR-RES.
+
+**Problema y elección (FR-RES-01–07/12):** obtener el cierre incremental de salas
+alcanzables y llaves sin repetir búsquedas completas por llave; guardar evidencia
+para frontera y ciclos con alternativas. Compartir DatosSala/DatosSalida y el
+constructor neutral existente con001/002, ampliándolos con llave/estado inicial
+sin un modelo003 paralelo (D01). Reglas monotónicas, contadores y suscriptores por
+hecho; cada sala/llave se activa una vez y cada incidencia se procesa un número
+constante de veces (D02). Descubrir una sala no dispara sus salidas: primero
+se atienden sus llaves y después las salidas N/S/E/O; pendientes se enlazan
+al identificarlas, no en orden de compilación. Costos de001 se conservan y no ordenan la verificación.
+
+**Estructuras (D03, FR-RES-05/07/12/13):** cola FIFO propia encapsulada sobre
+arreglo+cursor de cabeza; índices propios TablaIndice para IDs→ordinales;
+marcas booleanas y contadores por ordinal compacto; adyacencias y pendientes
+por enlaces/ordinales; pilas iterativas propias para reducción residual. Para
+IDs textuales se amplía TablaIndice neutral con claves str y hash propio
+FNV-1a64 sobre bytes UTF8, enmascarando cada paso y comparando igualdad textual
+completa para resolver colisiones. Se preservan claves enteras/extremos y el
+texto original. La codificación a entero grande fue medida como alternativa
+preliminar y se descarta: los desplazamientos de `_hash_entero` no justifican
+costo lineal en bytes arbitrarios. El índice textual se mide por separado.
+No usar heapq, deque, set/frozenset, dict como índice, sorted ni list.sort en003.
+Arreglo+cursor no desplaza elementos; retiene O(n) referencias hasta terminar la
+verificación. La cola enlazada es una alternativa válida, descartada por su costo
+medido en estas cargas. No se usa orden de cubetas como orden de obtención.
+
+**Medición efectivamente ejecutada:**
+[script](docs/mediciones/003-estructuras-plan.py) y
+[muestras/entorno](docs/mediciones/003-estructuras-plan.json), Python3.12.3,
+Linuxx86_64, semilla300316, dos calentamientos, siete repeticiones,
+perf_counter_ns y checksums iguales entre alternativas. Se mide construcción y
+consumo/consulta; la variante textual incluye conversión, construcción y consulta.
+
+| Alternativa | Entradas | Mediana ms | Máximo ms |
+|---|---:|---:|---:|
+| fifo_lista_cabeza | 32000 | 2.995 | 3.470 |
+| fifo_pop_cero | 32000 | 83.017 | 85.421 |
+| fifo_enlazada | 32000 | 9.459 | 15.423 |
+| indice_propio_entero | 4000 | 19.806 | 21.235 |
+| busqueda_lineal | 4000 | 174.224 | 187.317 |
+| indice_propio_texto_codificado | 4000 | 46.665 | 53.876 |
+| indice_propio_texto_fnv1a64 | 4000 | 47.769 | 54.755 |
+| busqueda_lineal_texto | 4000 | 169.080 | 184.690 |
+| indice_propio_texto_codificado_largo | 4000 | 392.360 | 403.575 |
+| indice_propio_texto_fnv1a64_largo | 4000 | 535.167 | 545.149 |
+
+El arreglo+cursor y el índice propio evitan el crecimiento observado al quitar
+frentes y buscar IDs repetidamente. Marcas densas por ordinal se miden por
+separado en el JSON; no se dimensionan por max(id). IDs textuales medidos de16
+caracteres ASCII: no se infiere costo constante para longitudes ilimitadas.
+La tabla tiene costo esperado amortizado, no peor caso garantizado frente a
+colisiones adversarias. Medir cadenas/colisiones y bytes de IDs en el benchmark
+completo. Estas cifras no miden propagación, diagnóstico de ciclos ni red/vista.
+
+**Ciclos (D04/D05, FR-RES-05/06/07/12/15):** se conserva evidencia AND/OR y se
+reduce globalmente con Tarjan iterativo sobre el residuo compilado, sin
+recorridos nuevos del esqueleto por llave. Primero elegir llave de un circuito
+por orden de consulta y luego primer retorno con dependencias en orden fuente.
+A por B O C, B y C por A muestra por qué un circuito no equivale a dependencia
+individual inevitable: el usuario autorizó «pues hazlo» para presentar una
+alternativa circular y las demás alternativas bloqueadas. Ajustados FR-RES-07/15
+y escenario13. El costo de reducción cuenta dentro de200 ms. No se sostiene que
+componentes conexas por sí solas demuestren requisitos inevitables.
+
+**Alternativas descartadas:** búsquedas O(K(S+E)) por llave, solo como referencia
+lenta de laboratorio; grafo con todas las parejas de llaves por camino, por
+explosión y pérdida de alternativas; menor id global, por contradecir el
+orden de descubrimiento aprobado. El costo total previsto es esperado
+O(S+E+K+L+B+R) y memoria lineal, contando ubicaciones, bytes e informe emitido.
+
+**Integraciones (D06/D07, FR-RES-08–11/14/15):** `/criptas/{id}/llaves` con mismo
+budget, cache de id/versión y offline; preparación antes de crear juego,
+`--verificar` sin vista, forzado solo para negativo demostrado y reporte textual
+común. Propuestas reviewables en contracts/, sin modificar CONTRATOS.md ni
+atribuir aprobación a compañeros. No cambia guardado v4/replay; errores de carga
+no se fuerzan. Los auxiliares de003 no pueden reutilizar set heredados de otros
+subsistemas; auditar tránsito del flujo puro/preparador sin declarar todo el
+repositorio conforme.
+
+**Criterio de aceptación D08 (FR-RES-01–15):** `--bench` con familias por semilla,
+cadenas largas y ciclos; comparar contra búsqueda repetida con datos idénticos,
+contadores y muestras completas, no solo mejor tiempo. Mayor cripta publicada:
+100 verificaciones completas con máximo≤200 ms, incluidos resumen/texto y
+preparación local, excluyendo red/render. T043 y T044 ya están medidas y sus
+artefactos se detallan abajo; las sintéticas no sustituyen la carga publicada.
+Pruebas funcionales/CLI y regresión001/002/004 pasan. La revisión visual
+headless está hecha; solo queda el recorrido humano de T045. El plan no modifica
+producción.
+
+Nota de medición003: el hash textual FNV no gana en tiempo a la codificación
+entera en estas muestras; se elige por su costo lineal por byte y acumulador
+acotado. Con4000 IDs de256 caracteres supera200 ms el microbenchmark del
+índice: no se garantiza200 ms para entradas arbitrarias ni se atribuye esa
+cifra al verificador; la aceptación exige la mayor cripta publicada real.
+
+### Cierre de implementación003 — 2026-11-16
+
+Implementación y validación registradas en
+[quickstart](specs/003-resolubilidad/quickstart.md). Suite final:
+`.venv/bin/python -m pytest tests/ -q` → **573 passed, 1 skipped**. La auditoría
+AST de003 pasa; `git diff --check` sin errores. Se conserva explícita la desviación de orden:
+T009–T018 pasan ahora, pero no se registró su fallo antes de T019–T027.
+
+`docs/mediciones/003-resolubilidad-sinteticas.json` guarda20 casos, semilla300316,
+dos calentamientos y siete muestras por caso, Python3.12.3, Linux y
+Intel Core i7-1185G7@3.00GHz. En K≈8193, cadena: mediana165.27 ms/máximo191.03;
+ciclo:245.63/264.22; alternativas:152.79/158.32; desconexión:151.37/159.92.
+La familia de puertas pendientes usa S8195/E32772/K8194 y dio348.49/417.24 ms.
+El reporte de ciclo mide1,187,078 bytes; cada familia grande registró2151
+colisiones de cubeta de IDs y un máximo de5 entradas por cubeta. No se concluye
+el límite de200 ms de la cripta oficial con datos sintéticos.
+
+T044 queda satisfecha con la cripta mayor publicada (`cripta-06`,300 salas,
+versión `f9ed9afa683d`). La API devuelve cuatro ubicaciones en la forma legada
+`{"llaves":[...]}`; el adaptador solo admite esa forma exacta en el endpoint no
+paginado y aporta ID/versión desde la ficha validada. El DTO versionado estricto
+sigue vigente para las demás formas. Cien verificaciones completas dieron
+paquete crudo de96,801 bytes; mediana1.504 ms y máximo7.660 ms (≤200 ms);
+muestras y entorno están en
+`docs/mediciones/003-resolubilidad-publicada.json`, paquete crudo en
+`docs/mediciones/003-reporte/003-resolubilidad-publicada-paquete.json`.
+`.venv/bin/python -m src.main --bench` terminó con código0 e incluyó las
+mediciones sintéticas de003 en su salida; debido a que ejecuta también los
+benchmarks históricos, tardó unos seis minutos.
+T045: se regeneraron y revisaron headless menú, selección, nombre largo con
+tooltip, reporte largo/error/scroll, HUD, mapa e historial a640×480,1024×800 y
+1280×720. El texto del reporte sobre panel contrasta13.57:1, título6.92:1 y
+texto claro sobre acción6.81:1. Falta el recorrido humano; no se equipara al
+headless ni se afirma conformidad WCAG global.
+La inspección visual estática de las 27 capturas detectó y corrigió solapamiento
+del badge con “Salas” en tarjeta compacta a640×480; test de geometría nuevo y
+capturas regeneradas. T045 permanece abierta solo para recorrido interactivo
+humano.
+
+Al revisar la integración remota de001, `origin/main` estaba en el mismo
+`b81b1af` que HEAD. La especificación `specs/001-terreno-cazador/spec.md` está en
+Draft y solo tiene checklist; no hay plan/tareas ni implementación del
+comportamiento cazador en `src/`. La base ya contiene `DatosSalida.costo`, Dijkstra
+genérico, reloj con costo parametrizable y muestra de costos en el mapa, pero
+`Exit` no parseaba costo y C2 seguía agendando movimiento/enemigos con costos
+fijos. Este cambio añade `Exit.costo` default100 y lo proyecta en el modelo
+compartido, conectando una parte de la base con003/001. Cazador/rango, decisión
+ponderada, actualización ante puertas, movimiento y benchmark CAZ continúan
+pendientes. La compatibilidad existente se comprobó con la regresión completa.

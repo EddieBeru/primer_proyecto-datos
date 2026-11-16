@@ -40,6 +40,8 @@ python -m src.main --jugar                # partida interactiva vía Sesión (co
 python -m src.main --jugar --offline paquete_demo/  # consola sin red ni presupuesto
 python -m src.main --vista                # partida gráfica Pygame vía Sesión
 python -m src.main --vista --offline paquete_demo/  # vista sin red ni presupuesto
+python -m src.main --verificar ID         # informe previo, sin iniciar partida/vista
+python -m src.main --jugar --cripta ID --forzar  # permite inicio si el veredicto es negativo
 python -m src.main --replay partida.log --cargar partida.bin
 python -m pytest tests/ -q
 ```
@@ -56,6 +58,19 @@ python -m pytest tests/ -q
 | `--jugador NOM` | jugador | tabla local puntajes (§2.12) |
 | `--jugar` | — | partida interactiva en consola vía Sesión |
 | `--vista` | — | partida gráfica Pygame vía Sesión (solo habla con Sesión) |
+| `--verificar ID` | — | verifica y reporta sin crear una partida ni instanciar la vista; códigos 0/1/2 |
+| `--forzar` | — | permite iniciar una partida nueva si la verificación completa da no resoluble; no permite forzar errores/incompletos |
+
+La verificación previa usa el esqueleto y `GET /criptas/{id}/llaves` del
+proveedor, contando reintentos dentro del budget. Offline, se lee
+`llaves_<id>.json` con formato1 y versión igual al esqueleto; la caché persistida
+se invalida ante versión/formato distinto o contenido corrupto. `--verificar ID`
+solo imprime el reporte (0 resoluble, 1 no resoluble, 2 consulta incompleta o
+error de datos), sin cargar catálogo/contenido ni crear una partida.
+
+La aceptación de rendimiento publicada de 003 (cripta mayor, 100 ejecuciones)
+se documenta en `specs/003-resolubilidad/quickstart.md`, con muestras en
+`docs/mediciones/003-resolubilidad-publicada.json`.
 
 ## Archivos generados
 
@@ -116,9 +131,9 @@ guardar, pausar y cargar correctamente lo detienen.
 
 | Capa | Carpeta canónica | Contenido |
 |---|---|---|
-| Controller 1: datos, red y persistencia | `src/controller1/` | `fake_provider`, `client`, `endpoints`, `session`, `offline`, `budget`, `room_loader`, `lru_cache`, `almacen_fichas` (almacén en disco §4.4), `lista_doble`, `tabla_hash`, `mergesort`, `orden`, `savegame`, `gamelog`, `puntajes`, `cli` |
+| Controller 1: datos, red y persistencia | `src/controller1/` | `fake_provider`, `client`, `endpoints`, `session`, `offline`, `budget`, `room_loader`, `lru_cache`, `almacen_fichas`, `almacen_llaves` (cache de ubicaciones versionadas), `lista_doble`, `tabla_hash`, `mergesort`, `orden`, `savegame`, `gamelog`, `puntajes`, `cli` |
 | Controller 2: motor del juego | `src/controller2/` | `modelo`, `agenda` (doble + índices de cancelación), `reloj`, `azar`, `movimiento`, `inventario`, `combate`, `efectos`, `enemigos`, `deshacer`, `victoria`, `bitacora` (formato K3), `buffer_circular` (§4.8), `orden_local` (inserción propia sin C1), `fachada` (K5) |
-| Orchestrator (tercer controlador) | `src/orchestrator/` + `src/main.py` | `sesion` (ciclo de vida + drenaje §2.3), `consola` (puente §7.2, solo habla con Sesión), `bench` (mide C1+C2), `main` (entry point) |
+| Orchestrator (tercer controlador) | `src/orchestrator/` + `src/main.py` | `sesion` (ciclo de vida + verificación previa), `consola` (puente §7.2), `reporte_resolubilidad`, `bench` (C1+C2+003), `bench_resolubilidad`, `main` (entry point) |
 | Compartido (contratos, sin dueño) | `src/models/` | formas del API (`dungeons`, `rooms`, `roomContents`, `catalog`, `objects`, `types`) + `errors` (K4) |
 | Vista | `src/view/` | Pygame: solo lee `FotoEstado` y envía intenciones a la Sesión (§7.3); `app`, `pantallas`, `capas`, `ui`, `entrada`, `movimiento`, `sprites`, `sfx`, `texto` |
 

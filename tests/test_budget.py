@@ -5,6 +5,8 @@ import pytest
 from src.controller1.budget import BudgetAdapter
 from src.controller1 import endpoints
 from src.models.errors import NotFoundError, PresupuestoAgotadoError, RateLimitedError
+from src.controller1.session import iniciar_cripta
+from src.controller1.fake_provider import FakeProvider
 
 
 def test_exito_descuenta_uno(monkeypatch):
@@ -69,3 +71,19 @@ def test_reiniciar_con_total_api():
     budget.reiniciar(9)
     assert budget.get_presupuesto() == 9
     assert budget.puede_mas()
+
+
+def test_bootstrap_directo_no_descuenta_lista_ficticia(monkeypatch):
+    info = FakeProvider()._general
+    info.presupuesto_solicitudes = 1
+    monkeypatch.setattr(endpoints, "info_cripta", lambda *a, **k: info)
+    obtenida, budget = iniciar_cripta("c", contar_lista=False)
+    assert obtenida is info and budget.get_presupuesto() == 0
+
+
+def test_bootstrap_lista_previa_agota_sin_silenciar(monkeypatch):
+    info = FakeProvider()._general
+    info.presupuesto_solicitudes = 1
+    monkeypatch.setattr(endpoints, "info_cripta", lambda *a, **k: info)
+    with pytest.raises(PresupuestoAgotadoError):
+        iniciar_cripta("c", contar_lista=True)

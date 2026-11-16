@@ -7,6 +7,20 @@ class Exit:
     cerrada: Optional[bool] = None
     llave: Optional[str] = None
     cierre_automatico: Optional[int] = None  # > 0
+    costo: int = 100
+    cerrada_inicial: Optional[bool] = None
+
+    def __post_init__(self):
+        if type(self.costo) is not int:
+            raise TypeError("costo de salida debe ser entero")
+        if self.costo < 1:
+            raise ValueError("costo de salida debe ser positivo")
+        if self.llave is not None and type(self.llave) is not str:
+            raise TypeError("llave de salida debe ser texto o None")
+        if self.cerrada_inicial is None:
+            self.cerrada_inicial = bool(self.cerrada)
+        if type(self.cerrada_inicial) is not bool:
+            raise TypeError("cerrada_inicial debe ser booleano")
 
     @classmethod
     def from_dict(cls, data: dict) -> "Exit":
@@ -15,6 +29,8 @@ class Exit:
             cerrada=data.get("cerrada"),
             llave=data.get("llave"),
             cierre_automatico=data.get("cierre_automatico"),
+            costo=data.get("costo", 100),
+            cerrada_inicial=data.get("cerrada", False),
         )
 
 @dataclass
