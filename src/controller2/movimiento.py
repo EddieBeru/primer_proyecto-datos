@@ -28,6 +28,7 @@ class ResultadoMovimiento:
     rastro_antes: int | None = None
     visitada_antes: bool = False
     estaba_visitada: bool = False
+    costo: int = 100
 
 
 @dataclass
@@ -55,6 +56,7 @@ def abrir_puerta(
     if not estado.jugador.tiene_llave(salida.llave):
         return ResultadoApertura(False, f"Necesitas la llave {salida.llave}.")
     salida.cerrada = False
+    estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
     # §2.12: marca si se abrió la puerta que da acceso a la salida.
     if salida.destino == estado.sala_salida:
         estado.puerta_salida_abierta = True
@@ -123,7 +125,8 @@ def intentar_mover(
         activados = []
     return ResultadoMovimiento(True, "", destino.id, False, None,
                                eventos_activacion, activados, rastro_antes,
-                               visitada_antes, estaba_visitada)
+                               visitada_antes, estaba_visitada,
+                               costo=int(getattr(salida, "costo", 100)))
 
 
 def ejecutar_cierre(estado: EstadoPartida, sala_id: int, direccion: str) -> bool:
@@ -134,5 +137,7 @@ def ejecutar_cierre(estado: EstadoPartida, sala_id: int, direccion: str) -> bool
     salida = sala.salidas.get(direccion)
     if salida is None:
         return False
-    salida.cerrada = True
+    if not salida.cerrada:
+        salida.cerrada = True
+        estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
     return True

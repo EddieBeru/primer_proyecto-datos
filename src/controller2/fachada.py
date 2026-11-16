@@ -265,7 +265,7 @@ class Fachada:
             base.update(datos)
         return {"op": op, "datos": base, "eventos": list(eventos or [])}
 
-    def _tras_accion(self, costo_key: str) -> None:
+    def _tras_accion(self, costo_key: str, costo_override: int | None = None) -> None:
         """Común tras acción exitosa que consume tiempo: rastro + turno + contador."""
         try:
             self.estado.acciones_jugador = int(getattr(self.estado, "acciones_jugador", 0)) + 1
@@ -274,7 +274,8 @@ class Fachada:
         sala = self.estado.salas.get(self.estado.sala_actual)
         if sala is not None:
             sala.ultima_visita = self.reloj.ahora
-        self._programar_turno_jugador(COSTOS[costo_key])
+        costo = costo_override if costo_override is not None else COSTOS[costo_key]
+        self._programar_turno_jugador(costo)
 
     def _programar_turno_jugador(self, costo: int, inicial: bool = False) -> None:
         """Programa el turno del jugador (invariante: a lo sumo uno pendiente).
@@ -345,7 +346,7 @@ class Fachada:
             eventos=res.eventos_activacion))
         self._anotar("mover", "jugador", direccion)
         self._disparar_trampas_sala()
-        self._tras_accion("mover")
+        self._tras_accion("mover", costo_override=res.costo)
         return self._ok()
 
     def esperar(self) -> tuple[bool, str]:
@@ -573,8 +574,8 @@ class Fachada:
     def turno_enemigo(self, instancia_id: str, turno_antes: dict | None = None) -> tuple[bool, str]:
         origen = next((e.sala_actual for s in self.estado.salas.values()
                        for e in s.enemigos if e.instancia == instancia_id), None)
-        previos = {ev.seq for ev in self.agenda
-                   if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id}
+        previos = [ev.seq for ev in self.agenda
+                   if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id]
         msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id,
                              self.catalogo, azar=self.azar)
         destino = next((e.sala_actual for s in self.estado.salas.values()

@@ -35,6 +35,8 @@ DEFAULTS: dict[str, Any] = {
     "abre": None,
     # Rastro fresco para rastreador: 0 = sin rastro.
     "rastro": 0,
+    # Costo de transito de salida: default 100
+    "costo": 100,
 }
 
 _DIRECCIONES_VALIDAS = ("N", "S", "E", "O")
@@ -124,15 +126,21 @@ class SalidaViva:
     cerrada: bool = DEFAULTS["cerrada"]
     llave: str | None = DEFAULTS["llave"]
     cierre_automatico: int | None = DEFAULTS["cierre_automatico"]
+    costo: int = DEFAULTS["costo"]
 
     def __post_init__(self) -> None:
         if self.direccion not in _DIRECCIONES_VALIDAS:
             raise ValueError(f"direccion invalida: {self.direccion!r}")
         if self.cierre_automatico is not None and self.cierre_automatico <= 0:
             raise ValueError("cierre_automatico debe ser > 0 o None")
+        if not isinstance(self.costo, int) or isinstance(self.costo, bool) or self.costo < 1:
+            raise ValueError(f"costo debe ser un entero >= 1: {self.costo}")
 
     @classmethod
     def desde_api(cls, direccion: Direccion, salida: Exit) -> "SalidaViva":
+        costo = getattr(salida, "costo", 100)
+        if costo is None:
+            costo = 100
         return cls(
             direccion=direccion,
             destino=salida.sala,
@@ -143,6 +151,7 @@ class SalidaViva:
                 if salida.cierre_automatico is not None
                 else DEFAULTS["cierre_automatico"]
             ),
+            costo=costo,
         )
 
     def puede_pasar(self, jugador: JugadorVivo) -> tuple[bool, str]:
@@ -302,6 +311,7 @@ class EstadoPartida:
     acciones_jugador: int = 0
     enemigos_derrotados: int = 0
     puerta_salida_abierta: bool = False
+    puertas_version: int = 0
     conocimiento: MapaConocido = field(default_factory=MapaConocido)
 
     @classmethod
@@ -324,6 +334,7 @@ class EstadoPartida:
             pila_deshacer=[],
             estado="jugando",
             semilla=int(semilla),
+            puertas_version=0,
         )
 
     def registrar_sala(self, sala: SalaViva) -> None:
@@ -352,6 +363,7 @@ class EstadoPartida:
         d.setdefault("acciones_jugador", 0)
         d.setdefault("enemigos_derrotados", 0)
         d.setdefault("puerta_salida_abierta", False)
+        d.setdefault("puertas_version", 0)
         d["jugador"] = JugadorVivo(**d["jugador"])
         salas = {}
         for sid, s in (d.get("salas") or {}).items():

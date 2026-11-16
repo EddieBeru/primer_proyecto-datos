@@ -189,6 +189,7 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
             s = estado.salas.get(d["sala_puerta"])
             if s and d.get("direccion") in s.salidas:
                 s.salidas[d["direccion"]].cerrada = True
+                estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
         return True
     if op == "esperar":
         return True  # sin estado propio: basta el bloque comun
@@ -196,6 +197,7 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
         s = estado.salas.get(d.get("sala"))
         if s and d.get("direccion") in s.salidas:
             s.salidas[d["direccion"]].cerrada = True
+            estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
             if s.salidas[d["direccion"]].destino == estado.sala_salida:
                 estado.puerta_salida_abierta = False
         return True
@@ -289,6 +291,7 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
         s = estado.salas.get(d.get("sala"))
         if s and d.get("direccion") in s.salidas and d.get("cerrada_antes") is not None:
             s.salidas[d["direccion"]].cerrada = bool(d["cerrada_antes"])
+            estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
         return True
     if op == "rearme":
         for sala in estado.salas.values():

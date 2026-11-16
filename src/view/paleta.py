@@ -39,6 +39,7 @@ LLAVE_PUNTO = (230, 92, 0)
 ENEMIGO_GUARDIAN = (215, 48, 31)
 ENEMIGO_ERRANTE = (230, 130, 40)
 ENEMIGO_RASTREADOR = (155, 126, 217)
+ENEMIGO_CAZADOR = (220, 40, 140)
 
 # 9 clases del catálogo -> mosaico (+ genérico para itm_ sin clave).
 CLASE_COLORES = {
@@ -58,4 +59,5 @@ COMPORTAMIENTO_COLORES = {
     "guardián": ENEMIGO_GUARDIAN,
     "errante": ENEMIGO_ERRANTE,
     "rastreador": ENEMIGO_RASTREADOR,
+    "cazador": ENEMIGO_CAZADOR,
 }

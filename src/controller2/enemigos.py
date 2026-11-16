@@ -14,7 +14,7 @@ from src.controller2.modelo import EnemigoInstancia, EstadoPartida
 from src.controller2.orden_local import insercion
 from src.controller2.reloj import RelojVirtual
 
-COMPORTAMIENTOS = ("guardián", "errante", "rastreador")
+COMPORTAMIENTOS = ("guardián", "errante", "rastreador", "cazador")
 RASTRO_MAX_ANTIGUEDAD = 400
 OLEADA_CADA = 3000  # una aparición cada N unidades virtuales (default)
 OLEADA_MAX = 4  # tope de aparecidos vivos a la vez
@@ -52,9 +52,9 @@ def _vecinas_abiertas(estado: EstadoPartida, sala_id: int) -> list[int]:
     for salida in sala.salidas.values():
         if salida.cerrada:
             continue
-        if salida.destino in estado.salas:
+        if salida.destino in estado.salas and salida.destino not in out:
             out.append(salida.destino)
-    return insercion(set(out))
+    return insercion(out)
 
 
 def _sala_de(estado: EstadoPartida, instancia_id: str):
@@ -94,6 +94,72 @@ def activar_sala(estado: EstadoPartida, agenda: Agenda, ahora: int,
     return evs
 
 
+def decidir_accion_cazador(
+    estado: EstadoPartida,
+    instancia_id: str,
+    catalogo: dict | None = None,
+    proveedor: Any = None,
+    distancias_destino: Any = None,
+) -> tuple[str, int, int | None]:
+    """Evalúa la acción del cazador según el orden estricto de prioridades (FR-CAZ-05):
+    1. Si comparte la sala con el jugador al inicio de su turno: ataca cuerpo a cuerpo ("atacar", 100, None).
+    2. Si no comparte sala: calcula la ruta de costo mínimo d hacia el jugador a través de salidas abiertas.
+    3. Si no existe ruta abierta o d > rango: espera en su sala ("esperar", 100, None).
+    4. Si d <= rango: avanza un paso por la ruta óptima ("mover", costo_salida, siguiente_sala).
+    """
+    sala, actual = _sala_de(estado, instancia_id)
+    if actual is None or sala is None:
+        return "esperar", 100, None
+
+    # Prioridad 1: Atacar cuerpo a cuerpo si comparte sala con el jugador
+    if sala.id == estado.sala_actual:
+        return "atacar", 100, None
+
+    ficha = (catalogo or {}).get(actual.tipo_id)
+    rango = int(getattr(ficha, "rango", 0) or 0)
+    if rango < 1:
+        return "esperar", 100, None
+
+    # Verificar caché de ruta si existe (invalidación instantánea O(1) si cambiaron puertas o jugador)
+    cache: Any = getattr(actual, "_ruta_cazador", None)
+    if cache is not None and cache.es_valida(estado, sala.id):
+        sig = cache.siguiente_sala
+        salida_cache = next((s for s in sala.salidas.values() if s.destino == sig and not s.cerrada), None)
+        if salida_cache is not None:
+            return "mover", int(getattr(salida_cache, "costo", 100)), sig
+
+    from src.controller2.rutas import dijkstra_acotado, RutaCazador
+
+    d, siguiente = dijkstra_acotado(
+        estado=estado,
+        origen=sala.id,
+        destino=estado.sala_actual,
+        rango_max=rango,
+        distancias_destino=distancias_destino,
+        proveedor=proveedor,
+    )
+
+    if d is None or siguiente is None or d > rango:
+        actual._ruta_cazador = None
+        return "esperar", 100, None
+
+    salida_opt = next((s for s in sala.salidas.values() if s.destino == siguiente and not s.cerrada), None)
+    if salida_opt is None:
+        actual._ruta_cazador = None
+        return "esperar", 100, None
+
+    costo_paso = int(getattr(salida_opt, "costo", 100))
+    actual._ruta_cazador = RutaCazador(
+        cazador_id=instancia_id,
+        sala_cazador=sala.id,
+        sala_jugador=estado.sala_actual,
+        puertas_version=getattr(estado, "puertas_version", 0),
+        costo_total=d,
+        siguiente_sala=siguiente,
+    )
+    return "mover", costo_paso, siguiente
+
+
 def decidir_destino(estado: EstadoPartida, instancia_id: str,
                     catalogo: dict | None = None, ahora: int = 0,
                     azar=None) -> int | None:
@@ -105,6 +171,9 @@ def decidir_destino(estado: EstadoPartida, instancia_id: str,
     if sala.id == estado.sala_actual:
         return None
     comp = comportamiento_de(catalogo, actual.tipo_id)
+    if comp == "cazador":
+        _accion, _costo, destino = decidir_accion_cazador(estado, instancia_id, catalogo)
+        return destino
     vecinas = _vecinas_abiertas(estado, actual.sala_actual)
     if comp == "guardián" or not vecinas:
         return None
@@ -203,15 +272,21 @@ def ejecutar_oleada(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
 def turno_enemigo(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                   instancia_id: str, catalogo: dict | None = None,
                   azar=None) -> str:
-    """Ejecuta un turno: decide, mueve y reprograma el siguiente (costo 100)."""
+    """Ejecuta un turno: decide, mueve y reprograma el siguiente."""
+    origen_sala = next((s for s in estado.salas.values()
+                        for e in s.enemigos if e.instancia == instancia_id), None)
+    costo_accion = 100
     destino = decidir_destino(estado, instancia_id, catalogo, reloj.ahora, azar)
-    if destino is not None:
+    if destino is not None and origen_sala is not None:
+        salida_usada = next((s for s in origen_sala.salidas.values() if s.destino == destino), None)
+        if salida_usada is not None:
+            costo_accion = int(getattr(salida_usada, "costo", 100))
         mover_enemigo(estado, instancia_id, destino)
     tipo = next((e.tipo_id for s in estado.salas.values()
                  for e in s.enemigos if e.instancia == instancia_id), None)
     if tipo is not None:
         ev = reloj.programar_turno(agenda, instancia_id, velocidad_de(catalogo, tipo),
-                                   {"kind": "enemigo", "tipo": tipo}, costo=100)
+                                   {"kind": "enemigo", "tipo": tipo}, costo=costo_accion)
         for s in estado.salas.values():
             for e in s.enemigos:
                 if e.instancia == instancia_id:

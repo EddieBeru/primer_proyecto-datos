@@ -268,6 +268,212 @@ def bench_ciclo_completo(repeticiones: int = 3):
         return {"ciclo_completo_s": t, "ciclo_pasos": pasos}
 
 
+def _crear_cripta_bench(n_salas: int = 100):
+    """Crea una cripta en memoria para micro-benchmarks de cazadores."""
+    from src.models.dungeons import DungeonGeneral
+    from src.controller2.modelo import EstadoPartida, SalaViva, SalidaViva
+    ficha = DungeonGeneral.from_dict({
+        "id": "cripta-bench",
+        "version": "v1",
+        "salas_total": n_salas,
+        "paginas": 1,
+        "salas_por_pagina": n_salas,
+        "sala_inicial": 1,
+        "sala_salida": n_salas,
+        "llave_salida": "llave-salida",
+        "presupuesto_solicitudes": 100,
+        "inventario_max": 5,
+        "jugador": {"vida_max": 30, "ataque": 10, "defensa": 2, "velocidad": 100},
+    })
+    est = EstadoPartida.nueva_partida(ficha, version_catalogo="cat-bench")
+    for i in range(1, n_salas + 1):
+        est.registrar_sala(SalaViva(id=i, nombre=f"Sala {i}"))
+    for i in range(1, n_salas):
+        costo = 50 + (i % 3) * 50
+        est.salas[i].salidas["E"] = SalidaViva(direccion="E", destino=i + 1, costo=costo)
+        est.salas[i + 1].salidas["O"] = SalidaViva(direccion="O", destino=i, costo=costo)
+    return est
+
+
+def _catalogo_cazadores():
+    from src.models.catalog import Enemy
+    return {
+        "cazador-normal": Enemy(
+            id="cazador-normal",
+            nombre="Cazador Normal",
+            vida_max=20,
+            ataque=5,
+            defensa=1,
+            velocidad=100,
+            comportamiento="cazador",
+            rango=5000,
+        ),
+        "cazador-pequeno": Enemy(
+            id="cazador-pequeno",
+            nombre="Cazador Rango Pequeño",
+            vida_max=20,
+            ataque=5,
+            defensa=1,
+            velocidad=100,
+            comportamiento="cazador",
+            rango=200,
+        ),
+    }
+
+
+def _dijkstra_lista_enlazada(estado, origen, destino, rango_max=None):
+    from src.estructuras.tabla_indice import TablaIndice
+    distancias = TablaIndice()
+    distancias[origen] = 0
+    cola = [(0, origen)]
+    while cola:
+        d_actual, actual = cola.pop(0)
+        if actual == destino:
+            break
+        if rango_max is not None and d_actual > rango_max:
+            continue
+        sala = estado.salas.get(actual)
+        if not sala:
+            continue
+        for salida in sala.salidas.values():
+            if salida.cerrada:
+                continue
+            v = salida.destino
+            d_tent = d_actual + salida.costo
+            if rango_max is not None and d_tent > rango_max:
+                continue
+            if v not in distancias or d_tent < distancias[v]:
+                distancias[v] = d_tent
+                idx = 0
+                while idx < len(cola) and cola[idx][0] <= d_tent:
+                    idx += 1
+                cola.insert(idx, (d_tent, v))
+    return distancias.obtener(destino, None)
+
+
+def bench_cazadores(repeticiones: int = 3) -> dict:
+    """Suite de evaluación de rendimiento de terreno y cazador (FR-CAZ-14, FR-CAZ-15).
+    
+    Cubre los 5 ejes obligatorios:
+    1. 1 cazador vs. 50 cazadores en ciclo de eventos (SC-CAZ-01).
+    2. Rango pequeño (R=200) vs. grande (R=5000) en criptas de 100, 1k y 10k salas (SC-CAZ-02).
+    3. Cálculo compartido desde el jugador vs. individual desde cada cazador.
+    4. Reutilización de ruta en caché vs. recálculo total continuo.
+    5. Puertas estables vs. puertas inestables con invalidación.
+    Comparativa de estructuras: MonticuloMinimo vs. lista enlazada ordenada.
+    """
+    from src.controller2.modelo import EnemigoInstancia
+    from src.controller2.rutas import distancias_desde_destino, dijkstra_individual, dijkstra_acotado
+    from src.controller2.enemigos import decidir_accion_cazador
+
+    cat = _catalogo_cazadores()
+
+    # Eje 1: 1 vs 50 cazadores (cripta 1000 salas)
+    est_1k = _crear_cripta_bench(1000)
+    for i in range(2, 52):
+        est_1k.salas[i].enemigos.append(
+            EnemigoInstancia(instancia=f"caz-{i}", tipo_id="cazador-normal", vida_actual=20, sala_actual=i)
+        )
+
+    def ciclo_1():
+        decidir_accion_cazador(est_1k, "caz-2", catalogo=cat)
+
+    def ciclo_50():
+        dist_comp = distancias_desde_destino(est_1k, destino=1, rango_max=5000)
+        for i in range(2, 52):
+            decidir_accion_cazador(est_1k, f"caz-{i}", catalogo=cat)
+
+    t_1 = _mide(ciclo_1, repeticiones)
+    t_50 = _mide(ciclo_50, repeticiones)
+
+    # Eje 2: Rango pequeño vs rango grande en diferentes tamaños de cripta
+    est_100 = _crear_cripta_bench(100)
+    est_100.salas[2].enemigos.append(
+        EnemigoInstancia(instancia="caz-p100", tipo_id="cazador-pequeno", vida_actual=20, sala_actual=2)
+    )
+    t_peq_100 = _mide(lambda: decidir_accion_cazador(est_100, "caz-p100", catalogo=cat), repeticiones)
+
+    est_10k = _crear_cripta_bench(10000)
+    est_10k.salas[2].enemigos.append(
+        EnemigoInstancia(instancia="caz-p10k", tipo_id="cazador-pequeno", vida_actual=20, sala_actual=2)
+    )
+    t_peq_10k = _mide(lambda: decidir_accion_cazador(est_10k, "caz-p10k", catalogo=cat), repeticiones)
+
+    est_grande_1k = _crear_cripta_bench(1000)
+    est_grande_1k.salas[500].enemigos.append(
+        EnemigoInstancia(instancia="caz-g1k", tipo_id="cazador-normal", vida_actual=20, sala_actual=500)
+    )
+    t_grande_1k = _mide(lambda: decidir_accion_cazador(est_grande_1k, "caz-g1k", catalogo=cat), repeticiones)
+
+    # Eje 3: Cálculo individual vs. compartido (50 cazadores en cripta 500)
+    est_comp = _crear_cripta_bench(500)
+    for i in range(2, 52):
+        est_comp.salas[i].enemigos.append(
+            EnemigoInstancia(instancia=f"caz-c{i}", tipo_id="cazador-normal", vida_actual=20, sala_actual=i)
+        )
+
+    def individual_50():
+        for i in range(2, 52):
+            dijkstra_individual(est_comp, origen=i, destino=1, rango_max=3000)
+
+    def compartido_50():
+        dist_comp = distancias_desde_destino(est_comp, destino=1, rango_max=3000)
+        for i in range(2, 52):
+            dijkstra_acotado(est_comp, origen=i, destino=1, rango_max=3000, distancias_destino=dist_comp)
+
+    t_individual = _mide(individual_50, repeticiones)
+    t_compartido = _mide(compartido_50, repeticiones)
+
+    # Eje 4: Reutilización de ruta vs. recálculo total
+    def con_reutilizacion():
+        for i in range(2, 52):
+            decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
+
+    def con_recalculo():
+        for i in range(2, 52):
+            e = next((x for s in est_comp.salas.values() for x in s.enemigos if x.instancia == f"caz-c{i}"), None)
+            if e:
+                e._ruta_cazador = None
+            decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
+
+    t_reutilizacion = _mide(con_reutilizacion, repeticiones)
+    t_recalculo = _mide(con_recalculo, repeticiones)
+
+    # Eje 5: Puertas estables vs. inestables
+    def puertas_estables():
+        for i in range(2, 22):
+            decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
+
+    def puertas_inestables():
+        for i in range(2, 22):
+            est_comp.puertas_version += 1
+            decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
+
+    t_estables = _mide(puertas_estables, repeticiones)
+    t_inestables = _mide(puertas_inestables, repeticiones)
+
+    # Comparativa de estructuras: MonticuloMinimo vs Lista Enlazada
+    est_500 = _crear_cripta_bench(500)
+    t_monticulo = _mide(lambda: dijkstra_individual(est_500, origen=400, destino=1, rango_max=50000), repeticiones)
+    t_lista = _mide(lambda: _dijkstra_lista_enlazada(est_500, origen=400, destino=1, rango_max=50000), repeticiones)
+
+    return {
+        "cazador_1_ciclo": t_1,
+        "cazadores_50_ciclo": t_50,
+        "cazador_rango_pequeno_100": t_peq_100,
+        "cazador_rango_pequeno_10k": t_peq_10k,
+        "cazador_rango_grande_1k": t_grande_1k,
+        "cazador_individual": t_individual,
+        "cazador_compartido": t_compartido,
+        "cazador_reutilizacion": t_reutilizacion,
+        "cazador_recalculo": t_recalculo,
+        "cazador_puertas_estables": t_estables,
+        "cazador_puertas_inestables": t_inestables,
+        "cazador_monticulo_minimo": t_monticulo,
+        "cazador_lista_enlazada": t_lista,
+    }
+
+
 def correr_todo() -> dict:
     out = {}
     out.update(bench_agenda())
@@ -281,4 +487,5 @@ def correr_todo() -> dict:
     out.update(bench_buffer())
     out.update(bench_cancelacion())
     out.update(bench_ciclo_completo())
+    out.update(bench_cazadores())
     return out

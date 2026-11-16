@@ -243,12 +243,19 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         if puerta.get("cerrada") and puerta.get("llave"):
             pygame.draw.circle(sup, paleta.LLAVE_PUNTO, (x + tam // 2, y + tam // 2), m.trazo(5))
         cierre = puerta.get("cierre_en")
-        if fuente is not None and cierre is not None and not puerta.get("cerrada"):
-            # Badge ASCII (la fuente no trae emojis): ticks restantes.
-            etiqueta = fuente.render(f"{cierre}t", True, paleta.TITULO)
-            fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), p(18))
-            sup.fill(paleta.MURO, fondo)
-            sup.blit(etiqueta, (x, y + tam + p(2)))
+        costo = puerta.get("costo")
+        if fuente is not None:
+            texto = None
+            if cierre is not None and not puerta.get("cerrada"):
+                # Badge ASCII (la fuente no trae emojis): ticks restantes.
+                texto = f"{cierre}t"
+            elif costo is not None and costo != 100:
+                texto = f"{costo}c"
+            if texto is not None:
+                etiqueta = fuente.render(texto, True, paleta.TITULO)
+                fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), p(18))
+                sup.fill(paleta.MURO, fondo)
+                sup.blit(etiqueta, (x, y + tam + p(2)))
 
 
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",

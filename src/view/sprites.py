@@ -547,8 +547,11 @@ class SpriteManager:
         """
         img = self._cargar_png(ENEMIGO_PNG, tam=self.tam * ENEMIGO_ESCALA)
         if img is not None:
+            if comportamiento == "cazador":
+                img = img.copy()
+                img.fill((255, 140, 200), special_flags=pygame.BLEND_RGB_MULT)
             return img
-        color = COLORES_COMPORTAMIENTO.get(comportamiento, REEMPLAZO)
+        color = paleta.COMPORTAMIENTO_COLORES.get(comportamiento, REEMPLAZO)
         sup = _mosaico(color)
         centro, radio = TAM // 2, TAM // 2 - 3
         pygame.draw.circle(sup, color, (centro, centro), radio)

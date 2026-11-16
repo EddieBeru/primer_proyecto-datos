@@ -12,11 +12,21 @@ class Enemy:
     ataque: int
     defensa: int
     velocidad: int  # > 0
-    comportamiento: Literal["guardián", "errante", "rastreador"]
+    comportamiento: Literal["guardián", "errante", "rastreador", "cazador"]
     suelta: Optional[list[str]] = None
     # Opcional (§2.10): cantidad curada cada 200, sin pasar vida_max.
     regeneracion: Optional[int] = None
+    rango: Optional[int] = None
     clase: str = field(default="enemigo", init=False)
+
+    def __post_init__(self) -> None:
+        if self.vida_max <= 0:
+            raise ValueError(f"vida_max debe ser > 0: {self.vida_max}")
+        if self.velocidad <= 0:
+            raise ValueError(f"velocidad debe ser > 0: {self.velocidad}")
+        if self.comportamiento == "cazador":
+            if self.rango is None or not isinstance(self.rango, int) or isinstance(self.rango, bool) or self.rango < 1:
+                raise ValueError("rango obligatorio y debe ser entero >= 1 para comportamiento cazador")
 
     @classmethod
     def from_dict(cls, data: dict) -> "Enemy":
@@ -30,6 +40,7 @@ class Enemy:
             comportamiento=data["comportamiento"],
             suelta=data.get("suelta"),
             regeneracion=_regen(data.get("regeneracion", data.get("regen"))),
+            rango=data.get("rango"),
         )
 
 

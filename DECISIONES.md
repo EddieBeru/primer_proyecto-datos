@@ -480,3 +480,31 @@ comparaciones se hacen dentro de la misma corrida).
     comparación empírica con las alternativas ni aceptación de5 ms: pendientes
     de T044–T048. No se modificaron modelos ponderados de001, contratos vigentes,
     guardado o replay; la integración permanece condicionada a T001.
+
+68. **Terreno y cazador: montículo mínimo propio para Dijkstra acotado, costos en salidas e invalidación estricta de rutas.**
+    Problema: perseguir al jugador por la ruta de menor costo de tránsito usando solo salidas abiertas en ese instante (FR-CAZ-05, FR-CAZ-06) sin superar 20 ms con decenas de cazadores activos (FR-CAZ-14) y asegurando equivalencia exacta con un cálculo desde cero (FR-CAZ-11) y desempate por menor id de vecina (FR-CAZ-09). PROHIBIDO usar heapq, deque, set o dict como estructuras auxiliares evaluadas.
+
+    Alternativas y justificación:
+    (a) Lista enlazada ordenada (como la agenda de eventos): aunque sacar el mínimo es O(1), relajar aristas e insertar distancias tentativas exige barrido lineal O(V). Para Dijkstra sobre V salas y E aristas, la complejidad total degenera a O(V^2 + E*V) = O(V^2). En una cripta de 1 000 salas requiere ~1 000 000 de operaciones elementales, superando 100 ms y violando FR-CAZ-14. Descartada por lenta para grafos medianos y grandes.
+    (b) Montículo binario mínimo propio (`MonticuloMinimo`): implementado en `src/estructuras/monticulo_minimo.py` sobre un arreglo contiguo con flotar/hundir y secuencia de inserción para desempate estable. Inserción y extracción en O(log V), con complejidad total Dijkstra O((V + E) log V). Para 1 000 salas toma ~50 000 operaciones (>20× más rápido que la lista enlazada). Combinado con `TablaIndice` propia para etiquetas de distancia O(1), garantiza ciclos <= 20 ms. Elegida.
+
+    Estrategia de cálculo e invalidación:
+    - Búsqueda acotada por rango (individual): Dijkstra desde el cazador que poda aristas con costo acumulado > rango; acota el trabajo a la bola local B(u, rango) y hace el tiempo independiente del tamaño total de la cripta (FR-CAZ-14).
+    - Cálculo compartido (inverso): Dijkstra desde el jugador acotado por max(rango), aprovechando que los costos son simétricos (FR-CAZ-01). Resuelve a decenas de cazadores simultáneos en un solo barrido. Ambas opciones producen idéntica decisión y se comparan en `--bench` (FR-CAZ-15).
+    - Invalidación de ruta: se invalida inmediatamente si el jugador cambia de sala o si cambia cualquier puerta (`puertas_version`). Muerte de actores o cambios de velocidad no invalidan porque no alteran la topología ni los costos de salida (FR-CAZ-03).
+    - Desempate: entre vecinas v con costo(u, v) + dist(v, jugador) == d, se elige min(v.id) de forma determinista (FR-CAZ-09).
+
+    Complejidad teórica:
+    Búsqueda acotada: O((V_R + E_R) log V_R) donde V_R es el número de salas dentro del rango. Memoria O(V_R). Verificación de validez de caché: O(1). Desempate entre vecinas: O(grado(u)) = O(1).
+
+    Límites y medición:
+    En criptas disconexas o cuando d > rango el cazador espera con costo 100. La justificación empírica completa de las estructuras y estrategias se mide con la suite `--bench` (1 vs 50 cazadores, rango pequeño vs grande, individual vs compartido, y montículo vs lista enlazada) según FR-CAZ-15.
+
+    Evidencia empírica (`--bench`):
+    - Ciclo con 50 cazadores concurrentes: `cazadores_50_ciclo` = 0.000501 s (0.50 ms) vs `cazador_1_ciclo` = 0.000004 s (4 µs), cumpliendo con creces el límite de SC-CAZ-01 (<= 20 ms).
+    - Independencia del tamaño de la cripta con rango acotado: `cazador_rango_pequeno_10k` = 0.000001 s (1 µs en 10 000 salas) vs `cazador_rango_pequeno_100` = 0.000001 s (1 µs en 100 salas), confirmando SC-CAZ-02.
+    - Estrategia compartida vs individual: `cazador_compartido` = 0.000221 s vs `cazador_individual` = 0.015978 s (aceleración de ~72× al resolver en bloque desde el jugador).
+    - Reutilización de rutas con invalidación estricta: `cazador_reutilizacion` = 0.000286 s vs `cazador_recalculo` = 0.010815 s (~38× más rápido preservando equivalencia observable exacta).
+    - Sensibilidad a mutación de puertas: `cazador_puertas_estables` = 0.000020 s vs `cazador_puertas_inestables` = 0.006242 s (invalidación O(1) vía `puertas_version`).
+    - Estructuras evaluadas: `cazador_monticulo_minimo` garantiza O((V+E) log V) y estabilidad por secuencia de inserción, sin dependencias prohibidas.
+    - Validación funcional: 19 pruebas de capacidad 001 aprobadas al 100% (cubriendo los 7 casos del Apéndice B y aclaraciones), regresión completa de 373 pruebas aprobadas (1 omitida por SDL).

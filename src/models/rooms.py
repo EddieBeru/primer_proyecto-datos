@@ -7,14 +7,23 @@ class Exit:
     cerrada: Optional[bool] = None
     llave: Optional[str] = None
     cierre_automatico: Optional[int] = None  # > 0
+    costo: int = 100
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.costo, int) or isinstance(self.costo, bool) or self.costo < 1:
+            raise ValueError(f"costo debe ser un entero >= 1, recibido: {self.costo}")
 
     @classmethod
     def from_dict(cls, data: dict) -> "Exit":
+        costo = data.get("costo", 100)
+        if costo is None:
+            costo = 100
         return cls(
             sala=data["sala"],
             cerrada=data.get("cerrada"),
             llave=data.get("llave"),
             cierre_automatico=data.get("cierre_automatico"),
+            costo=costo,
         )
 
 @dataclass
