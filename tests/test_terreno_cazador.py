@@ -185,14 +185,15 @@ def test_costo_salida_default_y_simetria():
     with pytest.raises(ValueError):
         Exit(sala=4, costo=-10)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         Exit(sala=4, costo="invalido")  # type: ignore
 
     # Deserialización desde dict
     e_dict = Exit.from_dict({"sala": 5, "costo": 300})
     assert e_dict.costo == 300
-    e_dict_none = Exit.from_dict({"sala": 5, "costo": None})
-    assert e_dict_none.costo == 100
+    with pytest.raises(TypeError):
+        Exit.from_dict({"sala": 5, "costo": None})
+    assert Exit.from_dict({"sala": 5}).costo == 100
 
     # SalidaViva
     sv = SalidaViva(direccion="N", destino=2, costo=150)
@@ -729,3 +730,14 @@ def test_bench_suite_cazador_ejecucion():
 
 
 
+
+
+def test_comparador_enlazado_coincide_con_monticulo():
+    from src.orchestrator.bench import _dijkstra_lista_enlazada
+    from src.controller2.rutas import dijkstra_individual
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=500)
+    conectar_salas(estado, 1, "N", 3, "S", costo=20)
+    conectar_salas(estado, 3, "E", 2, "N", costo=30)
+    for rango in (40, 50, 1000):
+        assert _dijkstra_lista_enlazada(estado, 1, 2, rango) == dijkstra_individual(estado, 1, 2, rango)[0]

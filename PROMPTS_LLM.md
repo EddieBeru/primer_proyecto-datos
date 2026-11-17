@@ -420,3 +420,7 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   `b81b1af`; no existe rama publicada separada de001. `gh auth status` muestra
   token local inválido, pero el fetch público de `origin/main` funcionó sin
   autenticación y no encontró commits nuevos.
+
+## 2026-11-16 — Codex (GPT-6)
+
+Prompt (paráfrasis): corregir pendientes de 001, conectar 001/003 con 002/004 siguiendo Spec Kit y realizar commits por hitos. Uso: revisión de convergencia, tareas correctivas y validación por pruebas offline; resultados se registran al ejecutar cada hito.

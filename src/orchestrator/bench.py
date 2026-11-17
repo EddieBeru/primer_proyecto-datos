@@ -328,9 +328,9 @@ def _dijkstra_lista_enlazada(estado, origen, destino, rango_max=None):
     from src.estructuras.tabla_indice import TablaIndice
     distancias = TablaIndice()
     distancias[origen] = 0
-    cola = [(0, origen)]
-    while cola:
-        d_actual, actual = cola.pop(0)
+    cola = ((0, origen), None)
+    while cola is not None:
+        (d_actual, actual), cola = cola
         if actual == destino:
             break
         if rango_max is not None and d_actual > rango_max:
@@ -347,10 +347,14 @@ def _dijkstra_lista_enlazada(estado, origen, destino, rango_max=None):
                 continue
             if v not in distancias or d_tent < distancias[v]:
                 distancias[v] = d_tent
-                idx = 0
-                while idx < len(cola) and cola[idx][0] <= d_tent:
-                    idx += 1
-                cola.insert(idx, (d_tent, v))
+                # Lista enlazada ordenada: cada nodo contiene valor y siguiente.
+                anteriores = []
+                while cola is not None and cola[0][0] <= d_tent:
+                    anteriores.append(cola[0])
+                    cola = cola[1]
+                cola = ((d_tent, v), cola)
+                while anteriores:
+                    cola = (anteriores.pop(), cola)
     return distancias.obtener(destino, None)
 
 

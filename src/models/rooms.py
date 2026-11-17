@@ -24,9 +24,6 @@ class Exit:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Exit":
-        costo = data.get("costo", 100)
-        if costo is None:
-            costo = 100
         return cls(
             sala=data["sala"],
             cerrada=data.get("cerrada"),
