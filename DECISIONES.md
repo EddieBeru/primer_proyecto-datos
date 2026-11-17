@@ -983,3 +983,7 @@ Pruebas nuevas fallaron antes del cambio: geometría del encabezado, etiqueta de
 T045 se cierra con revisión dirigida headless y eventos de teclado/ratón cubiertos por tests/test_vista_resolubilidad.py, tests/test_vista.py y tests/test_vista_historia.py. No hubo recorrido humano en ventana real. La tarea exige distinguir esa evidencia; no impone aprobación humana adicional. La nota histórica que la dejaba abierta únicamente por esa aprobación se sustituye por este alcance explícito. No se modifican reglas del motor ni accesos C1/API en la vista.
 
 Validación final del hito visual: `python -m pytest tests/ -q`:615 pasan,1 omitida (14,66s). `git diff --check` sin errores.
+
+2026-11-16, convergenciaT049: la auditoría encontró puerta canónica descargada cuyo extremo vivo de mayor ID se abrió. La búsqueda desde el otro lado conservaba cerrada_inicial y bloqueaba una ruta transitable. La nueva regresión falló con(None,None) y ahora obtiene(100,2): si falta extremo canónico se consulta la recíproca opuesta viva antes de usar valor inicial. Sin contenido/red/niebla ni barridos globales. Auditoría AST añadida para rutas001, montículo y tabla propios: sin heapq/deque/set/frozenset ni literales/comprensiones de conjunto.
+
+ValidaciónT049/auditoría: `python -m pytest tests/ -q`:617 pasan,1 omitida (11,82s); `git diff --check` sin errores. El benchmark completo se ejecuta en proceso independiente con PID/archivo de salida para conservar su ejecución larga; no hay resultado final todavía.

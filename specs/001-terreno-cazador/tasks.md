@@ -231,3 +231,7 @@ Revisión 2026-11-16: checklist de requisitos 16/16; sin hooks registrados.
 - [X] T046 Probar e integrar esqueleto compartido con 003, puertas vivas y tránsito por salas descargadas sin contenido ni niebla por FR-CAZ-10/FR-CAZ-11 (partial).
 - [ ] T047 Medir y optimizar ciclo completo real de 50 cazadores, búsqueda local con jugador distante y benchmark sin caché accidental por SC-CAZ-01/SC-CAZ-02/FR-CAZ-15 (partial).
 - [X] T048 Validar costos/cazadores con deshacer, guardado, replay y receptor de historia 004; actualizar evidencia y registros por FR-CAZ-11 y Constitución IV/V/VII (partial).
+
+## Phase 9: Convergence
+
+- [X] T049 Corregir lectura de puerta desde metadatos cuando el extremo canónico no está hidratado y el inverso vivo cambió: probar apertura desde extremo de mayor ID y equivalencia independiente de descarga por FR-CAZ-10/FR-CAZ-11 (partial).

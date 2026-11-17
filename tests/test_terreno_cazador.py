@@ -900,3 +900,37 @@ def test_turno_rango_pequeno_no_barre_salas_para_ubicar_cazador():
     estado.salas = SalasSinBarrido(estado.salas)
     assert fachada.turno_enemigo("lejano")[0]
     assert estado.salas[9999].enemigos[0].instancia == "lejano"
+
+
+def test_puerta_canonica_descargada_usa_apertura_del_extremo_vivo():
+    from src.controller2.rutas import dijkstra_individual
+    from src.models.conocimiento import DatosSala, DatosSalida
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, 'E', 2, 'O', costo=50)
+    conectar_salas(estado, 2, 'E', 3, 'O', costo=50, cerrada=True)
+    estado.salas[3].salidas['O'].cerrada = False
+    del estado.salas[2]
+    class Proveedor:
+        def datos_sala(self,sala_id):
+            assert sala_id == 2
+            return DatosSala(2,'Descargada',(
+                DatosSalida('O',1,50,(1,'E')),
+                DatosSalida('E',3,50,(2,'E'),cerrada_inicial=True)))
+    assert dijkstra_individual(estado,1,3,200,proveedor=Proveedor()) == (100,2)
+
+
+def test_rutas_y_estructuras_001_sin_auxiliares_prohibidos():
+    import ast
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parents[1]
+    for archivo in ('src/controller2/rutas.py','src/estructuras/monticulo_minimo.py',
+                    'src/estructuras/tabla_indice.py'):
+        for nodo in ast.walk(ast.parse((raiz/archivo).read_text())):
+            if isinstance(nodo, ast.Name):
+                assert nodo.id not in ('heapq','deque','set','frozenset')
+            if isinstance(nodo, ast.Import):
+                assert all(a.name.split('.')[0] not in ('heapq','deque') for a in nodo.names)
+            if isinstance(nodo, ast.ImportFrom):
+                assert nodo.module not in ('heapq',)
+                assert all(a.name not in ('deque','heapq') for a in nodo.names)
+            assert not isinstance(nodo,(ast.Set,ast.SetComp))

@@ -52,6 +52,12 @@ def _obtener_salidas_sala(estado: EstadoPartida, sala_id: int, proveedor: Any = 
             extremo, direccion = salida.puerta_id
             viva = estado.salas.get(extremo)
             puerta = viva.salidas.get(direccion) if viva is not None else None
+            if puerta is None:
+                vecina = estado.salas.get(salida.destino)
+                opuesta = ("S", "N", "O", "E")[("N", "S", "E", "O").index(salida.direccion)]
+                inversa = vecina.salidas.get(opuesta) if vecina is not None else None
+                if inversa is not None and inversa.destino == sala_id:
+                    puerta = inversa
             cerrada = puerta.cerrada if puerta is not None else salida.cerrada_inicial
             salidas.append(SalidaViva(salida.direccion, salida.destino,
                                      cerrada=cerrada, llave=salida.llave,
