@@ -895,3 +895,16 @@ def test_campo_compartido_equivale_a_individual_en_arcos_dirigidos():
     cambiar_puerta(estado, 4, "E", True)
     for origen in (1, 2, 3, 4):
         assert dijkstra_acotado(estado, origen, 4, 500, campo.obtener(500)) == dijkstra_individual(estado, origen, 4, 500)
+
+
+def test_sync_rng_actualiza_aunque_contador_estado_ya_coincida():
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O")
+    fachada = Fachada(estado, object(), CatalogoSintetico()._fichas)
+    fachada._sync()
+    previo = estado.azar_estado
+    fachada.azar.randint(0, 100)
+    estado.azar_llamadas = fachada.azar.llamadas
+    fachada._sync()
+    assert estado.azar_estado != previo
+    assert estado.azar_estado == fachada.azar._rng.getstate()

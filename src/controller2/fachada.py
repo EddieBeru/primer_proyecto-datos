@@ -159,7 +159,8 @@ class Fachada:
         self.receptor_cambios.registrar_cambios(contexto, tuple(cambios))
 
     def _apilar(self, inversa):
-        cambios = self._actualizar_conocimiento()
+        cambios = ([] if inversa.get("op") in ("mover_enemigo", "turno_enemigo")
+                   else self._actualizar_conocimiento())
         inversa["cambios_conocimiento"] = [c.a_dict() for c in cambios]
         es_accion = inversa.get("op") in ACCIONES_JUGADOR
         self._emitir_cambios(cambios, "accion" if es_accion else "evento",
@@ -203,11 +204,14 @@ class Fachada:
         sincronizar_secuencia(self.estado, "agenda", self.agenda.a_lista(), ordenada=True)
         sincronizar_secuencia(self.estado, "pila_deshacer", self.pila.a_lista())
         for nombre, valor in (("agenda_seq", self.agenda._seq),
-                              ("reloj", self.reloj.ahora),
-                              ("azar_llamadas", self.azar.llamadas),
-                              ("azar_estado", self.azar._rng.getstate())):
+                              ("reloj", self.reloj.ahora)):
             if getattr(self.estado, nombre) != valor:
                 setattr(self.estado, nombre, valor)
+        token_azar = (id(self.azar), self.azar.llamadas)
+        if self.estado.azar_estado is None or getattr(self, "_azar_sincronizado", None) != token_azar:
+            self.estado.azar_estado = self.azar._rng.getstate()
+            self.estado.azar_llamadas = self.azar.llamadas
+            self._azar_sincronizado = token_azar
 
     def _anotar(self, tipo: str, actor: str, detalle: str = "") -> None:
         try:
@@ -580,8 +584,7 @@ class Fachada:
         from src.controller2.enemigos import _sala_de
         sala, actor = ubicacion if ubicacion is not None else _sala_de(self.estado, instancia_id)
         origen = sala.id if sala is not None else None
-        previos = [ev.seq for ev in self.agenda
-                   if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id]
+        primera_seq = self.agenda._seq
         rango = int(getattr(self.catalogo.get(actor.tipo_id if actor else None), "rango", 0) or 0)
         # Los rangos pequeños conservan búsqueda local desde el cazador.
         campo = self._campo_cazadores.obtener(rango) if rango > 200 else None
@@ -594,10 +597,7 @@ class Fachada:
         if turno_antes is not None:
             datos["turno_antes"] = turno_antes
             # Seq del turno reprogramado por el modulo: deshacer lo cancela.
-            eventos = [ev.seq for ev in self.agenda
-                       if ev.tipo == "turno"
-                       and (ev.datos or {}).get("actor") == instancia_id
-                       and ev.seq not in previos]
+            eventos = list(range(primera_seq, self.agenda._seq))
         if origen is not None and destino is not None and origen != destino:
             self._apilar({"op": "mover_enemigo", "datos": datos, "eventos": eventos})
         elif turno_antes is not None:

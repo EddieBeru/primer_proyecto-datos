@@ -434,3 +434,5 @@ Continuación2026-11-16: medición del drenaje real para no atribuir a decisione
 Continuación2026-11-16: optimización del ciclo real y receptor004 mediante reutilización de ubicación, distancias inversas dirigidas para rangos grandes y sincronización por segmentos; nuevas pruebas de equivalencia, ausencia de alias y fallo atómico. No se declara cumplido el objetivo20ms; se mantiene T047 abierta.
 
 Continuación2026-11-16: cierre integrado T046/T047 de002 con001 real y referencia publicada compartida de003. Se añadieron pruebas de sesión y medición reproducible offline;1000 rutas máximo3,802311ms sin fallos5ms. Se corrigieron contadores para excluir preparación y se registraron ambas ejecuciones.
+
+Continuación2026-11-16: reducir costo residual del ciclo completo con historia. Uso: medición amplió alcance a acción+drenaje+cierre, optimización de recorridos/eventos y sincronización RNG con regresión; medición final22,49–28,18ms, no cumple20ms. Se conservaron evidencias negativas y pendienteT047.

@@ -3,6 +3,9 @@ from dataclasses import fields, is_dataclass
 
 
 def dato(valor):
+    tipo = type(valor)
+    if tipo is int or tipo is str or tipo is bool or tipo is float or valor is None:
+        return valor
     if is_dataclass(valor):
         return {f.name: dato(getattr(valor, f.name)) for f in fields(valor)
                 if f.name != "contenido_pendiente" or getattr(valor, f.name)}
@@ -133,6 +136,9 @@ def enlazar(valor, registro, ruta=()):
 
 def limpio(valor):
     """Serialización del modelo conserva tipos del contrato técnico anterior."""
+    tipo = type(valor)
+    if tipo is int or tipo is str or tipo is bool or tipo is float or valor is None:
+        return valor
     if is_dataclass(valor):
         return {f.name: limpio(getattr(valor,f.name)) for f in fields(valor)
                 if f.name != "contenido_pendiente" or getattr(valor, f.name)}
