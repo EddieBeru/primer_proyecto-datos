@@ -202,3 +202,7 @@ checklist. Su nota histórica sobre ausencia del enunciado está desactualizada;
 la fuente normativa y el contraste actual constan en research.md. La revisión
 inicial encontró/reconcilió los receptores antes del primer commit de código.
 No se hicieron operaciones remotas ni se implementó trabajo de persona A.
+
+## Integración001/002/003 — 2026-11-16
+
+`tests/test_integracion_001_004.py` comprueba costos variables, cazador, checkpoints, reconstrucción, guardado/carga en frío, replay y retroceso con RNG exacto. Cubre además guardado4 previo sin RNG en inversas mediante deltas históricos y acciones sin azar que no retienen snapshot de generador. Guardados con ocupación de salas sin contenido usan5; los demás mantienen4 y los lectores nuevos admiten ambos con historia completa. La localización de actores y los campos de rutas se reconstruyen tras cargar o revertir errores. Capturas actuales compartidas con003 en docs/mediciones/003-reporte/; revisión headless en tres resoluciones, sin atribuir recorrido humano. Suite completa618 aprobadas/1 omitida; --bench global final en curso.

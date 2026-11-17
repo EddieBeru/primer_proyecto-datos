@@ -448,3 +448,5 @@ Continuación2026-11-16: auditoría final detectó lectura de puerta canónica d
 Continuación2026-11-16: revisión de consistencia documental del cierre; se corrigen estados obsoletos de specs001–004 y se registra contraste001 con enunciado íntegroP2. Validación documental, sin cambios funcionales.
 
 Continuación2026-11-16: optimizar información inversa RNG tras observar memoria del benchmark de historia; captura únicamente al cambiar, preservando rollback exacto. Prueba de intervalo sin azar y suite618 pasan/1 omitida; benchmark anterior detenido explícitamente para repetir contra código final.
+
+Continuación2026-11-16: completar documentación de usuario e integración004 (costos/cazadores y formatos4/5); sin cambios de código ni nuevas pruebas artificiales.

@@ -74,7 +74,7 @@ se documenta en `specs/003-resolubilidad/quickstart.md`, con muestras en
 
 ## Archivos generados
 
-- `partida.bin`: guardado binario v4 con conocimiento, historia e índice por
+- `partida.bin`: guardado binario v4/v5 con conocimiento, historia e índice por
   sala; el flujo de juego rechaza v1/v2/v3 (los lectores técnicos legados
   quedan separados).
 - `partida.log`: bitácora append, primera línea `#cripta <id> <ver> <vercat> <semilla>`.
@@ -176,9 +176,29 @@ con retícula lógica de8 px para separaciones; todos los bordes son rectos.
 En consola: `historia 300` o `historia #5`. Configura los puntos de control con
 `--checkpoint-cada 20`; `--replay partida.log --hasta 300` imprime el mismo
 resumen sin abrir Pygame. El uso del pergamino recorta la rama histórica; cada
-paso de viaje cuenta por separado. Los guardados nuevos de Sesión son **v4** y
-conservan la historia completa; los v1/v2/v3 se rechazan explícitamente.
+paso de viaje cuenta por separado. Los guardados de Sesión conservan la historia completa en **v4/v5**; los
+v1/v2/v3 se rechazan explícitamente. Se usa v5 cuando el estado o la historia
+incluyen salas ocupadas por cazadores cuyo contenido aún no se descargó. Los
+lectores anteriores a esa integración rechazan v5 como formato desconocido.
 
 [Captura del panel a1024×800](docs/mediciones/004-historia-ui-1024.png). El
 recorrido T033 añade capturas con error, contenido extenso y los tamaños
 admitidos: ver `docs/mediciones/004-t033-panel-*.png` y su transcripción.
+
+## Terreno y cazadores
+
+Cada salida puede indicar un costo entero positivo; si se omite vale100 y es
+el mismo en ambos sentidos. Jugador y enemigos tardan según ese costo y su
+velocidad. El mapa conocido (`M`) muestra los costos de las salidas.
+
+El cazador persigue por la ruta abierta de menor costo dentro de su rango y
+desempata por la vecina de menor ID. Ataca si comparte sala y espera si no hay
+ruta dentro de rango. Conoce las puertas actuales y el esqueleto completo,
+aunque el jugador no los haya explorado ni se haya descargado su contenido.
+Se distingue por el tinte de su sprite. Guardar, cargar, retroceder y consultar
+la historia conservan costos, posiciones, conocimiento y RNG correspondiente.
+
+Las pruebas integradas están en `tests/test_integracion_001_004.py`; las
+mediciones reproducibles y sus límites se documentan en
+`specs/001-terreno-cazador/quickstart.md` y
+`specs/002-niebla-ir-a/quickstart.md`.
