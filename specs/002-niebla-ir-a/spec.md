@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Aclarada e implementada parcialmente; contrastada con P2 el 2026-11-09. Aceptación integrada pendiente de001/004 y referencia de rendimiento.
+**Status**: Implementada e integrada con001/003/004; T046/T047/T052 verificadas con modelos reales, historia y referencia publicada.
 
 **Input**: descripción del usuario y bloque 002 de la guía de parte II.
 

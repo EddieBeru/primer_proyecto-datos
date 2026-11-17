@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft — aclaraciones de esta sesión resueltas; lista para planificación.
+**Status**: Implementada e integrada; pruebas, referencia publicada y revisión visual headless verificadas. Sin atribuir recorrido humano.
 
 **Input**: descripción del usuario y bloque 003 de la guía de parte II.
 

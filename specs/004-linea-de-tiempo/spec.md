@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Implementación004 validada offline el2026-11-10; contratos aprobados, mediciones y capturas registradas. Recorrido manual humano de interfaz pendiente (T033).
+**Status**: Implementada; integración001/002/003 validada offline. Capturas y recorrido dirigido headless registrados, sin recorrido humano.
 
 **Input**: descripción del usuario y bloque 004 de la guía de parte II.
 

@@ -444,3 +444,5 @@ Continuación2026-11-16: cerrar aceptación001/004 y escalabilidad con actor dis
 Continuación2026-11-16: aplicar ui-design-craft y docs/diseno-ui.md al cierre visualT045. Uso: capturas en3 resoluciones, detección/corrección de solapes y nota de botón recortada; regresiones primero y contraste medido13,57:1/6,92:1. Revisión headless del agente, sin atribuir recorrido humano ni WCAG global.
 
 Continuación2026-11-16: auditoría final detectó lectura de puerta canónica descargada; regresión primero y corrección consultando extremo recíproco vivo. Se añadió tarea convergenteT049 y auditoría AST de rutas/estructuras001.
+
+Continuación2026-11-16: revisión de consistencia documental del cierre; se corrigen estados obsoletos de specs001–004 y se registra contraste001 con enunciado íntegroP2. Validación documental, sin cambios funcionales.
