@@ -225,6 +225,17 @@ class Fachada:
 
     def _sync(self) -> None:
         # Evitar desregistrar/serializar de nuevo colecciones y RNG sin cambios.
+        token_azar = (id(self.azar), self.azar.llamadas)
+        previo = getattr(self, "_azar_sincronizado", None)
+        if previo is not None and previo[0] == token_azar[0] and previo[1] < token_azar[1]:
+            for inversa in self.pila:
+                if inversa.get("op") in ACCIONES_JUGADOR:
+                    datos = inversa["datos"]
+                    if "azar_estado_antes" not in datos and datos.get("azar_llamadas_antes") == previo[1]:
+                        from src.controller2.registro_mutaciones import dato
+                        datos["azar_estado_antes"] = dato(self.estado.azar_estado)
+                        self.pila._proyeccion_sucia = True
+                    break
         from src.controller2.registro_mutaciones import sincronizar_pila, sincronizar_agenda
         sincronizar_agenda(self.estado, self.agenda)
         sincronizar_pila(self.estado, self.pila)
@@ -232,7 +243,6 @@ class Fachada:
                               ("reloj", self.reloj.ahora)):
             if getattr(self.estado, nombre) != valor:
                 setattr(self.estado, nombre, valor)
-        token_azar = (id(self.azar), self.azar.llamadas)
         if self.estado.azar_estado is None or getattr(self, "_azar_sincronizado", None) != token_azar:
             self.estado.azar_estado = self.azar._rng.getstate()
             self.estado.azar_llamadas = self.azar.llamadas
@@ -280,10 +290,6 @@ class Fachada:
                     return e.tipo_id
         return None
 
-    def _azar_antes_serializado(self):
-        from src.controller2.registro_mutaciones import dato
-        return dato(self.estado.azar_estado)
-
     def _inversa_accion(self, op: str, datos: dict | None = None,
                         eventos: list[int] | None = None) -> dict:
         """Entrada de pila para una accion del jugador (C2-9).
@@ -295,7 +301,6 @@ class Fachada:
         base: dict = {
             "reloj_antes": int(self.reloj.ahora),
             "acciones_antes": int(getattr(self.estado, "acciones_jugador", 0)),
-            "azar_estado_antes": self._azar_antes_serializado(),
             "azar_llamadas_antes": self.estado.azar_llamadas,
         }
         sala = self.estado.salas.get(self.estado.sala_actual)
@@ -416,14 +421,18 @@ class Fachada:
                                "datos": dict(ev.datos)}
                 break
         derrotados_antes = int(getattr(self.estado, "enemigos_derrotados", 0))
+        azar_antes = self.azar.estado()
         res = ataque_jugador(self.estado, instancia_id, atk_e, def_e, suelta,
                              self.catalogo, azar=self.azar, agenda=self.agenda)
         if res.dano == 0 and res.mensaje:
             return self._fail(res.mensaje)
         datos = {"instancia": instancia_id, "vida_antes": vida_antes,
-                 "botin": res.botin, "derrotados_antes": derrotados_antes}
+                 "botin": res.botin, "derrotados_antes": derrotados_antes,
+                 "azar_llamadas_antes": azar_antes[1]}
         if turno_antes is not None and res.mato:
             datos["turno_antes"] = turno_antes
+        from src.controller2.registro_mutaciones import dato
+        datos["azar_estado_antes"] = dato(azar_antes[2])
         self._apilar(self._inversa_accion("dano_enemigo", datos))
         self._anotar("atacar", "jugador", instancia_id)
         if res.mato:
@@ -764,7 +773,7 @@ class Fachada:
         azar_historico = None
         for inversa in self.pila:
             if inversa.get("op") in ACCIONES_JUGADOR:
-                if "azar_estado_antes" not in inversa.get("datos", {}) and self.receptor_historia is not None:
+                if "azar_llamadas_antes" not in inversa.get("datos", {}) and self.receptor_historia is not None:
                     azar_historico = self.receptor_historia.azar_antes_ultimo_intervalo()
                 break
         ok, msg = deshacer_una(self.estado, self.agenda, self.pila, self.catalogo)

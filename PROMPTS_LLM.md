@@ -446,3 +446,5 @@ Continuación2026-11-16: aplicar ui-design-craft y docs/diseno-ui.md al cierre v
 Continuación2026-11-16: auditoría final detectó lectura de puerta canónica descargada; regresión primero y corrección consultando extremo recíproco vivo. Se añadió tarea convergenteT049 y auditoría AST de rutas/estructuras001.
 
 Continuación2026-11-16: revisión de consistencia documental del cierre; se corrigen estados obsoletos de specs001–004 y se registra contraste001 con enunciado íntegroP2. Validación documental, sin cambios funcionales.
+
+Continuación2026-11-16: optimizar información inversa RNG tras observar memoria del benchmark de historia; captura únicamente al cambiar, preservando rollback exacto. Prueba de intervalo sin azar y suite618 pasan/1 omitida; benchmark anterior detenido explícitamente para repetir contra código final.

@@ -79,3 +79,17 @@ def test_guardado_v4_anterior_sin_rng_en_inversa_migra_al_deshacer(tmp_path):
     assert otra.paso('deshacer')[0]
     assert estado_serializado(otra.estado)['azar_estado'] == antes['azar_estado']
     assert otra.estado.azar_llamadas == antes['azar_llamadas']
+
+
+def test_intervalo_sin_azar_no_guarda_estado_completo_del_generador(tmp_path):
+    backend = FakeBackend()
+    for contenido in backend.fake._contenido.values():
+        contenido.enemigos.clear()
+        contenido.trampas.clear()
+    ses = nueva_sesion(tmp_path, backend=backend)
+    ses.iniciar(CRIPTA_ID)
+    assert ses.paso('esperar')[0]
+    inversa = next(iter(ses.fachada.pila))
+    assert inversa['datos']['azar_llamadas_antes'] == 0
+    assert 'azar_estado_antes' not in inversa['datos']
+    assert ses.estado.azar_llamadas == 0

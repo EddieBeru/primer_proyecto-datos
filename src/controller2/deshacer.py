@@ -162,6 +162,7 @@ def aplicar_inversa(estado, agenda, inversa: dict[str, Any]) -> bool:
             estado.acciones_jugador = int(d["acciones_antes"])
         if "azar_estado_antes" in d:
             estado.azar_estado = d["azar_estado_antes"]
+        if "azar_llamadas_antes" in d:
             estado.azar_llamadas = d["azar_llamadas_antes"]
         sid = d.get("sala_rastro")
         if sid is not None and "rastro_antes" in d:
