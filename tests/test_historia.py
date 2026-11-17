@@ -194,3 +194,25 @@ def test_guardados_p1_validos_rechazados_sin_modificar_sesion(tmp_path,version,e
     cargar=s.cargar_en_frio if en_frio else s.cargar
     with pytest.raises(GuardadoError,match='incompatible'):cargar(ruta)
     assert s.estado.a_dict()==actual and s.linea.a_dict()==historia
+
+
+def test_sync_segmentos_agenda_no_alias_y_fallo_atomico(tmp_path, monkeypatch):
+    from src.controller2.registro_mutaciones import sincronizar_secuencia
+    s = sesion(tmp_path)
+    linea = s.linea
+    linea.comenzar()
+    antes = list(s.estado.agenda)
+    nueva = [{'t': 0, 'seq': -2, 'tipo': 'turno', 'datos': {'actor': 'prueba'}}] + antes
+    sincronizar_secuencia(s.estado, 'agenda', nueva, ordenada=True)
+    nueva[0]['datos']['actor'] = 'mutado afuera'
+    assert s.estado.agenda[0]['datos']['actor'] == 'prueba'
+    assert linea.registros[-1][4][0]['datos']['actor'] == 'prueba'
+    actual = s.estado.agenda
+    registros = len(linea.registros)
+    def fallar(*args):
+        raise RuntimeError('fallo inyectado')
+    monkeypatch.setattr(linea, 'registrar_cambio', fallar)
+    with pytest.raises(RuntimeError, match='inyectado'):
+        sincronizar_secuencia(s.estado, 'agenda', antes, ordenada=True)
+    assert s.estado.agenda is actual
+    assert len(linea.registros) == registros

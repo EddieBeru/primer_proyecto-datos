@@ -430,3 +430,5 @@ Continuación2026-11-16: se integró el proveedor neutral en turnos del cazador,
 Continuación2026-11-16 (paráfrasis): corregir coherencia física de puertas y deshacer. Uso: función común de puerta recíproca, sincronización al incorporar salas y regresión de victoria al abrir desde salida; suite completa599 pasan/1 omitida.
 
 Continuación2026-11-16: medición del drenaje real para no atribuir a decisiones aisladas la aceptación del ciclo; siete muestras54,5–92,4ms, resultado negativo registrado. Se agregó función reproducible y métricas del drenaje a bench_cazadores; no se declara rendimiento logrado.
+
+Continuación2026-11-16: optimización del ciclo real y receptor004 mediante reutilización de ubicación, distancias inversas dirigidas para rangos grandes y sincronización por segmentos; nuevas pruebas de equivalencia, ausencia de alias y fallo atómico. No se declara cumplido el objetivo20ms; se mantiene T047 abierta.

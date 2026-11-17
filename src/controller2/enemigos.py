@@ -100,6 +100,7 @@ def decidir_accion_cazador(
     catalogo: dict | None = None,
     proveedor: Any = None,
     distancias_destino: Any = None,
+    ubicacion=None,
 ) -> tuple[str, int, int | None]:
     """Evalúa la acción del cazador según el orden estricto de prioridades (FR-CAZ-05):
     1. Si comparte la sala con el jugador al inicio de su turno: ataca cuerpo a cuerpo ("atacar", 100, None).
@@ -107,7 +108,7 @@ def decidir_accion_cazador(
     3. Si no existe ruta abierta o d > rango: espera en su sala ("esperar", 100, None).
     4. Si d <= rango: avanza un paso por la ruta óptima ("mover", costo_salida, siguiente_sala).
     """
-    sala, actual = _sala_de(estado, instancia_id)
+    sala, actual = ubicacion if ubicacion is not None else _sala_de(estado, instancia_id)
     if actual is None or sala is None:
         return "esperar", 100, None
 
@@ -201,15 +202,9 @@ def decidir_destino(estado: EstadoPartida, instancia_id: str,
     return azar.choice(vecinas)  # ya vienen ordenadas por _vecinas_abiertas
 
 
-def mover_enemigo(estado: EstadoPartida, instancia_id: str, destino: int) -> bool:
-    """Mueve la instancia entre salas (errante/rastreador)."""
-    origen = None
-    objetivo = None
-    for sala in estado.salas.values():
-        for e in sala.enemigos:
-            if e.instancia == instancia_id:
-                origen, objetivo = sala, e
-                break
+def mover_enemigo(estado: EstadoPartida, instancia_id: str, destino: int, ubicacion=None) -> bool:
+    """Mueve la instancia entre salas usando la ubicación resuelta en su turno."""
+    origen, objetivo = ubicacion if ubicacion is not None else _sala_de(estado, instancia_id)
     if objetivo is None or destino not in estado.salas:
         return False
     if origen is not None and origen.id != destino:
@@ -271,16 +266,15 @@ def ejecutar_oleada(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
 
 def turno_enemigo(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                   instancia_id: str, catalogo: dict | None = None,
-                  azar=None, proveedor=None) -> str:
+                  azar=None, proveedor=None, ubicacion=None, distancias_destino=None) -> str:
     """Ejecuta un turno: decide, mueve y reprograma el siguiente."""
-    origen_sala = next((s for s in estado.salas.values()
-                        for e in s.enemigos if e.instancia == instancia_id), None)
+    origen_sala, actor = ubicacion if ubicacion is not None else _sala_de(estado, instancia_id)
     costo_accion = 100
-    tipo_inicial = next((e.tipo_id for s in estado.salas.values()
-                         for e in s.enemigos if e.instancia == instancia_id), None)
+    tipo_inicial = actor.tipo_id if actor is not None else None
     if comportamiento_de(catalogo, tipo_inicial) == "cazador":
         _, costo_accion, destino = decidir_accion_cazador(
-            estado, instancia_id, catalogo, proveedor=proveedor)
+            estado, instancia_id, catalogo, proveedor=proveedor,
+            ubicacion=(origen_sala, actor), distancias_destino=distancias_destino)
     else:
         destino = decidir_destino(estado, instancia_id, catalogo, reloj.ahora, azar)
     if destino is not None and origen_sala is not None:
@@ -295,14 +289,10 @@ def turno_enemigo(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                 datos.id, datos.nombre,
                 salidas={s.direccion: s for s in salidas},
                 contenido_pendiente=True)
-        mover_enemigo(estado, instancia_id, destino)
-    tipo = next((e.tipo_id for s in estado.salas.values()
-                 for e in s.enemigos if e.instancia == instancia_id), None)
+        mover_enemigo(estado, instancia_id, destino, ubicacion=(origen_sala, actor))
+    tipo = tipo_inicial
     if tipo is not None:
         ev = reloj.programar_turno(agenda, instancia_id, velocidad_de(catalogo, tipo),
                                    {"kind": "enemigo", "tipo": tipo}, costo=costo_accion)
-        for s in estado.salas.values():
-            for e in s.enemigos:
-                if e.instancia == instancia_id:
-                    e.tiempo_siguiente = ev.t
+        actor.tiempo_siguiente = ev.t
     return f"{instancia_id}->" + (str(destino) if destino is not None else "quieto")

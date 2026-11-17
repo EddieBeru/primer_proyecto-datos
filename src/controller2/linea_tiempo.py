@@ -1,6 +1,6 @@
 """Historia por diario de escrituras y checkpoints; consultas sin motor ni red."""
 from copy import deepcopy
-from src.controller2.registro_mutaciones import dato, diferencias, enlazar
+from src.controller2.registro_mutaciones import dato, diferencias, enlazar, copiar_registro
 from src.models.historia import ResumenHistorico
 
 def conocimiento_serializado(estado):
@@ -84,7 +84,7 @@ class LineaTiempo:
     def registrar_cambio(self, contexto, inversa):
         """Registro interno ya desligado del estado vivo."""
         if not self.activo: raise ValueError('sin acción abierta')
-        self.registros.append(deepcopy(inversa))
+        self.registros.append(copiar_registro(inversa))
 
     def comenzar(self):
         self._tiempo = self.estado.reloj

@@ -218,3 +218,58 @@ def dijkstra_individual(
                 pendientes.insertar((nuevo_costo, nuevo_primero, vecino),
                                      (vecino, nuevo_costo, nuevo_primero))
     return None, None
+
+
+class CampoCazadores:
+    """Distancias compartidas con arcos inversos explícitos, incluso dirigidos."""
+
+    def __init__(self, estado, proveedor):
+        self.estado, self.proveedor = estado, proveedor
+        self._entradas = TablaIndice()
+        self._cantidad = -1
+        self._contexto = None
+        self._distancias = None
+
+    def entradas(self, destino):
+        if hasattr(self.proveedor, "entradas_sala"):
+            return self.proveedor.entradas_sala(destino)
+        # Adaptador técnico sin proveedor neutral: topología de salas vivas.
+        if self._cantidad != len(self.estado.salas):
+            self._entradas = TablaIndice()
+            for sala in self.estado.salas.values():
+                for direccion, salida in sala.salidas.items():
+                    entradas = self._entradas.obtener(salida.destino)
+                    if entradas is None:
+                        entradas = []
+                        self._entradas[salida.destino] = entradas
+                    entradas.append((sala.id, direccion))
+            self._cantidad = len(self.estado.salas)
+        return self._entradas.obtener(destino, ())
+
+    def obtener(self, rango):
+        contexto = (self.estado.sala_actual, self.estado.puertas_version, len(self.estado.salas))
+        if self._contexto == contexto and self._distancias is not None and self._rango >= rango:
+            return self._distancias
+        distancias = TablaIndice()
+        destino = self.estado.sala_actual
+        distancias[destino] = 0
+        pendientes = MonticuloMinimo()
+        pendientes.insertar(0, (destino, 0))
+        while pendientes:
+            actual, costo = pendientes.extraer()
+            if distancias.obtener(actual) != costo:
+                continue
+            for origen, direccion in self.entradas(actual):
+                salida = next((s for s in _obtener_salidas_sala(self.estado, origen, self.proveedor)
+                               if s.direccion == direccion), None)
+                if salida is None or salida.cerrada:
+                    continue
+                nuevo = costo + salida.costo
+                if nuevo > rango:
+                    continue
+                previo = distancias.obtener(origen)
+                if previo is None or nuevo < previo:
+                    distancias[origen] = nuevo
+                    pendientes.insertar(nuevo, (origen, nuevo))
+        self._contexto, self._rango, self._distancias = contexto, rango, distancias
+        return distancias

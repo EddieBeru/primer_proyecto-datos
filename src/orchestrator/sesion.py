@@ -55,6 +55,18 @@ class ProveedorSesion:
         self.registrador = registrador
         self._armadas = TablaIndice()
         self._metadatos = preparar_metadatos(loader.plano.values())
+        self._entradas = TablaIndice()
+        for sala in self._metadatos.valores():
+            for salida in sala.salidas:
+                entradas = self._entradas.obtener(salida.destino)
+                if entradas is None:
+                    entradas = []
+                    self._entradas[salida.destino] = entradas
+                entradas.append((sala.id, salida.direccion))
+
+    def entradas_sala(self, sala_id):
+        """Adyacencia inversa neutral del mismo esqueleto, sin contenido."""
+        return self._entradas.obtener(sala_id, ())
 
     def datos_sala(self, sala_id):
         try:
@@ -375,6 +387,8 @@ class Sesion:
         anterior = self.linea.revertir()
         self.estado = EstadoPartida.desde_dict(anterior)
         self.fachada.estado = self.estado
+        from src.controller2.rutas import CampoCazadores
+        self.fachada._campo_cazadores = CampoCazadores(self.estado, self.proveedor)
         self.fachada.agenda = Agenda.desde_lista(self.estado.agenda)
         self.fachada.agenda._seq = self.estado.agenda_seq
         self.fachada.pila = PilaDeshacer.desde_lista(self.estado.pila_deshacer)

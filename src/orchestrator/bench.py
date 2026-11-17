@@ -358,7 +358,7 @@ def _dijkstra_lista_enlazada(estado, origen, destino, rango_max=None):
     return distancias.obtener(destino, None)
 
 
-def medir_ciclo_cazadores(cantidad=50, salas=1000):
+def medir_ciclo_cazadores(cantidad=50, salas=1000, historia=False):
     """Medir drenaje real; preparación fuera del reloj, sin red ni render."""
     from time import perf_counter_ns
     from src.controller2.modelo import EnemigoInstancia
@@ -373,11 +373,19 @@ def medir_ciclo_cazadores(cantidad=50, salas=1000):
         fachada.agenda.programar(1, "turno", {"actor": f"caz-{i}", "kind": "enemigo"})
     sesion = Sesion(log_ruta=None)
     sesion.estado, sesion.fachada = estado, fachada
+    if historia:
+        from src.controller2.linea_tiempo import LineaTiempo
+        fachada._sync()
+        sesion.linea = LineaTiempo(estado)
+        fachada.receptor_historia = sesion.linea
+        sesion.linea.comenzar()
     inicio = perf_counter_ns()
     sesion._drenar()
     duracion = (perf_counter_ns() - inicio) / 1e9
     if fachada.error is not None:
         raise RuntimeError(fachada.error)
+    if historia:
+        sesion.linea.cerrar_accion({"reloj": 0, "tipo": "esperar"}, estado)
     return duracion
 
 

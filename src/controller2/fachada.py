@@ -73,6 +73,9 @@ class Fachada:
         self.receptor_historia = receptor_historia
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
+        from src.controller2.rutas import CampoCazadores
+        self._campo_cazadores = CampoCazadores(estado, proveedor)
+        self._campo_cazadores.entradas(estado.sala_actual)
         self.orden_fn = orden_fn  # sorts de C1 inyectados por la Sesión (§4.1/§5.1)
         self.oleada_cada = OLEADA_CADA if oleada_cada is None else int(oleada_cada)
         self.bitacora = bitacora or BitacoraMemoria()
@@ -195,15 +198,16 @@ class Fachada:
             self.mensajes.agregar("Viaje detenido: " + self.viaje.ultimo_motivo)
 
     def _sync(self) -> None:
-        self.estado.agenda = self.agenda.a_lista()
-        self.estado.agenda_seq = self.agenda._seq
-        self.estado.reloj = self.reloj.ahora
-        self.estado.pila_deshacer = self.pila.a_lista()
-        try:
-            self.estado.azar_llamadas = self.azar.llamadas
-            self.estado.azar_estado = self.azar._rng.getstate()
-        except Exception:
-            pass
+        # Evitar desregistrar/serializar de nuevo colecciones y RNG sin cambios.
+        from src.controller2.registro_mutaciones import sincronizar_secuencia
+        sincronizar_secuencia(self.estado, "agenda", self.agenda.a_lista(), ordenada=True)
+        sincronizar_secuencia(self.estado, "pila_deshacer", self.pila.a_lista())
+        for nombre, valor in (("agenda_seq", self.agenda._seq),
+                              ("reloj", self.reloj.ahora),
+                              ("azar_llamadas", self.azar.llamadas),
+                              ("azar_estado", self.azar._rng.getstate())):
+            if getattr(self.estado, nombre) != valor:
+                setattr(self.estado, nombre, valor)
 
     def _anotar(self, tipo: str, actor: str, detalle: str = "") -> None:
         try:
@@ -572,15 +576,19 @@ class Fachada:
         return self._ok()
 
     # -- enemigos (C2-8) y reloj (C2-3) --
-    def turno_enemigo(self, instancia_id: str, turno_antes: dict | None = None) -> tuple[bool, str]:
-        origen = next((e.sala_actual for s in self.estado.salas.values()
-                       for e in s.enemigos if e.instancia == instancia_id), None)
+    def turno_enemigo(self, instancia_id: str, turno_antes: dict | None = None, ubicacion=None, sincronizar=True) -> tuple[bool, str]:
+        from src.controller2.enemigos import _sala_de
+        sala, actor = ubicacion if ubicacion is not None else _sala_de(self.estado, instancia_id)
+        origen = sala.id if sala is not None else None
         previos = [ev.seq for ev in self.agenda
                    if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id]
+        rango = int(getattr(self.catalogo.get(actor.tipo_id if actor else None), "rango", 0) or 0)
+        # Los rangos pequeños conservan búsqueda local desde el cazador.
+        campo = self._campo_cazadores.obtener(rango) if rango > 200 else None
         msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id,
-                             self.catalogo, azar=self.azar, proveedor=self.proveedor)
-        destino = next((e.sala_actual for s in self.estado.salas.values()
-                        for e in s.enemigos if e.instancia == instancia_id), None)
+                             self.catalogo, azar=self.azar, proveedor=self.proveedor,
+                             ubicacion=(sala, actor), distancias_destino=campo)
+        destino = actor.sala_actual if actor is not None else None
         datos = {"instancia": instancia_id, "origen": origen, "destino": destino}
         eventos: list[int] = []
         if turno_antes is not None:
@@ -595,7 +603,8 @@ class Fachada:
         elif turno_antes is not None:
             self._apilar({"op": "turno_enemigo", "datos": datos, "eventos": eventos})
         self._anotar("mover", instancia_id, msg)
-        self._sync()
+        if sincronizar:
+            self._sync()
         return True, msg
 
     def _avanzar_evento(self) -> str:
@@ -687,6 +696,8 @@ class Fachada:
                     if e.instancia == actor:
                         sala_a, obj = s, e
                         break
+                if obj is not None:
+                    break
             if obj is None or not obj.vivo:
                 self._sync()
                 return ev.tipo
@@ -705,7 +716,7 @@ class Fachada:
                 self._sync()
                 actualizar_estado(self.estado)
                 return ev.tipo
-            self.turno_enemigo(actor, turno_antes=turno_antes)
+            self.turno_enemigo(actor, turno_antes=turno_antes, ubicacion=(sala_a, obj), sincronizar=False)
         self._sync()
         actualizar_estado(self.estado)
         return ev.tipo
@@ -717,7 +728,6 @@ class Fachada:
             self.receptor_historia._tiempo = proximo.t if proximo is not None else self.reloj.ahora
         resultado = self._avanzar_evento()
         if self.receptor_historia is not None and self.receptor_historia.activo:
-            self._sync()
             self.receptor_historia.evento()
         return resultado
 

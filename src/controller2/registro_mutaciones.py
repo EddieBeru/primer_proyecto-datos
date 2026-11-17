@@ -150,3 +150,68 @@ def desenlazar(valor):
         for v in valor.values(): desenlazar(v)
     elif isinstance(valor,list):
         for v in valor: desenlazar(v)
+
+
+def sincronizar_secuencia(estado, nombre, nueva, ordenada=False):
+    """Publicar snapshots de agenda/pila mediante segmentos, sin copiar su prefijo.
+
+    Estas dos listas son proyecciones de las estructuras del motor y solo se
+    reemplazan desde Fachada._sync. Los elementos conservados ya están separados
+    de esas estructuras; los nuevos se convierten antes de publicar el cambio.
+    """
+    anterior = getattr(estado, nombre)
+    if anterior == nueva:
+        return
+    cambios = []
+    resultado = []
+    if ordenada:
+        i = j = 0
+        while i < len(anterior) or j < len(nueva):
+            if i < len(anterior) and j < len(nueva) and anterior[i] == nueva[j]:
+                resultado.append(anterior[i]); i += 1; j += 1
+                continue
+            posicion = len(resultado)
+            if j == len(nueva) or (i < len(anterior) and
+                    (anterior[i]['t'], anterior[i]['seq']) < (nueva[j]['t'], nueva[j]['seq'])):
+                cambios.append([[nombre], True, [dato(anterior[i])], True, [], posicion])
+                i += 1
+            elif i == len(anterior) or (nueva[j]['t'], nueva[j]['seq']) < (anterior[i]['t'], anterior[i]['seq']):
+                valor = dato(nueva[j])
+                cambios.append([[nombre], True, [], True, [valor], posicion])
+                resultado.append(valor); j += 1
+            else:
+                valor = dato(nueva[j])
+                cambios.append([[nombre], True, [dato(anterior[i])], True, [valor], posicion])
+                resultado.append(valor); i += 1; j += 1
+    else:
+        inicio = 0
+        while inicio < min(len(anterior), len(nueva)) and anterior[inicio] == nueva[inicio]:
+            inicio += 1
+        fin = 0
+        while fin < min(len(anterior), len(nueva)) - inicio and anterior[-fin-1] == nueva[-fin-1]:
+            fin += 1
+        nuevos = [dato(v) for v in nueva[inicio:len(nueva)-fin]]
+        cambios.append([[nombre], True, dato(anterior[inicio:len(anterior)-fin]), True, nuevos, inicio])
+        resultado = list(anterior[:inicio]) + nuevos + (list(anterior[len(anterior)-fin:]) if fin else [])
+    receptor = estado.__dict__.get('_registro')
+    if receptor is not None and receptor.activo:
+        comienzo = len(receptor.registros)
+        try:
+            for cambio in cambios:
+                receptor.registrar_cambio(receptor.contexto(), cambio)
+        except Exception:
+            del receptor.registros[comienzo:]
+            raise
+    object.__setattr__(estado, nombre, resultado)
+
+
+def copiar_registro(valor):
+    """Copiar únicamente el dominio JSON del diario, sin objetos del motor."""
+    tipo = type(valor)
+    if tipo is list:
+        return [copiar_registro(v) for v in valor]
+    if tipo is dict:
+        return {k: copiar_registro(v) for k, v in valor.items()}
+    if tipo is tuple:
+        return tuple(copiar_registro(v) for v in valor)
+    return valor

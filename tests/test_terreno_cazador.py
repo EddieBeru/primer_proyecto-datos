@@ -858,3 +858,40 @@ def test_puerta_reciproca_abre_cierra_y_deshace_desde_ambos_extremos():
     assert aplicar_inversa(estado, agenda, {"op": "abrir", "datos": {
         "sala": 1, "direccion": "E"}})
     assert estado.salas[2].salidas["O"].cerrada
+
+
+def test_turno_reutiliza_ubicacion_del_actor():
+    from src.controller2.enemigos import turno_enemigo
+    from src.controller2.agenda import Agenda
+    from src.controller2.reloj import RelojVirtual
+    class SalasContadas(dict):
+        recorridos = 0
+        def values(self):
+            self.recorridos += 1
+            return super().values()
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=100)
+    estado.salas[2].enemigos.append(EnemigoInstancia("caz", "cazador-estandar", 20, 2))
+    estado.salas = SalasContadas(estado.salas)
+    turno_enemigo(estado, Agenda(), RelojVirtual(), "caz", CatalogoSintetico()._fichas)
+    assert estado.salas[1].enemigos[0].instancia == "caz"
+    assert estado.salas.recorridos <= 2
+
+
+def test_campo_compartido_equivale_a_individual_en_arcos_dirigidos():
+    from src.controller2.rutas import CampoCazadores, dijkstra_individual, dijkstra_acotado
+    from src.controller2.movimiento import cambiar_puerta
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=40)
+    conectar_salas(estado, 2, "E", 3, "O", costo=60)
+    conectar_salas(estado, 1, "N", 4, "S", costo=30)
+    conectar_salas(estado, 4, "E", 3, "N", costo=70)
+    del estado.salas[2].salidas["E"]
+    campo = CampoCazadores(estado, object())
+    for destino in (1, 3, 4):
+        estado.sala_actual = destino
+        for origen in (1, 2, 3, 4):
+            assert dijkstra_acotado(estado, origen, destino, 500, campo.obtener(500)) == dijkstra_individual(estado, origen, destino, 500)
+    cambiar_puerta(estado, 4, "E", True)
+    for origen in (1, 2, 3, 4):
+        assert dijkstra_acotado(estado, origen, 4, 500, campo.obtener(500)) == dijkstra_individual(estado, origen, 4, 500)
