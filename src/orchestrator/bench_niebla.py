@@ -165,3 +165,50 @@ def bench_conocimiento(tamanos=(100, 1000, 10000), muestras=None):
         resultados.append(fila)
     return {'niebla_entorno': {'semilla': SEMILLA, 'python': platform.python_version(),
         'sistema': platform.platform(), 'cpu': platform.processor() or platform.machine()}, 'niebla_conocimiento': resultados}
+
+
+def bench_referencia_publicada(paquete, muestras=1000):
+    """Rutas sobre una instantánea publicada; sin HTTP ni contenido de salas."""
+    from src.models.rooms import SkeletonPage
+    from src.models.conocimiento import preparar_metadatos
+    salas = [sala for pagina in paquete['paginas_esqueleto']
+             for sala in SkeletonPage.from_dict(pagina).salas]
+    metadatos = preparar_metadatos(salas)
+    mapa = MapaConocido()
+    for sala in metadatos.valores():
+        mapa.explorar(sala)
+        for salida in sala.salidas:
+            mapa.observar(salida.puerta_id, salida.cerrada_inicial)
+    ids = [sala.id for sala in salas]
+    rng = random.Random(SEMILLA)
+    pares = [(ids[rng.randrange(len(ids))], ids[rng.randrange(len(ids))])
+             for _ in range(muestras)]
+    tiempos = []
+    for origen, destino in pares:
+        inicio = time.perf_counter_ns()
+        siguiente_paso(origen, destino, mapa.adyacentes)
+        tiempos.append((time.perf_counter_ns()-inicio)/1e6)
+    # Mismo trabajo local tras prefijos crecientes de salas exploradas.
+    revelaciones = []
+    for cantidad in (len(ids)//3, 2*len(ids)//3, len(ids)-1):
+        parcial = MapaConocido()
+        for sala_id in ids[:cantidad]:
+            parcial.explorar(metadatos[sala_id])
+        contado = IndiceContado()
+        for sala in parcial.salas():
+            contado[sala.id] = sala
+        parcial._salas = contado
+        objetivo = ids[-1]
+        antes = (contado.consultas, contado.escrituras, contado.rehash_registros)
+        parcial.revelar(objetivo, metadatos.obtener)
+        revelaciones.append({'salas_previas': cantidad, 'consultas': contado.consultas-antes[0],
+                             'escrituras': contado.escrituras-antes[1],
+                             'rehash_registros': contado.rehash_registros-antes[2]})
+    orden = mergesort(tiempos)
+    return {'id': paquete['general']['id'], 'version': paquete['general']['version'],
+            'V': len(salas), 'E': sum(len(s.salidas) for s in salas),
+            'semilla': SEMILLA, 'python': platform.python_version(),
+            'maquina': platform.platform(), 'cpu': platform.processor() or platform.machine(),
+            'muestras': muestras, 'pares': pares, 'tiempos_ms': tiempos,
+            'max_ms': orden[-1], 'mediana_ms': orden[len(orden)//2],
+            'fallos_5ms': sum(t > 5 for t in tiempos), 'revelaciones': revelaciones}

@@ -365,3 +365,9 @@ recorrido, Escape fuera del panel y que el mapa no exponga nombres de
 avistadas. Queda registrada la diferencia entre estos recorridos dirigidos y
 una partida humana completa; T046/T047 siguen bloqueando la aceptación
 completa de002.
+
+## Integración y referencia publicada2026-11-16
+
+`python -m pytest tests/test_sesion.py -k 001_002 -q`:2 pasan. Movimiento y viaje de vuelta consumen intervalo ponderado real; costos/identidad/observación de puerta son simétricos; empate hacia4 elige vecina2 antes que3. No se utiliza subclase ponderada falsa.
+
+`python docs/mediciones/002-referencia/medir.py` mide sin HTTP sobre la instantánea publicada compartida con003. Paquete cripta-06 versión f9ed9afa683d,300 salas/760 arcos;1000 pares por semilla20261106; máximo3,802311ms y0 fallos5ms. Entorno,commit,hash,pares y muestras íntegros en `docs/mediciones/002-referencia/resultado.json`. La primera ejecución dio4,771416ms/0 fallos; se repitió al corregir contadores que incluían preparación. Revelación posterior a100/200/299 salas:5/5/3 consultas y3/3/1 escrituras;0 registros rehash dentro de esas operaciones. Esto complementa las secuencias de expansiones incluidas en la medición sintética, no las excluye del costo amortizado. La aceptación corresponde a esta instantánea/version/carga, no a criptas futuras. T046/T047 quedan verificadas.

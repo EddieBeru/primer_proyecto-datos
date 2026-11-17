@@ -525,3 +525,34 @@ def test_001_002_costos_reales_simetria_y_reloj(tmp_path):
     assert ses.avanzar_viaje()[0]
     assert ses.estado.sala_actual == 1
     assert ses.estado.reloj - antes == intervalo(250, velocidad)
+
+
+def test_001_002_empate_real_y_memoria_puerta_desde_ambos_extremos(tmp_path):
+    backend = FakeBackend()
+    backend.fake._salas[2].salidas['S'].cerrada = False
+    backend.fake._salas[2].salidas['S'].cerrada_inicial = False
+    backend.fake._salas[4].salidas['N'].cerrada = False
+    backend.fake._salas[4].salidas['N'].cerrada_inicial = False
+    for contenido in backend.fake._contenido.values():
+        contenido.enemigos = []
+        contenido.trampas = []
+    ses = nueva_sesion(tmp_path, backend=backend)
+    ses.iniciar(CRIPTA_ID)
+    mapa = ses.estado.conocimiento
+    for sala_id in (1, 2, 3, 4):
+        mapa.explorar(ses.proveedor.datos_sala(sala_id))
+        for salida in ses.proveedor.datos_sala(sala_id).salidas:
+            mapa.observar(salida.puerta_id, salida.cerrada_inicial)
+    assert ses.paso('ir a 4')[0]
+    ruta = ses.fachada.preparar_paso_viaje()
+    assert (ruta.costo_total, ruta.primer_vecino, ruta.direccion) == (200, 2, 'E')
+    assert ses.avanzar_viaje()[0]
+    assert ses.estado.sala_actual == 2
+    # Ambos extremos de una puerta física comparten identidad y observación.
+    from src.controller2.movimiento import cambiar_puerta
+    cambiar_puerta(ses.estado, 2, 'O', True)
+    ses.fachada._actualizar_conocimiento()
+    ida = next(s for s in ses.proveedor.datos_sala(1).salidas if s.destino == 2)
+    vuelta = next(s for s in ses.proveedor.datos_sala(2).salidas if s.destino == 1)
+    assert ida.puerta_id == vuelta.puerta_id
+    assert mapa.puerta(ida.puerta_id) == mapa.puerta(vuelta.puerta_id) == 'cerrada'

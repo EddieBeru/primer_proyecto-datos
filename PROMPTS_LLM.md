@@ -432,3 +432,5 @@ Continuación2026-11-16 (paráfrasis): corregir coherencia física de puertas y 
 Continuación2026-11-16: medición del drenaje real para no atribuir a decisiones aisladas la aceptación del ciclo; siete muestras54,5–92,4ms, resultado negativo registrado. Se agregó función reproducible y métricas del drenaje a bench_cazadores; no se declara rendimiento logrado.
 
 Continuación2026-11-16: optimización del ciclo real y receptor004 mediante reutilización de ubicación, distancias inversas dirigidas para rangos grandes y sincronización por segmentos; nuevas pruebas de equivalencia, ausencia de alias y fallo atómico. No se declara cumplido el objetivo20ms; se mantiene T047 abierta.
+
+Continuación2026-11-16: cierre integrado T046/T047 de002 con001 real y referencia publicada compartida de003. Se añadieron pruebas de sesión y medición reproducible offline;1000 rutas máximo3,802311ms sin fallos5ms. Se corrigieron contadores para excluir preparación y se registraron ambas ejecuciones.
