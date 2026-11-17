@@ -125,12 +125,7 @@ def dijkstra_acotado(
         return None, None
 
     if distancias_destino is None:
-        distancias_destino = distancias_desde_destino(
-            estado=estado,
-            destino=destino,
-            rango_max=rango_max,
-            proveedor=proveedor,
-        )
+        return dijkstra_individual(estado, origen, destino, rango_max, proveedor)
 
     mejor_d: int | None = None
     vecinas_candidatas: list[int] = []
@@ -189,51 +184,30 @@ def dijkstra_individual(
     if sala_origen is None:
         return None, None
 
-    distancias: TablaIndice[int] = TablaIndice()
-    primer_paso: TablaIndice[int] = TablaIndice()
-    distancias[origen] = 0
-    pq: MonticuloMinimo[int] = MonticuloMinimo()
-    pq.insertar(0, origen)
-
-    while len(pq) > 0:
-        actual = pq.extraer()
-        d_actual = distancias[actual]
-
-        if rango_max is not None and d_actual > rango_max:
+    etiquetas = TablaIndice()
+    pendientes = MonticuloMinimo()
+    etiquetas[origen] = (0, origen)
+    pendientes.insertar((0, origen, origen), (origen, 0, origen))
+    while pendientes:
+        actual, costo, primero = pendientes.extraer()
+        if etiquetas.obtener(actual) != (costo, primero):
             continue
         if actual == destino:
-            break
-
-        salidas = _obtener_salidas_sala(estado, actual, proveedor)
-        for salida in salidas:
+            return costo, primero
+        for salida in _obtener_salidas_sala(estado, actual, proveedor):
             if getattr(salida, "cerrada", False):
                 continue
-            v = getattr(salida, "destino", None)
-            if v is None:
-                v = getattr(salida, "sala", None)
-            if v is None:
+            vecino = getattr(salida, "destino", getattr(salida, "sala", None))
+            if vecino is None:
                 continue
-
-            costo_salida = int(getattr(salida, "costo", 100))
-            d_tentativa = d_actual + costo_salida
-
-            if rango_max is not None and d_tentativa > rango_max:
+            nuevo_costo = costo + salida.costo
+            if rango_max is not None and nuevo_costo > rango_max:
                 continue
-
-            paso_inicial = v if actual == origen else primer_paso.obtener(actual, actual)
-
-            if v not in distancias or d_tentativa < distancias[v]:
-                distancias[v] = d_tentativa
-                primer_paso[v] = paso_inicial
-                pq.insertar(d_tentativa, v)
-            elif d_tentativa == distancias[v]:
-                actual_p = primer_paso.obtener(v, None)
-                if actual_p is None or paso_inicial < actual_p:
-                    primer_paso[v] = paso_inicial
-
-    if destino not in distancias:
-        return None, None
-    d_final = distancias[destino]
-    if rango_max is not None and d_final > rango_max:
-        return None, None
-    return d_final, primer_paso.obtener(destino, None)
+            nuevo_primero = vecino if actual == origen else primero
+            nueva = (nuevo_costo, nuevo_primero)
+            previa = etiquetas.obtener(vecino)
+            if previa is None or nueva < previa:
+                etiquetas[vecino] = nueva
+                pendientes.insertar((nuevo_costo, nuevo_primero, vecino),
+                                     (vecino, nuevo_costo, nuevo_primero))
+    return None, None

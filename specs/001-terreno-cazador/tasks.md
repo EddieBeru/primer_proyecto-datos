@@ -227,7 +227,7 @@ Phase 3: US1 (P1) 🎯    Phase 4: US2 (P1)       Phase 5: US3 (P2)
 Revisión 2026-11-16: checklist de requisitos 16/16; sin hooks registrados.
 
 - [X] T044 Corregir regresión de validación estricta de tipos y comparador realmente enlazado sin pop(0); añadir auditoría y ejecutar regresión por FR-CAZ-01/FR-CAZ-14 y Constitución III/V (contradicts).
-- [ ] T045 Probar y corregir búsqueda individual acotada desde cazador, desempates propagados y descarte de entradas obsoletas por FR-CAZ-09/FR-CAZ-14 y plan: cálculo individual (partial).
+- [X] T045 Probar y corregir búsqueda individual acotada desde cazador, desempates propagados y descarte de entradas obsoletas por FR-CAZ-09/FR-CAZ-14 y plan: cálculo individual (partial).
 - [ ] T046 Probar e integrar esqueleto compartido con 003, puertas vivas y tránsito por salas descargadas sin contenido ni niebla por FR-CAZ-10/FR-CAZ-11 (partial).
 - [ ] T047 Medir y optimizar ciclo completo real de 50 cazadores, búsqueda local con jugador distante y benchmark sin caché accidental por SC-CAZ-01/SC-CAZ-02/FR-CAZ-15 (partial).
 - [ ] T048 Validar costos/cazadores con deshacer, guardado, replay y receptor de historia 004; actualizar evidencia y registros por FR-CAZ-11 y Constitución IV/V/VII (partial).

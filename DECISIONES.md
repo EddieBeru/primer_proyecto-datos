@@ -941,3 +941,5 @@ pendientes. La compatibilidad existente se comprobó con la regresión completa.
 Se conserva el contrato estricto compartido con 003: costo omitido vale100; null, booleanos y texto se rechazan. La prueba001 esperaba ValueError para texto y aceptaba null, contradiciendo validación y pruebas del esqueleto. Se corrige la expectativa y se elimina normalización muerta en Exit.from_dict. El comparador de laboratorio usa nodos enlazados (valor,siguiente) en lugar de extracción frontal de arreglo; conserva inserción O(V), frente a O(log V) del montículo. Una regresión compara costos y poda entre ambos.
 
 Validación inicial completa:591 pasan,1 omitida y1 fallo de rendimiento (37,9ms en prueba de decisiones, pendiente T047). No se declara cierre de001.
+
+001 T045: la búsqueda ordinaria comienza en el cazador y poda antes de insertar fuera del rango. Las etiquetas (costo,primer_vecino) se propagan por montículo ordenado por etiqueta/ID, descartando entradas obsoletas. Se conserva cálculo inverso para comparaciones explícitas. La regresión con jugador distante falló primero (exploraba1,2,3) y verifica ahora exclusivamente la región997–1000.

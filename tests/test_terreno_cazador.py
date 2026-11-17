@@ -741,3 +741,18 @@ def test_comparador_enlazado_coincide_con_monticulo():
     conectar_salas(estado, 3, "E", 2, "N", costo=30)
     for rango in (40, 50, 1000):
         assert _dijkstra_lista_enlazada(estado, 1, 2, rango) == dijkstra_individual(estado, 1, 2, rango)[0]
+
+
+def test_busqueda_local_no_explora_region_del_jugador(monkeypatch):
+    import src.controller2.rutas as rutas
+    estado = crear_estado_base(salas_total=1000, sala_inicial=1)
+    for i in range(1, 1000):
+        conectar_salas(estado, i, "E", i + 1, "O", costo=100)
+    visitadas = []
+    original = rutas._obtener_salidas_sala
+    def observar(estado, sala_id, proveedor=None):
+        visitadas.append(sala_id)
+        return original(estado, sala_id, proveedor)
+    monkeypatch.setattr(rutas, "_obtener_salidas_sala", observar)
+    assert rutas.dijkstra_acotado(estado, 999, 1, 200) == (None, None)
+    assert visitadas and all(sala >= 997 for sala in visitadas)
