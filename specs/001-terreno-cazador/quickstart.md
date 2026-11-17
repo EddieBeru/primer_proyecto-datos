@@ -84,3 +84,5 @@ python -m src.main --bench
 `python -m pytest tests/test_terreno_cazador.py tests/test_historia.py tests/test_savegame.py tests/test_sesion.py tests/test_viaje.py -q`:98 pasan. Incluye planificación a través de salas descargadas, cierre inicial, entrada del cazador sin contenido/visita, persistencia5 y posterior hidratación conservando visitante/costos. No certifica aún ciclo completo de20ms ni cierre total de001.
 
 Suite completa posterior: `python -m pytest tests/ -q`:598 pasan,1 omitida (13,27s). `git diff --check` sin errores.
+
+2026-11-16: puertas recíprocas opuestas comparten apertura/cierre/deshacer mediante cambiar_puerta; incorporar una nueva sala conserva el extremo vivo. La regresión falló antes de corregir. Abrir desde la sala final registra también la puerta de salida. `python -m pytest tests/ -q`:599 pasan,1 omitida (15,36s). T046 de001 completada; rendimiento e integración final siguen pendientes.

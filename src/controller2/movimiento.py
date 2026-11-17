@@ -38,6 +38,36 @@ class ResultadoApertura:
     evento_cierre_seq: int | None = None
 
 
+def sincronizar_puertas_sala(estado, sala):
+    """Al incorporar contenido, conservar puertas efectivas de extremos vivos."""
+    direcciones = ("N", "S", "E", "O")
+    opuestas = ("S", "N", "O", "E")
+    for direccion, salida in sala.salidas.items():
+        vecina = estado.salas.get(salida.destino)
+        inversa = vecina.salidas.get(opuestas[direcciones.index(direccion)]) if vecina else None
+        if inversa is not None and inversa.destino == sala.id:
+            salida.cerrada = inversa.cerrada
+
+
+def cambiar_puerta(estado, sala_id, direccion, cerrada):
+    """Una puerta física une únicamente recíprocas opuestas declaradas."""
+    sala = estado.salas.get(sala_id)
+    salida = sala.salidas.get(direccion) if sala is not None else None
+    if salida is None:
+        return False
+    cambio = salida.cerrada != cerrada
+    salida.cerrada = cerrada
+    opuesta = ("S", "N", "O", "E")[("N", "S", "E", "O").index(direccion)]
+    vecina = estado.salas.get(salida.destino)
+    inversa = vecina.salidas.get(opuesta) if vecina is not None else None
+    if inversa is not None and inversa.destino == sala_id:
+        cambio = cambio or inversa.cerrada != cerrada
+        inversa.cerrada = cerrada
+    if cambio:
+        estado.puertas_version += 1
+    return True
+
+
 def abrir_puerta(
     estado: EstadoPartida, direccion: str, agenda: Agenda, reloj: RelojVirtual
 ) -> ResultadoApertura:
@@ -55,10 +85,9 @@ def abrir_puerta(
         return ResultadoApertura(False, "Está trabada.")
     if not estado.jugador.tiene_llave(salida.llave):
         return ResultadoApertura(False, f"Necesitas la llave {salida.llave}.")
-    salida.cerrada = False
-    estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
+    cambiar_puerta(estado, actual.id, direccion, False)
     # §2.12: marca si se abrió la puerta que da acceso a la salida.
-    if salida.destino == estado.sala_salida:
+    if salida.destino == estado.sala_salida or actual.id == estado.sala_salida:
         estado.puerta_salida_abierta = True
     evento_seq: int | None = None
     if salida.cierre_automatico is not None:
@@ -108,6 +137,8 @@ def intentar_mover(
     visitada_antes = bool(destino.visitada)
     estaba_visitada = destino.id in estado.salas_visitadas
     rastro_antes = destino.ultima_visita
+    if destino.id not in estado.salas:
+        sincronizar_puertas_sala(estado, destino)
     estado.registrar_sala(destino)
     destino.visitada = True
     estado.sala_actual = destino.id
@@ -142,7 +173,4 @@ def ejecutar_cierre(estado: EstadoPartida, sala_id: int, direccion: str) -> bool
     salida = sala.salidas.get(direccion)
     if salida is None:
         return False
-    if not salida.cerrada:
-        salida.cerrada = True
-        estado.puertas_version = getattr(estado, "puertas_version", 0) + 1
-    return True
+    return cambiar_puerta(estado, sala_id, direccion, True)

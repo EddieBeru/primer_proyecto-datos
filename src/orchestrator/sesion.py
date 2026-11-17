@@ -265,6 +265,8 @@ class Sesion:
             return
         for s in salas:
             if s.id not in self.estado.salas:
+                from src.controller2.movimiento import sincronizar_puertas_sala
+                sincronizar_puertas_sala(self.estado, s)
                 self.estado.salas[s.id] = s
             elif self.estado.salas[s.id].contenido_pendiente:
                 self.estado.salas[s.id].incorporar_contenido(s)

@@ -837,3 +837,24 @@ def test_sala_pendiente_guardado_y_entrada_jugador_conservan_cazador(tmp_path):
     assert estado.salas[2].objetos_suelo == ["tesoro"]
     assert estado.salas[2].enemigos[0].instancia == "visitante"
     assert estado.salas[2].salidas["O"].costo == 70
+
+
+def test_puerta_reciproca_abre_cierra_y_deshace_desde_ambos_extremos():
+    from src.controller2.movimiento import abrir_puerta, ejecutar_cierre
+    from src.controller2.agenda import Agenda
+    from src.controller2.reloj import RelojVirtual
+    from src.controller2.deshacer import aplicar_inversa
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", cerrada=True, llave="llave")
+    estado.jugador.inventario.append("llave")
+    agenda = Agenda()
+    assert abrir_puerta(estado, "E", agenda, RelojVirtual()).ok
+    assert not estado.salas[2].salidas["O"].cerrada
+    assert ejecutar_cierre(estado, 2, "O")
+    assert estado.salas[1].salidas["E"].cerrada
+    assert aplicar_inversa(estado, agenda, {"op": "cierre", "datos": {
+        "sala": 2, "direccion": "O", "cerrada_antes": False}})
+    assert not estado.salas[1].salidas["E"].cerrada
+    assert aplicar_inversa(estado, agenda, {"op": "abrir", "datos": {
+        "sala": 1, "direccion": "E"}})
+    assert estado.salas[2].salidas["O"].cerrada
