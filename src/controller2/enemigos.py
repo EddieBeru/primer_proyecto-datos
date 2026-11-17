@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from src.controller2.agenda import Agenda
 from src.controller2.efectos import REGENERACION_PERIODO
-from src.controller2.modelo import EnemigoInstancia, EstadoPartida
+from src.controller2.modelo import EnemigoInstancia, EstadoPartida, SalaViva
 from src.controller2.orden_local import insercion
 from src.controller2.reloj import RelojVirtual
 
@@ -271,16 +271,30 @@ def ejecutar_oleada(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
 
 def turno_enemigo(estado: EstadoPartida, agenda: Agenda, reloj: RelojVirtual,
                   instancia_id: str, catalogo: dict | None = None,
-                  azar=None) -> str:
+                  azar=None, proveedor=None) -> str:
     """Ejecuta un turno: decide, mueve y reprograma el siguiente."""
     origen_sala = next((s for s in estado.salas.values()
                         for e in s.enemigos if e.instancia == instancia_id), None)
     costo_accion = 100
-    destino = decidir_destino(estado, instancia_id, catalogo, reloj.ahora, azar)
+    tipo_inicial = next((e.tipo_id for s in estado.salas.values()
+                         for e in s.enemigos if e.instancia == instancia_id), None)
+    if comportamiento_de(catalogo, tipo_inicial) == "cazador":
+        _, costo_accion, destino = decidir_accion_cazador(
+            estado, instancia_id, catalogo, proveedor=proveedor)
+    else:
+        destino = decidir_destino(estado, instancia_id, catalogo, reloj.ahora, azar)
     if destino is not None and origen_sala is not None:
         salida_usada = next((s for s in origen_sala.salidas.values() if s.destino == destino), None)
         if salida_usada is not None:
             costo_accion = int(getattr(salida_usada, "costo", 100))
+        if destino not in estado.salas and proveedor is not None:
+            from src.controller2.rutas import _obtener_salidas_sala
+            datos = proveedor.datos_sala(destino)
+            salidas = _obtener_salidas_sala(estado, destino, proveedor)
+            estado.salas[destino] = SalaViva(
+                datos.id, datos.nombre,
+                salidas={s.direccion: s for s in salidas},
+                contenido_pendiente=True)
         mover_enemigo(estado, instancia_id, destino)
     tipo = next((e.tipo_id for s in estado.salas.values()
                  for e in s.enemigos if e.instancia == instancia_id), None)

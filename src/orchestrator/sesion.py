@@ -266,6 +266,8 @@ class Sesion:
         for s in salas:
             if s.id not in self.estado.salas:
                 self.estado.salas[s.id] = s
+            elif self.estado.salas[s.id].contenido_pendiente:
+                self.estado.salas[s.id].incorporar_contenido(s)
 
     def paso(self, texto: str, grabar: bool = True, _automatico: bool = False) -> tuple[bool, str, FotoEstado]:
         """Una intención del jugador + drenaje §2.3. Nunca crashea (error amable)."""

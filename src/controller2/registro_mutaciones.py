@@ -4,7 +4,8 @@ from dataclasses import fields, is_dataclass
 
 def dato(valor):
     if is_dataclass(valor):
-        return {f.name: dato(getattr(valor, f.name)) for f in fields(valor)}
+        return {f.name: dato(getattr(valor, f.name)) for f in fields(valor)
+                if f.name != "contenido_pendiente" or getattr(valor, f.name)}
     if isinstance(valor, dict):
         return {str(k): dato(v) for k, v in valor.items()}
     if isinstance(valor, (list, tuple)):
@@ -133,7 +134,8 @@ def enlazar(valor, registro, ruta=()):
 def limpio(valor):
     """Serialización del modelo conserva tipos del contrato técnico anterior."""
     if is_dataclass(valor):
-        return {f.name: limpio(getattr(valor,f.name)) for f in fields(valor)}
+        return {f.name: limpio(getattr(valor,f.name)) for f in fields(valor)
+                if f.name != "contenido_pendiente" or getattr(valor, f.name)}
     if isinstance(valor,dict): return {k:limpio(v) for k,v in valor.items()}
     if isinstance(valor,list): return [limpio(v) for v in valor]
     if isinstance(valor,tuple): return tuple(limpio(v) for v in valor)

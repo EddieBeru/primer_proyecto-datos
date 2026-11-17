@@ -499,3 +499,29 @@ def test_metadatos_no_hidratan_ni_consumen_cache_presupuesto(tmp_path):
     assert all('nombre' not in s and 'salidas' not in s for s in avistadas)
     mapa.salas[0]['nombre'] = 'mutado por consumidor'
     assert ses.mapa_conocido().salas[0]['nombre'] != 'mutado por consumidor'
+
+
+def test_001_002_costos_reales_simetria_y_reloj(tmp_path):
+    from src.controller2.reloj import intervalo
+    backend = FakeBackend()
+    backend.fake._salas[1].salidas["E"].costo = 250
+    backend.fake._salas[2].salidas["O"].costo = 250
+    ses = nueva_sesion(tmp_path, backend=backend)
+    ses.iniciar(CRIPTA_ID, semilla=11)
+    for sala in ses.estado.salas.values():
+        sala.enemigos.clear()
+        sala.trampas.clear()
+    velocidad = ses.estado.jugador.velocidad
+    antes = ses.estado.reloj
+    assert ses.paso("e")[0]
+    assert ses.estado.reloj - antes == intervalo(250, velocidad)
+    assert ses.proveedor.datos_sala(1).salidas[0].costo >= 1
+    datos_ida = next(s for s in ses.proveedor.datos_sala(1).salidas if s.destino == 2)
+    datos_vuelta = next(s for s in ses.proveedor.datos_sala(2).salidas if s.destino == 1)
+    assert datos_ida.costo == datos_vuelta.costo == 250
+    assert datos_ida.puerta_id == datos_vuelta.puerta_id
+    antes = ses.estado.reloj
+    assert ses.paso("ir a 1")[0]
+    assert ses.avanzar_viaje()[0]
+    assert ses.estado.sala_actual == 1
+    assert ses.estado.reloj - antes == intervalo(250, velocidad)

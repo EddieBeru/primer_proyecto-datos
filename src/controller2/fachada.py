@@ -578,7 +578,7 @@ class Fachada:
         previos = [ev.seq for ev in self.agenda
                    if ev.tipo == "turno" and (ev.datos or {}).get("actor") == instancia_id]
         msg = turno_enemigo(self.estado, self.agenda, self.reloj, instancia_id,
-                             self.catalogo, azar=self.azar)
+                             self.catalogo, azar=self.azar, proveedor=self.proveedor)
         destino = next((e.sala_actual for s in self.estado.salas.values()
                         for e in s.enemigos if e.instancia == instancia_id), None)
         datos = {"instancia": instancia_id, "origen": origen, "destino": destino}

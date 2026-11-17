@@ -1,14 +1,13 @@
-"""Datos sintéticos de002, sin HTTP ni dependencia de la entrega ponderada001.
+"""Datos sintéticos de002 sobre los modelos ponderados reales de001, sin HTTP.
 
 El falso separa metadatos, contenido y activaciones. ``solo_metadatos`` falla
 ante cualquier acceso de contenido/fichas o activación durante revelación/ruta.
-Las salidas vivas ponderadas son exclusivamente de prueba; no cambian K1 vigente.
+Las salidas vivas usan SalidaViva del motor; el proveedor sigue siendo sintético.
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
 
 import pytest
 
@@ -25,11 +24,6 @@ INICIO = 2
 VECINA = 5
 LEJANA = 10**12
 AISLADA = 999
-
-
-@dataclass
-class SalidaPonderadaFalsa(SalidaViva):
-    costo: int = 100
 
 
 class ProveedorNiebla:
@@ -125,7 +119,7 @@ def crear_proveedor_niebla() -> ProveedorNiebla:
     for datos in metadatos:
         sala = SalaViva(datos.id, datos.nombre)
         for salida in datos.salidas:
-            sala.salidas[salida.direccion] = SalidaPonderadaFalsa(
+            sala.salidas[salida.direccion] = SalidaViva(
                 direccion=salida.direccion, destino=salida.destino,
                 cerrada=salida.puerta_id == (VECINA, "N"),
                 llave="llave" if salida.puerta_id == (VECINA, "N") else None,

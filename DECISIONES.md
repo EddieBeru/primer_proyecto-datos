@@ -943,3 +943,7 @@ Se conserva el contrato estricto compartido con 003: costo omitido vale100; null
 Validación inicial completa:591 pasan,1 omitida y1 fallo de rendimiento (37,9ms en prueba de decisiones, pendiente T047). No se declara cierre de001.
 
 001 T045: la búsqueda ordinaria comienza en el cazador y poda antes de insertar fuera del rango. Las etiquetas (costo,primer_vecino) se propagan por montículo ordenado por etiqueta/ID, descartando entradas obsoletas. Se conserva cálculo inverso para comparaciones explícitas. La regresión con jugador distante falló primero (exploraba1,2,3) y verifica ahora exclusivamente la región997–1000.
+
+## 2026-11-16 — Cazadores y salas sin contenido
+
+La planificación consume los metadatos compartidos de ProveedorSesion, con puertas iniciales/canónicas efectivas; no usa conocimiento del jugador ni descarga contenido. El turno recibe ahora ese proveedor. Se descarta hidratar por cada movimiento enemigo porque consumiría red y alteraría decisiones según carga. Una sala esqueleto ocupada conserva contenido_pendiente y se completa solo cuando lo exige el jugador o precarga existente; conserva visitantes/puertas. El marcador requiere formato5 (rechazo explícito en lectores previos), mientras las partidas ordinarias mantienen4. No cambia el reloj durante obtención de contenido. Regresiones de puerta inicial descargada y entrada enemiga fallaron antes de corregir. Pruebas localizadas:98 pasan (cazador, historia, guardado, sesión y viaje). Pendiente rendimiento de ciclo completo, coherencia recíproca/deshacer y medición oficial002.

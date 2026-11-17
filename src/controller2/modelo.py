@@ -239,7 +239,18 @@ class SalaViva(Observable):
     ultima_visita: int | None = None
     # Mejoras 2026-10: sala a oscuras (la ilumina una antorcha encendida).
     oscura: bool = False
+    contenido_pendiente: bool = False
     # Compat lectura: versiones viejas traían rastro:int. Se migra en desde_dict.
+
+    def incorporar_contenido(self, cargada):
+        """Completa un esqueleto ocupado sin reemplazar puertas ni visitantes."""
+        if not self.contenido_pendiente:
+            return
+        self.enemigos.extend(cargada.enemigos)
+        self.objetos_suelo = cargada.objetos_suelo
+        self.trampas = cargada.trampas
+        self.oscura = cargada.oscura
+        self.contenido_pendiente = False
 
     @classmethod
     def desde_esqueleto(cls, sala: Room) -> "SalaViva":

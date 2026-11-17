@@ -137,6 +137,8 @@ def guardar(ruta, estado):
         n = len(blobs)
         # header + índice
         version = 4 if "historia" in estado else VERSION_FMT if "conocimiento" in estado else VERSION_FMT_V2
+        if any(sala.get("contenido_pendiente", False) for sala in salas.values()) or b'"contenido_pendiente"' in core:
+            version = 5
         formato_indice = "<qqq" if version >= 3 else "<iqq"
         idx = struct.pack(f"<{len(MAGIA)}sBH", MAGIA, version, n)
         entradas = b""
@@ -205,7 +207,7 @@ def cargar(ruta):
         ver = buf[len(MAGIA)]
         if ver == VERSION_FMT_V1:
             return _cargar_v1(buf)
-        if ver not in (VERSION_FMT_V2, VERSION_FMT, 4):
+        if ver not in (VERSION_FMT_V2, VERSION_FMT, 4, 5):
             raise GuardadoError("versión de formato desconocida")
         entradas, core = _leer_indice(buf)
         salas = {}
@@ -244,7 +246,7 @@ def cargar_sala(ruta, sala_id: int):
             if len(head) != len(MAGIA)+3 or not head.startswith(MAGIA):
                 raise GuardadoError("archivo inválido o truncado")
             version = head[len(MAGIA)]
-            if version not in (2, 3, 4):
+            if version not in (2, 3, 4, 5):
                 raise GuardadoError("formato sin índice compatible")
             formato = "<qqq" if version >= 3 else "<iqq"
             ancho = struct.calcsize(formato)
@@ -317,13 +319,13 @@ def validar_versiones(estado, budget=None, backend=None):
 
 
 def cargar_historia(ruta):
-    """Flujo004: versión4 obligatoria; lector técnico permanece separado."""
+    """Flujo004: historia completa en4/5; lector técnico separado."""
     try:
         with open(ruta, 'rb') as archivo:
             cabecera=archivo.read(len(MAGIA)+1)
         if len(cabecera) != len(MAGIA)+1 or cabecera[:len(MAGIA)] != MAGIA:
             raise GuardadoError('guardado inválido')
-        if cabecera[-1] != 4:
+        if cabecera[-1] not in (4, 5):
             raise GuardadoError('guardado v1/v2/v3 incompatible: se requiere v4 con historia completa')
         data=cargar(ruta)
         if type(data.get('historia')) is not dict: raise GuardadoError('historia ausente')

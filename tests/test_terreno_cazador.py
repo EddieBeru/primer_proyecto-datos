@@ -756,3 +756,84 @@ def test_busqueda_local_no_explora_region_del_jugador(monkeypatch):
     monkeypatch.setattr(rutas, "_obtener_salidas_sala", observar)
     assert rutas.dijkstra_acotado(estado, 999, 1, 200) == (None, None)
     assert visitadas and all(sala >= 997 for sala in visitadas)
+
+
+def test_cazador_planea_por_sala_descargada_y_puerta_inicial_cerrada():
+    from src.models.conocimiento import DatosSala, DatosSalida
+    from src.controller2.enemigos import decidir_accion_cazador
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=50)
+    conectar_salas(estado, 2, "E", 3, "O", costo=50)
+    conectar_salas(estado, 3, "E", 4, "O", costo=50)
+    estado.salas[4].enemigos.append(EnemigoInstancia("caz", "cazador-estandar", 20, 4))
+    del estado.salas[2]
+    estado.salas_visitadas = [1]
+    class Proveedor:
+        cerrada = False
+        def datos_sala(self, sala_id):
+            assert sala_id == 2
+            return DatosSala(2, "sin contenido", (
+                DatosSalida("O", 1, 50, (1, "E"), cerrada_inicial=self.cerrada),
+                DatosSalida("E", 3, 50, (2, "E"))))
+        def sala_lista(self, sala_id):
+            pytest.fail("planear no descarga contenido")
+    proveedor = Proveedor()
+    cat = CatalogoSintetico()._fichas
+    assert decidir_accion_cazador(estado, "caz", cat, proveedor)[0] == "mover"
+    estado.salas[4].enemigos[0]._ruta_cazador = None
+    proveedor.cerrada = True
+    estado.salas[1].salidas["E"].cerrada = True
+    assert decidir_accion_cazador(estado, "caz", cat, proveedor)[0] == "esperar"
+
+
+def test_cazador_entra_en_sala_descargada_sin_contenido():
+    from src.models.conocimiento import DatosSala, DatosSalida
+    from src.controller2.enemigos import turno_enemigo
+    from src.controller2.agenda import Agenda
+    from src.controller2.reloj import RelojVirtual
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=50)
+    conectar_salas(estado, 2, "E", 3, "O", costo=50)
+    estado.salas[3].enemigos.append(EnemigoInstancia("caz", "cazador-estandar", 20, 3))
+    del estado.salas[2]
+    estado.salas_visitadas = [1]
+    class Proveedor:
+        def datos_sala(self, sala_id):
+            return DatosSala(2, "sin contenido", (
+                DatosSalida("O", 1, 50, (1, "E")),
+                DatosSalida("E", 3, 50, (2, "E"))))
+        def sala_lista(self, sala_id):
+            pytest.fail("el movimiento del cazador no descarga contenido")
+    turno_enemigo(estado, Agenda(), RelojVirtual(), "caz",
+                  CatalogoSintetico()._fichas, proveedor=Proveedor())
+    assert estado.salas[2].enemigos[0].instancia == "caz"
+    assert not estado.salas[2].visitada
+    assert 2 not in estado.salas_visitadas
+
+
+def test_sala_pendiente_guardado_y_entrada_jugador_conservan_cazador(tmp_path):
+    from src.controller1 import savegame
+    from src.controller2.movimiento import intentar_mover
+    from src.controller2.agenda import Agenda
+    from src.controller2.reloj import RelojVirtual
+    estado = crear_estado_base()
+    conectar_salas(estado, 1, "E", 2, "O", costo=70)
+    sala = estado.salas[2]
+    sala.contenido_pendiente = True
+    sala.enemigos.append(EnemigoInstancia("visitante", "cazador-estandar", 20, 2))
+    estado.salas_visitadas = [1]
+    ruta = tmp_path / "pendiente.bin"
+    savegame.guardar(str(ruta), estado.a_dict())
+    assert ruta.read_bytes()[len(savegame.MAGIA)] == 5
+    estado = EstadoPartida.desde_dict(savegame.cargar(str(ruta)))
+    assert estado.salas[2].contenido_pendiente
+    class Proveedor:
+        def sala_lista(self, sala_id):
+            return SalaViva(2, "cargada", objetos_suelo=["tesoro"])
+    resultado = intentar_mover(estado, "E", Proveedor(), Agenda(), RelojVirtual(),
+                               CatalogoSintetico()._fichas)
+    assert resultado.ok and resultado.costo == 70
+    assert not estado.salas[2].contenido_pendiente
+    assert estado.salas[2].objetos_suelo == ["tesoro"]
+    assert estado.salas[2].enemigos[0].instancia == "visitante"
+    assert estado.salas[2].salidas["O"].costo == 70

@@ -141,3 +141,9 @@ compatibilidad con002/004, y reglas de interfaz y decisiones ya asentadas.
   Las reglas de presentación siguen `docs/diseno-ui.md`; quedan sujetos a
   verificación los detalles de integración en el código existente y la
   disponibilidad del endpoint/paquete oficial externo.
+
+## 2026-11-16 — Integración001/003 con002/004 (autorización del usuario)
+
+Propuesta aplicada bajo la instrucción «apruebo todas tus recomendaciones» y autorización de conectar las capacidades; no se atribuye aceptación individual a otro compañero. K1 conserva datos_sala neutral, sin llamadas de contenido durante planificación/turno de cazador. K2 añade SalaViva.contenido_pendiente (bool, defaultFalse para datos anteriores): un cazador puede ocupar el esqueleto sin revelar/visitar ni cargar contenido. Al cargarlo se conservan puertas y visitantes y se agregan los habitantes originales. K5 registra esas mutaciones por el receptor existente.
+
+Compatibilidad: guardados con el marcador (en estado o historia) usan cabecera5, mismo índice/JSON que4. Los lectores nuevos admiten4/5 con historia; los antiguos rechazan5 como formato desconocido. Sin marcador se conserva4; no se renumeran bitácoras ni se aceptan silenciosamente guardados1/2/3 como historia completa. El marcadorFalse se omite en serialización y se reconstruye por default. Se mantiene lectura técnica sin historia de formatos anteriores.

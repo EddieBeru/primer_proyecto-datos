@@ -98,6 +98,11 @@ def intentar_mover(
             destino = proveedor.sala_lista(salida.destino)
         except Exception as e:  # proveedor informa 404/sin red/presupuesto (K4)
             return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
+    if destino.contenido_pendiente:
+        try:
+            destino.incorporar_contenido(proveedor.sala_lista(destino.id))
+        except Exception as e:
+            return ResultadoMovimiento(False, f"No se pudo entrar a la sala: {e}")
     # Idempotente: registra si es nueva y marca la visita (las vecinas
     # precargadas ya están en el modelo, pero aún no cuentan como visitadas).
     visitada_antes = bool(destino.visitada)

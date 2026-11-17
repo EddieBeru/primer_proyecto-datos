@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.controller2.modelo import EstadoPartida
+from src.controller2.modelo import EstadoPartida, SalidaViva
 from src.estructuras.monticulo_minimo import MonticuloMinimo
 from src.estructuras.tabla_indice import TablaIndice
 
@@ -44,12 +44,19 @@ def _obtener_salidas_sala(estado: EstadoPartida, sala_id: int, proveedor: Any = 
     if sala is not None:
         return list(sala.salidas.values())
     if proveedor is not None and hasattr(proveedor, "datos_sala"):
-        try:
-            datos = proveedor.datos_sala(sala_id)
-            if datos is not None and hasattr(datos, "salidas"):
-                return list(datos.salidas)
-        except Exception:
-            pass
+        datos = proveedor.datos_sala(sala_id)
+        salidas = []
+        for salida in datos.salidas:
+            # El extremo canónico conserva la puerta efectiva aunque la otra
+            # sala aún no tenga contenido. Nunca usar niebla como estado vivo.
+            extremo, direccion = salida.puerta_id
+            viva = estado.salas.get(extremo)
+            puerta = viva.salidas.get(direccion) if viva is not None else None
+            cerrada = puerta.cerrada if puerta is not None else salida.cerrada_inicial
+            salidas.append(SalidaViva(salida.direccion, salida.destino,
+                                     cerrada=cerrada, llave=salida.llave,
+                                     costo=salida.costo))
+        return salidas
     return []
 
 

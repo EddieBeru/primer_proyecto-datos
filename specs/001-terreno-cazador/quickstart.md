@@ -78,3 +78,9 @@ python -m src.main --bench
    - La variación del tiempo entre una cripta de 100 salas y una de $10\,000$ salas para un rango pequeño ($R=200$) debe ser menor al 10%.
 3. **Comparativa de estructuras**:
    - `cazador_monticulo_minimo`: $< 0.5\text{ ms}$ vs. `cazador_lista_enlazada`: $> 10\text{ ms}$ en mapas medianos, justificando experimentalmente la elección en `DECISIONES.md`.
+
+## Convergencia2026-11-16 (en curso)
+
+`python -m pytest tests/test_terreno_cazador.py tests/test_historia.py tests/test_savegame.py tests/test_sesion.py tests/test_viaje.py -q`:98 pasan. Incluye planificación a través de salas descargadas, cierre inicial, entrada del cazador sin contenido/visita, persistencia5 y posterior hidratación conservando visitante/costos. No certifica aún ciclo completo de20ms ni cierre total de001.
+
+Suite completa posterior: `python -m pytest tests/ -q`:598 pasan,1 omitida (13,27s). `git diff --check` sin errores.
