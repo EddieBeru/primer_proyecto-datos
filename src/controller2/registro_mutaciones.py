@@ -221,3 +221,69 @@ def copiar_registro(valor):
     if tipo is tuple:
         return tuple(copiar_registro(v) for v in valor)
     return valor
+
+
+def sincronizar_agenda(estado, agenda):
+    """Aplicar el diario estructural de agenda mediante búsqueda binaria propia."""
+    if agenda._cambios is None:
+        sincronizar_secuencia(estado, "agenda", agenda.a_lista(), ordenada=True)
+        agenda._cambios = []
+        return
+    if not agenda._cambios:
+        return
+    resultado = list(estado.agenda)
+    cambios = []
+    for insertar, evento in agenda._cambios:
+        clave = (evento['t'], evento['seq'])
+        izquierda, derecha = 0, len(resultado)
+        while izquierda < derecha:
+            medio = (izquierda + derecha)//2
+            candidato = resultado[medio]
+            if (candidato['t'], candidato['seq']) < clave:
+                izquierda = medio + 1
+            else:
+                derecha = medio
+        if insertar:
+            valor = dato(evento)
+            cambios.append([['agenda'], True, [], True, [valor], izquierda])
+            resultado.insert(izquierda, valor)
+        else:
+            if izquierda >= len(resultado) or (resultado[izquierda]['t'], resultado[izquierda]['seq']) != clave:
+                raise ValueError('proyección de agenda desincronizada')
+            previo = resultado.pop(izquierda)
+            cambios.append([['agenda'], True, [dato(previo)], True, [], izquierda])
+    receptor = estado.__dict__.get('_registro')
+    if receptor is not None and receptor.activo:
+        inicio = len(receptor.registros)
+        try:
+            for cambio in cambios:
+                receptor.registrar_cambio(receptor.contexto(), cambio)
+        except Exception:
+            del receptor.registros[inicio:]
+            raise
+    object.__setattr__(estado, 'agenda', resultado)
+    agenda._cambios.clear()
+
+
+def sincronizar_pila(estado, pila):
+    """Alta ordinaria de inversa en O(1) de serialización; resto usa diff general."""
+    anterior = getattr(pila, '_proyeccion_cima', None)
+    cima = pila._cima
+    if (hasattr(pila, '_proyeccion_cima') and not getattr(pila, '_proyeccion_sucia', False)
+            and cima is not None and cima.siguiente is anterior
+            and len(pila) == len(estado.pila_deshacer)+1):
+        valor = dato(cima.inversa)
+        receptor = estado.__dict__.get('_registro')
+        if receptor is not None and receptor.activo:
+            inicio = len(receptor.registros)
+            try:
+                receptor.registrar_cambio(receptor.contexto(),
+                    [['pila_deshacer'], True, [], True, [valor], 0])
+            except Exception:
+                del receptor.registros[inicio:]
+                raise
+        object.__setattr__(estado, 'pila_deshacer', [valor] + list(estado.pila_deshacer))
+    else:
+        sincronizar_secuencia(estado, 'pila_deshacer', pila.a_lista())
+    pila._proyeccion_cima = cima
+    pila._proyeccion_sucia = False

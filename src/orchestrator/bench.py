@@ -407,42 +407,34 @@ def bench_cazadores(repeticiones: int = 3) -> dict:
 
     cat = _catalogo_cazadores()
 
-    # Eje 1: 1 vs 50 cazadores (cripta 1000 salas)
-    est_1k = _crear_cripta_bench(1000)
-    for i in range(2, 52):
-        est_1k.salas[i].enemigos.append(
-            EnemigoInstancia(instancia=f"caz-{i}", tipo_id="cazador-normal", vida_actual=20, sala_actual=i)
-        )
+    # Cada muestra crea un ciclo nuevo; preparación excluida por el medidor.
+    t_1 = max(medir_ciclo_cazadores(1) for _ in range(repeticiones))
+    t_50 = max(medir_ciclo_cazadores(50) for _ in range(repeticiones))
 
-    def ciclo_1():
-        decidir_accion_cazador(est_1k, "caz-2", catalogo=cat)
-
-    def ciclo_50():
-        dist_comp = distancias_desde_destino(est_1k, destino=1, rango_max=5000)
-        for i in range(2, 52):
-            decidir_accion_cazador(est_1k, f"caz-{i}", catalogo=cat)
-
-    t_1 = _mide(ciclo_1, repeticiones)
-    t_50 = _mide(ciclo_50, repeticiones)
+    def decision_fresca(estado, instancia):
+        from src.controller2.enemigos import _sala_de
+        _, actor = _sala_de(estado, instancia)
+        actor._ruta_cazador = None
+        return decidir_accion_cazador(estado, instancia, catalogo=cat)
 
     # Eje 2: Rango pequeño vs rango grande en diferentes tamaños de cripta
     est_100 = _crear_cripta_bench(100)
     est_100.salas[2].enemigos.append(
         EnemigoInstancia(instancia="caz-p100", tipo_id="cazador-pequeno", vida_actual=20, sala_actual=2)
     )
-    t_peq_100 = _mide(lambda: decidir_accion_cazador(est_100, "caz-p100", catalogo=cat), repeticiones)
+    t_peq_100 = _mide(lambda: decision_fresca(est_100, "caz-p100"), repeticiones)
 
     est_10k = _crear_cripta_bench(10000)
     est_10k.salas[2].enemigos.append(
         EnemigoInstancia(instancia="caz-p10k", tipo_id="cazador-pequeno", vida_actual=20, sala_actual=2)
     )
-    t_peq_10k = _mide(lambda: decidir_accion_cazador(est_10k, "caz-p10k", catalogo=cat), repeticiones)
+    t_peq_10k = _mide(lambda: decision_fresca(est_10k, "caz-p10k"), repeticiones)
 
     est_grande_1k = _crear_cripta_bench(1000)
     est_grande_1k.salas[500].enemigos.append(
         EnemigoInstancia(instancia="caz-g1k", tipo_id="cazador-normal", vida_actual=20, sala_actual=500)
     )
-    t_grande_1k = _mide(lambda: decidir_accion_cazador(est_grande_1k, "caz-g1k", catalogo=cat), repeticiones)
+    t_grande_1k = _mide(lambda: decision_fresca(est_grande_1k, "caz-g1k"), repeticiones)
 
     # Eje 3: Cálculo individual vs. compartido (50 cazadores en cripta 500)
     est_comp = _crear_cripta_bench(500)
@@ -497,8 +489,8 @@ def bench_cazadores(repeticiones: int = 3) -> dict:
     t_lista = _mide(lambda: _dijkstra_lista_enlazada(est_500, origen=400, destino=1, rango_max=50000), repeticiones)
 
     return {
-        "cazador_1_drenaje_real": medir_ciclo_cazadores(1),
-        "cazadores_50_drenaje_real": medir_ciclo_cazadores(50),
+        "cazador_1_drenaje_real": t_1,
+        "cazadores_50_drenaje_real": t_50,
         "cazador_1_ciclo": t_1,
         "cazadores_50_ciclo": t_50,
         "cazador_rango_pequeno_100": t_peq_100,

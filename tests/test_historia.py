@@ -216,3 +216,17 @@ def test_sync_segmentos_agenda_no_alias_y_fallo_atomico(tmp_path, monkeypatch):
         sincronizar_secuencia(s.estado, 'agenda', antes, ordenada=True)
     assert s.estado.agenda is actual
     assert len(linea.registros) == registros
+
+
+def test_sync_agenda_no_serializa_toda_la_cola_por_evento(tmp_path, monkeypatch):
+    s = sesion(tmp_path)
+    s.fachada._sync()
+    llamadas = []
+    original = s.fachada.agenda.a_lista
+    def contar():
+        llamadas.append(True)
+        return original()
+    monkeypatch.setattr(s.fachada.agenda, 'a_lista', contar)
+    assert s.paso('esperar')[0]
+    assert not llamadas
+    assert s.estado.agenda == original()

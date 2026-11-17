@@ -137,6 +137,7 @@ class Agenda:
         self._len: int = 0
         self._tipos = _IndiceTipos()
         self._por_seq: list[_Nodo | None] = []
+        self._cambios = None  # diario optativo entre sincronizaciones de Fachada
 
     def __len__(self) -> int:
         return self._len
@@ -179,6 +180,8 @@ class Agenda:
         self._len += 1
         self._tipos.agregar(nodo)
         self._registrar_seq(nodo)
+        if self._cambios is not None:
+            self._cambios.append((True, ev.a_dict()))
         return ev
 
     def programar(self, t: int, tipo: str, datos: dict[str, Any] | None = None) -> Evento:
@@ -262,6 +265,8 @@ class Agenda:
 
     # -- indices internos --
     def _desenlazar(self, nodo: _Nodo) -> None:
+        if self._cambios is not None:
+            self._cambios.append((False, nodo.evento.a_dict()))
         if nodo.anterior is None:
             self._cabeza = nodo.siguiente
         else:

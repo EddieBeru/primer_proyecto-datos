@@ -436,3 +436,5 @@ Continuación2026-11-16: optimización del ciclo real y receptor004 mediante reu
 Continuación2026-11-16: cierre integrado T046/T047 de002 con001 real y referencia publicada compartida de003. Se añadieron pruebas de sesión y medición reproducible offline;1000 rutas máximo3,802311ms sin fallos5ms. Se corrigieron contadores para excluir preparación y se registraron ambas ejecuciones.
 
 Continuación2026-11-16: reducir costo residual del ciclo completo con historia. Uso: medición amplió alcance a acción+drenaje+cierre, optimización de recorridos/eventos y sincronización RNG con regresión; medición final22,49–28,18ms, no cumple20ms. Se conservaron evidencias negativas y pendienteT047.
+
+Continuación2026-11-16: diario estructural de agenda y alta incremental de pila, con prueba primero del número de serializaciones. El benchmark ahora mide ciclos nuevos con historia y descarta caché accidental en mediciones de rango.48 pruebas específicas pasan; siete ciclos14,6–18,0ms. No se declara cierre de001.

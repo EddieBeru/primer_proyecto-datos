@@ -184,6 +184,7 @@ class Fachada:
             ultima = next(iter(self.pila), None)
             if ultima is not None:
                 ultima.setdefault("cambios_conocimiento", []).extend(c.a_dict() for c in cambios)
+                self.pila._proyeccion_sucia = True
                 self._emitir_cambios(cambios, "evento")
         return self.viaje.ruta(self.estado)
 
@@ -200,9 +201,9 @@ class Fachada:
 
     def _sync(self) -> None:
         # Evitar desregistrar/serializar de nuevo colecciones y RNG sin cambios.
-        from src.controller2.registro_mutaciones import sincronizar_secuencia
-        sincronizar_secuencia(self.estado, "agenda", self.agenda.a_lista(), ordenada=True)
-        sincronizar_secuencia(self.estado, "pila_deshacer", self.pila.a_lista())
+        from src.controller2.registro_mutaciones import sincronizar_pila, sincronizar_agenda
+        sincronizar_agenda(self.estado, self.agenda)
+        sincronizar_pila(self.estado, self.pila)
         for nombre, valor in (("agenda_seq", self.agenda._seq),
                               ("reloj", self.reloj.ahora)):
             if getattr(self.estado, nombre) != valor:

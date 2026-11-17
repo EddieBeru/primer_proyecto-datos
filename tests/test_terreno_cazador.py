@@ -650,31 +650,9 @@ def test_vista_muestra_costos_y_cazador():
 def test_rendimiento_ciclo_cazadores_menos_20ms():
     """T034 / FR-CAZ-14 / SC-CAZ-01: El ciclo de eventos con 50 cazadores activos
     toma <= 20 ms."""
-    from src.controller2.rutas import distancias_desde_destino
-    from src.controller2.enemigos import decidir_accion_cazador
-
-    est = crear_estado_base(salas_total=100, sala_inicial=1)
-    for i in range(1, 100):
-        conectar_salas(est, i, "E", i + 1, "O", costo=50)
-
-    cat = CatalogoSintetico()
-    for i in range(2, 52):
-        caz_id = f"caz-{i}"
-        est.salas[i].enemigos.append(
-            EnemigoInstancia(instancia=caz_id, tipo_id="cazador-largo", vida_actual=20, sala_actual=i)
-        )
-
-    t0 = time.perf_counter()
-    dist_compartida = distancias_desde_destino(est, destino=1, rango_max=5000)
-    for i in range(2, 52):
-        caz_id = f"caz-{i}"
-        accion, costo, dest = decidir_accion_cazador(est, caz_id, catalogo=cat._fichas, distancias_destino=dist_compartida)
-        assert accion == "mover"
-        assert dest == i - 1
-    dt = time.perf_counter() - t0
-
-    # SC-CAZ-01: <= 20 ms (0.020 s)
-    assert dt <= 0.020, f"Ciclo tomó {dt:.4f} s (> 0.020 s)"
+    from src.orchestrator.bench import medir_ciclo_cazadores
+    dt = medir_ciclo_cazadores(50, historia=True)
+    assert dt <= 0.020, f"Ciclo completo con historia tomó {dt:.4f} s (>0.020s)"
 
 
 def test_rendimiento_rango_pequeno_independiente_tamano_cripta():
