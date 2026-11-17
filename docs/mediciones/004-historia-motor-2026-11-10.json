@@ -1,0 +1,90 @@
+{
+  "historia": {
+    "entorno": {
+      "python": "3.12.3",
+      "sistema": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+      "procesador": "x86_64",
+      "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"
+    },
+    "acciones": 5000,
+    "muestras": 1000,
+    "calentamientos": 100,
+    "carga": "5000 esperar mediante Sesión y motor real; turno jugador, agenda/RNG/undo, tres salas hidratadas; sin enemigos/red/render",
+    "resultados": [
+      {
+        "k": 10,
+        "sin_checkpoints": false,
+        "mediana_ms": 0.792125,
+        "p95_ms": 1.367812,
+        "max_ms": 2.785007,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 13084,
+        "serializado_bytes": 12348652,
+        "checkpoints_bytes": 4865757,
+        "deltas_bytes": 7169283,
+        "deltas": 104929,
+        "checkpoints": 501,
+        "max_acciones_reconstruidas": 10,
+        "max_deltas_aplicados": 191,
+        "memoria_historia_python_bytes": 47813610
+      },
+      {
+        "k": 20,
+        "sin_checkpoints": false,
+        "mediana_ms": 0.997161,
+        "p95_ms": 1.954234,
+        "max_ms": 2.86245,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 13084,
+        "serializado_bytes": 9920283,
+        "checkpoints_bytes": 2437388,
+        "deltas_bytes": 7169283,
+        "deltas": 104929,
+        "checkpoints": 251,
+        "max_acciones_reconstruidas": 20,
+        "max_deltas_aplicados": 401,
+        "memoria_historia_python_bytes": 39122486
+      },
+      {
+        "k": 50,
+        "sin_checkpoints": false,
+        "mediana_ms": 1.651899,
+        "p95_ms": 2.977767,
+        "max_ms": 4.519218,
+        "fallos_50ms": 0,
+        "pico_consulta_bytes": 13084,
+        "serializado_bytes": 8463251,
+        "checkpoints_bytes": 980356,
+        "deltas_bytes": 7169283,
+        "deltas": 104929,
+        "checkpoints": 101,
+        "max_acciones_reconstruidas": 50,
+        "max_deltas_aplicados": 1031,
+        "memoria_historia_python_bytes": 33907702
+      },
+      {
+        "k": 5001,
+        "sin_checkpoints": true,
+        "mediana_ms": 112.345427,
+        "p95_ms": 238.222344,
+        "max_ms": 485.004163,
+        "fallos_50ms": 777,
+        "pico_consulta_bytes": 15318,
+        "serializado_bytes": 7491890,
+        "checkpoints_bytes": 8993,
+        "deltas_bytes": 7169283,
+        "deltas": 104929,
+        "checkpoints": 1,
+        "max_acciones_reconstruidas": 5000,
+        "max_deltas_aplicados": 104924,
+        "memoria_historia_python_bytes": 30431238
+      }
+    ],
+    "memoria_metodo": "medición complementaria con la misma carga/semilla; JSON compacto y tamaño retenido de objetos Python con deduplicación por identidad; no incluye estado vivo externo",
+    "fecha_local": "2026-11-10",
+    "alcance": "offline; no certifica cargas con cazadores ni tamaños de estado no medidos",
+    "base_git": "76f62f9",
+    "arbol_modificado": true,
+    "semilla": 20261110
+  }
+}

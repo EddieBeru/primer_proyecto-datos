@@ -1,0 +1,1108 @@
+{
+  "agenda_500": 0.01101,
+  "agenda_cancelar_barrido_20k": 0.002261,
+  "agenda_cancelar_tipo_20k": 0.000872,
+  "almacen_carga_disco": 0.000511,
+  "almacen_recupera_200": 0.00204,
+  "buffer_100k_agrega": 0.022209,
+  "buffer_largo": 20,
+  "cache_disco_carga": 6.6e-05,
+  "cache_disco_guarda": 2.1e-05,
+  "cache_hits_2000": 0.001827,
+  "cache_misses_2000": 0.002228,
+  "ciclo_completo_s": 0.009637,
+  "ciclo_pasos": 12,
+  "guardado_bin_bytes": 646,
+  "guardado_bin_carga_s": 6e-05,
+  "guardado_json_bytes": 641,
+  "guardado_json_carga_s": 1.4e-05,
+  "insertsort_casi_2000": 0.000279,
+  "inventario_recorre": 9e-06,
+  "inventario_suelta_equipar": 5e-06,
+  "mergesort_2000": 0.004401,
+  "mergesort_500": 0.001307,
+  "mergesort_8000": 0.026042,
+  "mergesort_casi_2000": 0.003104,
+  "niebla_conocimiento": [
+    {
+      "V": 100,
+      "indice": {
+        "mediana_ms": 0.001004,
+        "p95_ms": 0.00107,
+        "max_ms": 0.003782,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 120,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "lineal": {
+        "mediana_ms": 0.001573,
+        "p95_ms": 0.001653,
+        "max_ms": 0.004743,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 416,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "mapa_completo": {
+        "mediana_ms": 0.353659,
+        "p95_ms": 0.70815,
+        "max_ms": 9.977861,
+        "fallos_5ms": 7,
+        "pico_consulta_bytes": 136104,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "revelacion": {
+        "consultas": 5,
+        "escrituras": 2,
+        "rehash_registros": 0
+      },
+      "secuencia_expansiones": {
+        "ms": 0.381288,
+        "altas": 100,
+        "expansiones": 5,
+        "rehash_registros": 186
+      }
+    },
+    {
+      "V": 1000,
+      "indice": {
+        "mediana_ms": 0.001131,
+        "p95_ms": 0.001239,
+        "max_ms": 0.057147,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 180,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "lineal": {
+        "mediana_ms": 0.029619,
+        "p95_ms": 0.032842,
+        "max_ms": 0.040278,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 416,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "mapa_completo": {
+        "mediana_ms": 5.396073,
+        "p95_ms": 16.811441,
+        "max_ms": 22.710262,
+        "fallos_5ms": 78,
+        "pico_consulta_bytes": 1625544,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "revelacion": {
+        "consultas": 5,
+        "escrituras": 2,
+        "rehash_registros": 0
+      },
+      "secuencia_expansiones": {
+        "ms": 3.869165,
+        "altas": 1000,
+        "expansiones": 8,
+        "rehash_registros": 1530
+      }
+    },
+    {
+      "V": 10000,
+      "indice": {
+        "mediana_ms": 0.001652,
+        "p95_ms": 0.011376,
+        "max_ms": 0.011376,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 180,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "lineal": {
+        "mediana_ms": 0.180993,
+        "p95_ms": 0.220328,
+        "max_ms": 0.220328,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 416,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "mapa_completo": {
+        "mediana_ms": 163.979655,
+        "p95_ms": 219.092382,
+        "max_ms": 219.092382,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 16740096,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "revelacion": {
+        "consultas": 5,
+        "escrituras": 2,
+        "rehash_registros": 0
+      },
+      "secuencia_expansiones": {
+        "ms": 44.195254,
+        "altas": 10000,
+        "expansiones": 11,
+        "rehash_registros": 12282
+      }
+    }
+  ],
+  "niebla_entorno": {
+    "semilla": 20261106,
+    "python": "3.12.3",
+    "sistema": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+    "cpu": "11th Gen Intel Core i7-1185G7 @ 3.00GHz",
+    "generador": "002-sinteticos-v2-costos-reciprocos",
+    "fecha_local": "2026-11-09",
+    "git_base": "865f0a81f2e8d79a264d00465459911dbccafcd9",
+    "estado_codigo": "working tree modificado"
+  },
+  "niebla_rutas": [
+    {
+      "V": 100,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 100,
+      "E_conocido": 198,
+      "heap": {
+        "mediana_ms": 1.551294,
+        "p95_ms": 2.111814,
+        "max_ms": 3.29936,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 10432,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 1.489265,
+        "p95_ms": 2.033186,
+        "max_ms": 3.439596,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 10352,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 100,
+      "E_conocido": 198,
+      "heap": {
+        "mediana_ms": 0.008566,
+        "p95_ms": 0.017113,
+        "max_ms": 0.035417,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.008043,
+        "p95_ms": 0.022501,
+        "max_ms": 0.043116,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 51,
+      "E_conocido": 99,
+      "heap": {
+        "mediana_ms": 0.755575,
+        "p95_ms": 1.015489,
+        "max_ms": 2.243137,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 4960,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.742722,
+        "p95_ms": 1.375192,
+        "max_ms": 1.619441,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 4880,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 51,
+      "E_conocido": 99,
+      "heap": {
+        "mediana_ms": 0.008268,
+        "p95_ms": 0.009103,
+        "max_ms": 0.032847,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.007884,
+        "p95_ms": 0.00837,
+        "max_ms": 0.030857,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 100,
+      "E_conocido": 360,
+      "heap": {
+        "mediana_ms": 2.691091,
+        "p95_ms": 5.600699,
+        "max_ms": 8.652574,
+        "fallos_5ms": 96,
+        "pico_consulta_bytes": 9280,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 3.352276,
+        "p95_ms": 6.563406,
+        "max_ms": 12.801892,
+        "fallos_5ms": 189,
+        "pico_consulta_bytes": 9200,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 100,
+      "E_conocido": 360,
+      "heap": {
+        "mediana_ms": 3.867448,
+        "p95_ms": 8.102653,
+        "max_ms": 13.131349,
+        "fallos_5ms": 229,
+        "pico_consulta_bytes": 9248,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 3.177155,
+        "p95_ms": 4.330431,
+        "max_ms": 6.613012,
+        "fallos_5ms": 12,
+        "pico_consulta_bytes": 9168,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 60,
+      "E_conocido": 180,
+      "heap": {
+        "mediana_ms": 1.555214,
+        "p95_ms": 2.520358,
+        "max_ms": 3.27758,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5024,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 1.474406,
+        "p95_ms": 2.50655,
+        "max_ms": 5.892424,
+        "fallos_5ms": 1,
+        "pico_consulta_bytes": 4944,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 60,
+      "E_conocido": 180,
+      "heap": {
+        "mediana_ms": 1.381265,
+        "p95_ms": 2.051228,
+        "max_ms": 2.853976,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5024,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 1.509694,
+        "p95_ms": 2.939141,
+        "max_ms": 6.03945,
+        "fallos_5ms": 1,
+        "pico_consulta_bytes": 4944,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 100,
+      "E_conocido": 360,
+      "heap": {
+        "mediana_ms": 3.386893,
+        "p95_ms": 8.244802,
+        "max_ms": 23.142099,
+        "fallos_5ms": 245,
+        "pico_consulta_bytes": 9312,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 2.91899,
+        "p95_ms": 3.908245,
+        "max_ms": 6.003564,
+        "fallos_5ms": 4,
+        "pico_consulta_bytes": 9232,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 100,
+      "E_conocido": 360,
+      "heap": {
+        "mediana_ms": 3.101128,
+        "p95_ms": 4.287309,
+        "max_ms": 5.987545,
+        "fallos_5ms": 11,
+        "pico_consulta_bytes": 9312,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 2.939858,
+        "p95_ms": 4.035486,
+        "max_ms": 8.87453,
+        "fallos_5ms": 13,
+        "pico_consulta_bytes": 9232,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 60,
+      "E_conocido": 180,
+      "heap": {
+        "mediana_ms": 1.381939,
+        "p95_ms": 1.765514,
+        "max_ms": 3.398952,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5088,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 1.378073,
+        "p95_ms": 1.97382,
+        "max_ms": 4.296944,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5008,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 100,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 60,
+      "E_conocido": 180,
+      "heap": {
+        "mediana_ms": 1.415263,
+        "p95_ms": 2.124924,
+        "max_ms": 2.949303,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5088,
+        "muestras": 1000,
+        "calentamientos": 100
+      },
+      "cola_lineal": {
+        "mediana_ms": 1.373775,
+        "p95_ms": 1.885862,
+        "max_ms": 2.681412,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 5008,
+        "muestras": 1000,
+        "calentamientos": 100
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 1000,
+      "E_conocido": 1998,
+      "heap": {
+        "mediana_ms": 20.046201,
+        "p95_ms": 21.591772,
+        "max_ms": 27.706838,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 103460,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 19.952418,
+        "p95_ms": 24.583482,
+        "max_ms": 27.951849,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 103316,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 1000,
+      "E_conocido": 1998,
+      "heap": {
+        "mediana_ms": 0.010033,
+        "p95_ms": 0.01038,
+        "max_ms": 0.015062,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.009468,
+        "p95_ms": 0.009766,
+        "max_ms": 0.016946,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 501,
+      "E_conocido": 999,
+      "heap": {
+        "mediana_ms": 9.938139,
+        "p95_ms": 11.669915,
+        "max_ms": 15.195611,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 51268,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 10.172497,
+        "p95_ms": 15.406296,
+        "max_ms": 19.102009,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 51124,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 501,
+      "E_conocido": 999,
+      "heap": {
+        "mediana_ms": 0.010422,
+        "p95_ms": 0.010844,
+        "max_ms": 0.015236,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.009941,
+        "p95_ms": 0.010217,
+        "max_ms": 0.014286,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 1000,
+      "E_conocido": 3872,
+      "heap": {
+        "mediana_ms": 34.765538,
+        "p95_ms": 40.203008,
+        "max_ms": 42.80137,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 71964,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 40.553911,
+        "p95_ms": 44.333308,
+        "max_ms": 74.305079,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 70476,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 1000,
+      "E_conocido": 3872,
+      "heap": {
+        "mediana_ms": 29.891356,
+        "p95_ms": 36.36241,
+        "max_ms": 39.828605,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 71064,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 34.59328,
+        "p95_ms": 38.458666,
+        "max_ms": 46.607904,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 68968,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 531,
+      "E_conocido": 1936,
+      "heap": {
+        "mediana_ms": 8.052167,
+        "p95_ms": 9.093073,
+        "max_ms": 10.109236,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 21156,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 8.560872,
+        "p95_ms": 13.590412,
+        "max_ms": 16.34263,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 19988,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 531,
+      "E_conocido": 1936,
+      "heap": {
+        "mediana_ms": 6.023163,
+        "p95_ms": 8.510159,
+        "max_ms": 11.121364,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 18040,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 6.233733,
+        "p95_ms": 7.871433,
+        "max_ms": 11.744177,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 17960,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 1000,
+      "E_conocido": 3872,
+      "heap": {
+        "mediana_ms": 42.745049,
+        "p95_ms": 76.191493,
+        "max_ms": 86.251472,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 98308,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 39.877445,
+        "p95_ms": 64.163372,
+        "max_ms": 90.89071,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 97204,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 1000,
+      "E_conocido": 3872,
+      "heap": {
+        "mediana_ms": 37.09381,
+        "p95_ms": 50.774856,
+        "max_ms": 63.236567,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 99876,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 37.707695,
+        "p95_ms": 41.889536,
+        "max_ms": 46.575455,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 98772,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 531,
+      "E_conocido": 1936,
+      "heap": {
+        "mediana_ms": 17.18282,
+        "p95_ms": 27.333065,
+        "max_ms": 34.326671,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 46116,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 17.527518,
+        "p95_ms": 19.705011,
+        "max_ms": 25.539035,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 45012,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 1000,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 531,
+      "E_conocido": 1936,
+      "heap": {
+        "mediana_ms": 16.511358,
+        "p95_ms": 20.741164,
+        "max_ms": 23.780007,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 47684,
+        "muestras": 100,
+        "calentamientos": 10
+      },
+      "cola_lineal": {
+        "mediana_ms": 17.449224,
+        "p95_ms": 20.856878,
+        "max_ms": 24.652698,
+        "fallos_5ms": 100,
+        "pico_consulta_bytes": 46580,
+        "muestras": 100,
+        "calentamientos": 10
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 10000,
+      "E_conocido": 19998,
+      "heap": {
+        "mediana_ms": 233.10593,
+        "p95_ms": 272.917866,
+        "max_ms": 272.917866,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1522316,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 211.088772,
+        "p95_ms": 262.317899,
+        "max_ms": 262.317899,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1522308,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "cadena",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 10000,
+      "E_conocido": 19998,
+      "heap": {
+        "mediana_ms": 0.010902,
+        "p95_ms": 0.022736,
+        "max_ms": 0.022736,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.010699,
+        "p95_ms": 0.016581,
+        "max_ms": 0.016581,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 5001,
+      "E_conocido": 9999,
+      "heap": {
+        "mediana_ms": 105.001418,
+        "p95_ms": 121.30782,
+        "max_ms": 121.30782,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 696780,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 102.052079,
+        "p95_ms": 122.574448,
+        "max_ms": 122.574448,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 696532,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "cadena",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 5001,
+      "E_conocido": 9999,
+      "heap": {
+        "mediana_ms": 0.010827,
+        "p95_ms": 0.014024,
+        "max_ms": 0.014024,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 808,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 0.009634,
+        "p95_ms": 0.012173,
+        "max_ms": 0.012173,
+        "fallos_5ms": 0,
+        "pico_consulta_bytes": 728,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 10000,
+      "E_conocido": 39600,
+      "heap": {
+        "mediana_ms": 404.143004,
+        "p95_ms": 441.93044,
+        "max_ms": 441.93044,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1413300,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 716.747983,
+        "p95_ms": 763.802583,
+        "max_ms": 763.802583,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1410860,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "malla",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 10000,
+      "E_conocido": 39600,
+      "heap": {
+        "mediana_ms": 399.863231,
+        "p95_ms": 452.052671,
+        "max_ms": 452.052671,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1451492,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 635.104945,
+        "p95_ms": 685.190203,
+        "max_ms": 685.190203,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1437908,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 5100,
+      "E_conocido": 19800,
+      "heap": {
+        "mediana_ms": 197.043532,
+        "p95_ms": 219.082498,
+        "max_ms": 219.082498,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 600740,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 267.878884,
+        "p95_ms": 293.166722,
+        "max_ms": 293.166722,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 598356,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "malla",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 5100,
+      "E_conocido": 19800,
+      "heap": {
+        "mediana_ms": 196.580407,
+        "p95_ms": 223.208704,
+        "max_ms": 223.208704,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 621660,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 253.264544,
+        "p95_ms": 273.282954,
+        "max_ms": 273.282954,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 619828,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 10000,
+      "E_conocido": 39600,
+      "heap": {
+        "mediana_ms": 367.454155,
+        "p95_ms": 419.639975,
+        "max_ms": 419.639975,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1532644,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 542.890114,
+        "p95_ms": 611.583734,
+        "max_ms": 611.583734,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1516932,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "empates",
+      "parcial": false,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 10000,
+      "E_conocido": 39600,
+      "heap": {
+        "mediana_ms": 376.759845,
+        "p95_ms": 429.485458,
+        "max_ms": 429.485458,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1543020,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 529.666306,
+        "p95_ms": 584.646092,
+        "max_ms": 584.646092,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 1524468,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": false,
+      "V_conocido": 5100,
+      "E_conocido": 19800,
+      "heap": {
+        "mediana_ms": 187.095793,
+        "p95_ms": 213.56077,
+        "max_ms": 213.56077,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 707108,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 265.587766,
+        "p95_ms": 297.596733,
+        "max_ms": 297.596733,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 691156,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    },
+    {
+      "V": 10000,
+      "forma": "empates",
+      "parcial": true,
+      "recuerdo_con_cierres": true,
+      "V_conocido": 5100,
+      "E_conocido": 19800,
+      "heap": {
+        "mediana_ms": 188.160355,
+        "p95_ms": 217.699401,
+        "max_ms": 217.699401,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 714884,
+        "muestras": 10,
+        "calentamientos": 1
+      },
+      "cola_lineal": {
+        "mediana_ms": 277.618267,
+        "p95_ms": 375.243556,
+        "max_ms": 375.243556,
+        "fallos_5ms": 10,
+        "pico_consulta_bytes": 698932,
+        "muestras": 10,
+        "calentamientos": 1
+      }
+    }
+  ],
+  "orden_auto_2000": 0.004324,
+  "orden_auto_500": 0.00142,
+  "orden_auto_8000": 0.019898,
+  "retroceso_200": 0.000239,
+  "fuentes_sha256": {
+    "src/orchestrator/bench_niebla.py": "b51c75550eba6468ba380dd8cc60788108ad4021d679285894515ea36cdaf842",
+    "src/controller2/conocimiento.py": "5b08027701dbe7ab6a774a74d26216f6ede7acd2b1a142bbb1f743149f47df4e",
+    "src/algoritmos/rutas.py": "f6e3b69d3dbde1dce23337c3bdbb56520ac756548c859f9ad48304b701926a1c"
+  }
+}

@@ -252,8 +252,8 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
             elif costo is not None and costo != 100:
                 texto = f"{costo}c"
             if texto is not None:
-                etiqueta = fuente.render(texto, True, paleta.TITULO)
-                fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), p(18))
+                etiqueta = fuente.render(texto, True, paleta.TEXTO_ACENTO)
+                fondo = pygame.Rect(x - p(4), y + tam + p(2), etiqueta.get_width() + p(8), fuente.get_linesize())
                 sup.fill(paleta.MURO, fondo)
                 sup.blit(etiqueta, (x, y + tam + p(2)))
 
@@ -287,7 +287,7 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
             etiqueta = fuente.render(_texto.etiqueta_item(item_id), True, paleta.TEXTO) \
                 if fuente is not None else None
             if etiqueta is not None:
-                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), p(18))
+                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), fuente.get_linesize())
                 sup.fill(paleta.ETIQUETA_FONDO, fondo)
                 sup.blit(etiqueta, (x + p(2), y + tam + p(2)))
     for j, trampa in enumerate(trampas):

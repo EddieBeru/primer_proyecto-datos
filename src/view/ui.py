@@ -22,7 +22,7 @@ BLANCO = paleta.TEXTO
 GRIS = paleta.SECUNDARIO
 ROJO = paleta.PELIGRO
 VERDE = paleta.VIDA
-DORADO = paleta.TITULO
+DORADO = paleta.TEXTO_ACENTO
 ANCHO_LATERAL = 340
 
 
@@ -61,7 +61,7 @@ def dibujar_stats(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
         f"ATK {j.get('ataque', '?')} DEF {j.get('defensa', '?')} VEL {j.get('velocidad', '?')}",
     ]
     for nombre, restante in (j.get("efectos", {}) or {}).items():
-        lineas.append(f"* {nombre}: {restante}")
+        lineas.append(f"* {_texto.inicial_mayuscula(nombre)}: {restante}")
     lineas.append(f"Pergaminos: {foto.pergaminos} (U)")
     if dev:
         lineas.append(f"[dev] solicitudes: {foto.presupuesto}")
@@ -69,7 +69,7 @@ def dibujar_stats(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
     for linea in lineas:
         for parte in _texto.envolver(linea, fuente, ancho, 99):
             sup.blit(fuente.render(parte, True, BLANCO), (x, y))
-            y += p(20)
+            y += fuente.get_linesize()
     return y
 
 
@@ -84,7 +84,7 @@ def dibujar_inventario(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
         y += 22
     inv = list(foto.inventario or [])
     if not inv:
-        sup.blit(fuente.render("(vacía)", True, GRIS), (x, y))
+        sup.blit(fuente.render("(Vacía)", True, GRIS), (x, y))
         return y + 20
     texto_w = max(_ancho_panel(sup, x) - (TAM + 6), 60)
     for i, item_id in enumerate(inv):
@@ -102,40 +102,21 @@ def dibujar_inventario(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
     return y
 
 
-def dibujar_contadores(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
-                       foto: "FotoEstado", dev: bool = False) -> None:
-    """Fila única: vida, stats, efectos y pergaminos (Parte 1 §3)."""
-    m = medidas(sup)
-    p = m.px
-    j = foto.jugador
-    x, y = rect.x, rect.y
-    etiqueta = fuente.render("Vida", True, GRIS)
-    sup.blit(etiqueta, (x, y + p(2)))
-    x += etiqueta.get_width() + p(8)
-    vida = int(j.get("vida", 0))
-    maxima = max(int(j.get("vida_max", 1)), 1)
-    ancho = p(150)
-    pygame.draw.rect(sup, paleta.VIDA_FONDO, pygame.Rect(x, y + p(3), ancho, p(14)))
-    pygame.draw.rect(sup, VERDE, pygame.Rect(
-        x, y + p(3), ancho * max(min(vida, maxima), 0) // maxima, p(14)))
-    marcador = fuente.render(f"{vida}/{maxima}", True, BLANCO)
-    sup.blit(marcador, (x + ancho + p(8), y + p(2)))
-    x += ancho + p(8) + marcador.get_width() + p(24)
-    stats = fuente.render(
-        f"ATK {j.get('ataque', '?')}  DEF {j.get('defensa', '?')}  "
-        f"VEL {j.get('velocidad', '?')}", True, BLANCO)
-    sup.blit(stats, (x, y + p(2)))
-    x += stats.get_width() + p(24)
-    perg = fuente.render(f"Pergaminos: {foto.pergaminos}", True, DORADO)
-    sup.blit(perg, (x, y + p(2)))
-    x += perg.get_width() + p(16)
-    for nombre, restante in (j.get("efectos", {}) or {}).items():
-        chip = fuente.render(f"* {nombre} {restante}", True, GRIS)
-        sup.blit(chip, (x, y + p(2)))
-        x += chip.get_width() + p(12)
-    if dev:
-        aviso = fuente.render(f"[dev] solicitudes: {foto.presupuesto}", True, GRIS)
-        sup.blit(aviso, (rect.right - aviso.get_width(), y + p(2)))
+def dibujar_contadores(sup, fuente, rect, foto, dev=False):
+    """Datos en celdas estables; otra fila cuando el ancho no alcanza."""
+    m=medidas(sup);f=m.estilo('datos');j=foto.jugador
+    x,y=rect.x,rect.y;paso=f.get_linesize()
+    campos=[(f"Vida {j.get('vida','?')}/{j.get('vida_max','?')}",160),
+            (f"ATQ {j.get('ataque','?')}  DEF {j.get('defensa','?')}  VEL {j.get('velocidad','?')}",192),
+            (f"Pergaminos {foto.pergaminos}",128)]
+    campos += [(f'{n}: {v}',128) for n,v in (j.get('efectos',{}) or {}).items()]
+    if dev: campos.append((f'[dev] solicitudes: {foto.presupuesto}',240))
+    for cadena,ancho in campos:
+        ancho=min(rect.width,m.ui_px(ancho))
+        if x+ancho>rect.right and x>rect.x: x=rect.x;y+=paso
+        _texto.etiqueta(sup,f,cadena,pygame.Rect(x,y,ancho,paso),BLANCO)
+        x+=ancho+m.ui_px(8)
+    return y+paso-rect.y
 
 
 def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
@@ -149,7 +130,7 @@ def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
     mantiene el orden real ([0] = equipado, marca "E" como siempre).
     """
     m = medidas(sup)
-    p = m.px
+    p = m.ui_px
     etiqueta = fuente.render("Mochila" + (sufijo_orden or ""), True, DORADO)
     sup.blit(etiqueta, (rect.x, rect.y))
     x = rect.x
@@ -182,81 +163,62 @@ def dibujar_mochila(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
     return hotspots
 
 
-def dibujar_hud(sup: pygame.Surface, fuente: pygame.Font, rect: pygame.Rect,
-                 foto: "FotoEstado", sprites: SpriteManager, sel_inv: int,
-                 orden: list | None, criterio: str | None, dev: bool,
-                 ayudas: bool, raton: tuple[int, int] | None) -> list:
-    """Panel adaptable: selección visible y acciones con teclado o ratón."""
-    m = medidas(sup)
-    p = m.px
-    lateral = es_panoramica(sup)
-    pygame.draw.rect(sup, paleta.PANEL, rect)
-    pygame.draw.rect(sup, (230, 207, 177), rect, m.trazo())
-    contenido = rect.inflate(-p(24), -p(20))
-    x, y, w = contenido.x, contenido.y, contenido.w
+def alto_hud(sup):
+    return medidas(sup).ui_px(248 if sup.get_width()<800 else 232)
+
+
+def dibujar_hud(sup, fuente, rect, foto, sprites, sel_inv, orden, criterio, dev, ayudas, raton):
+    """Jerarquía y tamaños de lectura independientes de la escala del escenario."""
+    m=medidas(sup);p=m.ui_px
+    fuente=m.estilo('cuerpo');chica=m.estilo('auxiliar');boton_f=m.estilo('boton')
+    lateral=es_panoramica(sup)
+    pygame.draw.rect(sup,paleta.PANEL,rect)
+    pygame.draw.rect(sup,paleta.SECUNDARIO,rect,1)
+    contenido=rect.inflate(-p(24),-p(24));x,y,w=contenido.x,contenido.y,contenido.w
     if lateral:
-        sup.blit(fuente.render("EXPLORADOR", True, DORADO), (x, y))
-        dibujar_barra_vida(sup, x, y + p(28), w, foto)
-        y = dibujar_stats(sup, fuente, x, y + p(52), foto, dev) + p(18)
+        cabecera=m.estilo('h3')
+        sup.blit(cabecera.render('EXPLORADOR',True,DORADO),(x,y));y+=cabecera.get_linesize()
+        dibujar_barra_vida(sup,x,y,w,foto);y+=p(24)
+        y=dibujar_stats(sup,fuente,x,y,foto,dev)+p(8)
     else:
-        dibujar_contadores(sup, fuente, contenido, foto, dev)
-        y += p(30)
-    inv = list(orden) if orden is not None else list(foto.inventario or [])
-    # En ventana, mochila a la izquierda y acciones a la derecha.
-    inv_w = w if lateral else max(p(240), w // 2 - p(18))
-    hotspots = dibujar_mochila(
-        sup, fuente, pygame.Rect(x, y, inv_w, p(80)), foto, sprites, sel_inv,
-        orden=orden, sufijo_orden=f" · {criterio}" if criterio else None)
-    nombre = _texto.etiqueta_item(inv[sel_inv % len(inv)]) if inv else "Tab o clic para seleccionar"
-    for i, linea in enumerate(_texto.envolver(nombre, fuente, inv_w, 2)):
-        sup.blit(fuente.render(linea, True, BLANCO), (x, y + p(82) + p(19) * i))
-    ax = x if lateral else x + inv_w + p(24)
-    ay = y + p(140) if lateral else y
-    aw = w if lateral else w - inv_w - p(24)
-    acciones = (("E", "Abrir", pygame.K_e, True),
-                ("Espacio", "Atacar", pygame.K_SPACE, True),
-                ("F", "Recoger", pygame.K_f, True),
-                ("R", "Usar", pygame.K_r, bool(inv)),
-                ("Enter", "Equipar", pygame.K_RETURN, bool(inv)),
-                ("Q", "Soltar", pygame.K_q, bool(inv)))
-    for i, (tecla, etiqueta, key, habilitado) in enumerate(acciones):
-        col, fila = i % 2, i // 2
-        boton = pygame.Rect(ax + col * (aw // 2 + p(4)), ay + fila * p(36),
-                            aw // 2 - p(4), p(30))
-        hover = habilitado and raton is not None and boton.collidepoint(raton)
-        pygame.draw.rect(sup, (252, 228, 198) if hover else paleta.FONDO_APP,
-                         boton)
-        pygame.draw.rect(sup, DORADO if hover else (230, 207, 177), boton, m.trazo())
-        fuente_boton = fuente if boton.w >= p(154) else m.fuente(12)
-        leyenda = fuente_boton.render(f"{tecla}  {etiqueta}", True, BLANCO if habilitado else GRIS)
-        sup.blit(leyenda, leyenda.get_rect(center=boton.center))
-        if habilitado:
-            hotspots.append((boton, key))
+        y+=dibujar_contadores(sup,fuente,contenido,foto,dev)+p(8)
+    inv=list(orden) if orden is not None else list(foto.inventario or [])
+    inv_w=w if lateral else max(p(176),w//2-p(16))
+    hotspots=dibujar_mochila(sup,fuente,pygame.Rect(x,y,inv_w,p(64)),foto,sprites,sel_inv,
+        orden=orden,sufijo_orden=f' · {criterio}' if criterio else None)
+    nombre=_texto.etiqueta_item(inv[sel_inv%len(inv)]) if inv else 'Tab o clic para seleccionar'
+    etiqueta_y=y+p(24)+sprites.tam+p(16)
+    _texto.etiqueta(sup,fuente,nombre,pygame.Rect(x,etiqueta_y,inv_w,fuente.get_linesize()*2),BLANCO,
+        max_lineas=2,enfocado=bool(inv))
+    ax=x if lateral else x+inv_w+p(16)
+    ay=etiqueta_y+fuente.get_linesize()*2+p(8) if lateral else y
+    aw=w if lateral else w-inv_w-p(16)
+    acciones=(('E','Abrir',pygame.K_e,True),('Espacio','Atacar',pygame.K_SPACE,True),
+              ('F','Recoger',pygame.K_f,True),('R','Usar',pygame.K_r,bool(inv)),
+              ('Enter','Equipar',pygame.K_RETURN,bool(inv)),('Q','Soltar',pygame.K_q,bool(inv)))
+    for i,(tecla,etiqueta,key,activo) in enumerate(acciones):
+        ancho=(aw-p(8))//2
+        boton=pygame.Rect(ax+(i%2)*(ancho+p(8)),ay+(i//2)*p(40),ancho,p(32))
+        hover=activo and raton is not None and boton.collidepoint(raton)
+        pygame.draw.rect(sup,(252,228,198) if hover else paleta.FONDO_APP,boton)
+        pygame.draw.rect(sup,DORADO if hover else GRIS,boton,1)
+        _texto.etiqueta(sup,boton_f,f'{tecla}  {etiqueta}',boton.inflate(-p(16),0),BLANCO if activo else GRIS,centrar=True)
+        if activo: hotspots.append((boton,key))
     if lateral:
-        y = ay + p(128)
-        sup.blit(fuente.render("ÚLTIMOS SUCESOS", True, DORADO), (x, y))
-        dibujar_mensajes(sup, fuente, x, y + p(28), foto,
-                         max_lineas=max(1, (contenido.bottom - y - p(100)) // max(1, p(18))), ancho_max=w)
+        y=ay+p(128)
+        sup.blit(m.estilo('h3').render('ÚLTIMOS SUCESOS',True,DORADO),(x,y));y+=p(24)
+        cantidad=max(0,(contenido.bottom-y-p(64))//fuente.get_linesize())
+        dibujar_mensajes(sup,fuente,x,y,foto,max_lineas=cantidad,ancho_max=w)
+    pie_y=contenido.bottom-p(40)
     if ayudas:
-        chica = m.fuente(13)
-        lineas = ("WASD / flechas: caminar · M: mapa",
-                  "Tab: mochila · C: orden · U: rebobinar") if lateral else (
-                      "WASD / flechas: caminar · Tab: mochila · M: mapa · U: rebobinar",)
-        for i, linea in enumerate(lineas):
-            sup.blit(chica.render(linea, True, GRIS),
-                     (x, contenido.bottom - p(48) + i * p(18)))
-    # En lateral el texto se ajusta a su columna.
-    chica = m.fuente(13)
-    pie = chica.render("F2 Controles · F10 Ajustes · Esc Pausa", True, DORADO)
-    sup.blit(pie, (x, contenido.bottom - p(16)))
-    # Accesos de ratón a la ayuda, ajustes y pausa, también disponibles sin ayudas.
-    inicio = x
-    for etiqueta, key in (("F2 Controles", pygame.K_F2),
-                           ("F10 Ajustes", pygame.K_F10),
-                           ("Esc Pausa", pygame.K_ESCAPE)):
-        hotspots.append((pygame.Rect(inicio, contenido.bottom - p(16),
-                                      chica.size(etiqueta)[0], p(18)), key))
-        inicio += chica.size(etiqueta + " · ")[0]
+        ayuda='WASD / flechas: caminar · M: mapa · H: historial · U: rebobinar'
+        _texto.etiqueta(sup,chica,ayuda,pygame.Rect(x,pie_y,w,chica.get_linesize()),GRIS)
+    inicio=x;pie_y+=p(24)
+    for etiqueta,key in (('F2 Controles',pygame.K_F2),('F10 Ajustes',pygame.K_F10),('Esc Pausa',pygame.K_ESCAPE)):
+        ancho=chica.size(etiqueta)[0]
+        sup.blit(chica.render(etiqueta,True,DORADO),(inicio,pie_y))
+        hotspots.append((pygame.Rect(inicio,pie_y,ancho,chica.get_linesize()),key))
+        inicio+=ancho+p(16)
     return hotspots
 
 
@@ -271,12 +233,12 @@ def dibujar_mensajes(sup: pygame.Surface, fuente: pygame.Font, x: int, y: int,
     for linea in (foto.mensajes or [])[-max_lineas:]:
         if usadas >= max_lineas:
             return
-        for parte in _texto.envolver(_texto.humanizar(linea), fuente, ancho,
+        for parte in _texto.envolver(_texto.inicial_mayuscula(_texto.humanizar(linea)), fuente, ancho,
                                      max_lineas - usadas):
             if usadas >= max_lineas:
                 return
             sup.blit(fuente.render(parte, True, GRIS), (x, y))
-            y += p(18)
+            y += fuente.get_linesize()
             usadas += 1
 
 
@@ -291,7 +253,7 @@ def dibujar_toast(sup: pygame.Surface, fuente: pygame.Font, texto: str,
     p = m.px
     if not texto:
         return
-    lineas = _texto.envolver(texto, fuente, sup.get_width() - p(36), 2)
+    lineas = _texto.envolver(_texto.inicial_mayuscula(texto), fuente, sup.get_width() - p(36), 2)
     etiquetas = [fuente.render(parte, True, paleta.TEXTO_CLARO) for parte in lineas]
     alto = len(etiquetas) * p(22) + p(4)
     abajo = tope_inferior if tope_inferior is not None else sup.get_height() - p(10)

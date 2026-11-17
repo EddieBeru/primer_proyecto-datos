@@ -13,7 +13,9 @@ PANEL = (255, 252, 245)  # blanco cálido para paneles
 TITULO = (230, 92, 0)  # naranja intenso para títulos y selecciones
 TEXTO = (62, 39, 26)  # marrón oscuro para texto sobre claro
 TEXTO_CLARO = (255, 250, 240)  # para texto sobre rojo/naranja oscuro
-SECUNDARIO = (140, 110, 85)  # marrón suave para texto secundario
+TEXTO_ACENTO = (151, 60, 0)  # texto pequeño y acciones con contraste AA
+ACCION = TEXTO_ACENTO
+SECUNDARIO = (103, 80, 63)  # marrón suave para texto secundario
 
 # Sala (arena cálida + muros marrón).
 FONDO_SALA = (246, 225, 190)

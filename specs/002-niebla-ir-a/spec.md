@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Aclarada para planificación — pendiente de contraste con el enunciado íntegro de P2
+**Status**: Aclarada e implementada parcialmente; contrastada con P2 el 2026-11-09. Aceptación integrada pendiente de001/004 y referencia de rendimiento.
 
 **Input**: descripción del usuario y bloque 002 de la guía de parte II.
 
@@ -101,9 +101,10 @@ Los casos 1–6 conservan los escenarios atribuidos al Apéndice B por la guía;
 
 ## Assumptions
 
-- Fuentes: [guía de parte II](../../docs/CRIPTA%20Parte%20II%20gu%C3%ADa%20y%20divisi%C3%B3n%20del%20trabajo.md), [P1](../../docs/enunciado.md) y [constitución](../../.specify/memory/constitution.md).
-- La guía es un resumen y una propuesta de trabajo, no el enunciado íntegro de P2. Sus referencias deben contrastarse con ese enunciado cuando esté disponible.
-- Los requisitos copiados de la guía son la base solicitada; las aclaraciones registradas son acuerdos del usuario para planificar, no nuevas reglas oficiales. Los supuestos restantes se mantienen explícitos y deben contrastarse con el enunciado íntegro de P2.
+- Fuente normativa: [enunciado íntegro de P2](../../docs/Cripta%20Parte%20II.md), §§3.3–3.4,5.3,6.1–6.3,7.3 y Apéndice B, leído y contrastado el2026-11-09.
+- Fuentes de apoyo: [guía de parte II](../../docs/CRIPTA%20Parte%20II%20gu%C3%ADa%20y%20divisi%C3%B3n%20del%20trabajo.md), [P1](../../docs/enunciado.md) y [constitución](../../.specify/memory/constitution.md).
+- La guía es un resumen y una propuesta de trabajo. El contraste con P2 íntegro ya se realizó: los seis escenarios1–6 coinciden con el Apéndice B; el criterio de5 ms corresponde a§6.1 y las mediciones de mapa/ir a a§6.3.
+- Los requisitos de la guía coinciden con P2 en el alcance002. Las aclaraciones registradas (por ejemplo encendido inmediato y cancelación) siguen siendo acuerdos del usuario para casos no detallados allí; no se atribuyen al texto oficial. La proporcionalidad de revelación de§5.3 se interpreta como costo esperado amortizado, incluyendo expansiones.
 - Las vecinas reveladas por antorcha cuentan como exploradas y sus salidas hacen avistados sus destinos, sin propagación adicional de exploración.
 - Apagar la antorcha no borra conocimiento adquirido; solo impide revelaciones futuras por ese efecto.
 - Enemigos muertos no detienen el viaje; la condición se refiere a enemigos vivos activos o dormidos.

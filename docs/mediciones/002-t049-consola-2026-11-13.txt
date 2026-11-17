@@ -1,0 +1,1446 @@
+Cripta cripta-ejemplo iniciada, semilla 20261113.
+comandos: n/s/e/o mover · abrir <N/S/E/O> · atacar <inst> · esperar · pisar <inst> · recoger <id> · usar <id> · soltar <pos|id> · equipar <pos|id> · inventario [nombre|peso|valor] · mapa · ir a <id> · cancelar · deshacer · historia <t|#k> · foto · guardar [ruta] · cargar <ruta> · fin · salir · ayuda
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:40)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 100/100 atk 10 def 5 vel 10 efectos —
+  inv: — (pergaminos: 0)
+  presupuesto: 999
+> mapa
+1  Entrada  [explorada]
+  S→3 costo 100 [abierta]
+  E→2 costo 100 [abierta]
+2  sala avistada  [avistada]
+3  sala avistada  [avistada]
+> ir a 3
+! El destino debe ser una sala explorada.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:40)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 100/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  ! El destino debe ser una sala explorada.
+  presupuesto: 999
+> atacar e1-1
+Daño 8.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:32)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 100/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  presupuesto: 999
+> atacar e1-1
+Daño 7.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:25)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 96/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  presupuesto: 999
+> atacar e1-1
+Daño 9.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:16), oleada-2(murcielago-e:20)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 96/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  presupuesto: 999
+> atacar e1-1
+Daño 10.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:6), oleada-2(murcielago-e:20)
+  suelo: antorcha-01
+  trampas: t1-1, t1-2
+  vida 88/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  presupuesto: 999
+> atacar e1-1
+Daño 8.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:0), oleada-2(murcielago-e:20)
+  suelo: antorcha-01, pocion-roja-01
+  trampas: t1-1, t1-2
+  vida 87/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  presupuesto: 999
+> atacar e1-1
+! Ya estaba muerto.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:0), oleada-2(murcielago-e:20)
+  suelo: antorcha-01, pocion-roja-01
+  trampas: t1-1, t1-2
+  vida 87/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  ! Ya estaba muerto.
+  presupuesto: 999
+> atacar e1-1
+! Ya estaba muerto.
+— sala 1 Entrada [jugando]
+  puertas: E→2, S→3
+  enemigos: e1-1(esqueleto-gu:0), oleada-2(murcielago-e:20)
+  suelo: antorcha-01, pocion-roja-01
+  trampas: t1-1, t1-2
+  vida 87/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  ! Ya estaba muerto.
+  presupuesto: 999
+> e
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:20), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 84/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 0|atacar|jugador|e1-1
+  · Daño 8.
+  · 1000|atacar|jugador|e1-1
+  · Daño 7.
+  · 2000|dano|e1-1|4
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  presupuesto: 999
+> atacar e2-1
+Daño 13.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:7), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 77/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 2000|atacar|jugador|e1-1
+  · Daño 9.
+  · 3000|efecto|oleada|oleada-2
+  · 3000|atacar|jugador|e1-1
+  · Daño 10.
+  · 3833|dano|oleada-2|1
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  presupuesto: 999
+> atacar e2-1
+Daño 9.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  presupuesto: 999
+> atacar e2-1
+! Ya estaba muerto.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ya estaba muerto.
+  presupuesto: 999
+> atacar e2-1
+! Ya estaba muerto.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ya estaba muerto.
+  presupuesto: 999
+> ir a 1
+! Hay enemigos vivos en la sala de partida.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Hay enemigos vivos en la sala de partida.
+  presupuesto: 999
+> step
+! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> s
+! Puerta cerrada. Ábrela con llave-hierro-01.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Puerta cerrada. Ábrela con llave-hierro-01.
+  presupuesto: 999
+> recoger pocion-roja-01
+! No está en el suelo.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No está en el suelo.
+  presupuesto: 999
+> s
+! Puerta cerrada. Ábrela con llave-hierro-01.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Puerta cerrada. Ábrela con llave-hierro-01.
+  presupuesto: 999
+> recoger pergamino-01
+! No está en el suelo.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No está en el suelo.
+  presupuesto: 999
+> recoger llave-salida-01
+! No está en el suelo.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No está en el suelo.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-1
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-2
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-2
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-2
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> atacar e5-2
+! Ese enemigo no está aquí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Ese enemigo no está aquí.
+  presupuesto: 999
+> n
+! No hay camino por ahí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No hay camino por ahí.
+  presupuesto: 999
+> n
+! No hay camino por ahí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No hay camino por ahí.
+  presupuesto: 999
+> recoger antorcha-01
+! No está en el suelo.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No está en el suelo.
+  presupuesto: 999
+> usar antorcha-01
+! No la tienes.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No la tienes.
+  presupuesto: 999
+> mapa
+1  Entrada  [explorada]
+  S→3 costo 100 [abierta]
+  E→2 costo 100 [abierta]
+2  Armería  [explorada]
+  S→4 costo 100 [cerrada]
+  O→1 costo 100 [abierta]
+3  sala avistada  [avistada]
+4  sala avistada  [avistada]
+> deshacer
+! Sin pergaminos.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Sin pergaminos.
+  presupuesto: 999
+> mapa
+1  Entrada  [explorada]
+  S→3 costo 100 [abierta]
+  E→2 costo 100 [abierta]
+2  Armería  [explorada]
+  S→4 costo 100 [cerrada]
+  O→1 costo 100 [abierta]
+3  sala avistada  [avistada]
+4  sala avistada  [avistada]
+> e
+! No hay camino por ahí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No hay camino por ahí.
+  presupuesto: 999
+> ir a 1
+! Hay enemigos vivos en la sala de partida.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! Hay enemigos vivos en la sala de partida.
+  presupuesto: 999
+> step
+! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> e
+! No hay camino por ahí.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: enemigos
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! No hay camino por ahí.
+  presupuesto: 999
+> ir a 3
+! El destino debe ser una sala explorada.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! El destino debe ser una sala explorada.
+  presupuesto: 999
+> step
+! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> foto
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> cargar t049-inexistente.bin
+! no se pudo cargar: [Errno 2] No such file or directory: 't049-inexistente.bin'
+> foto
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> cancelar
+Viaje cancelado.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> mapa
+1  Entrada  [explorada]
+  S→3 costo 100 [abierta]
+  E→2 costo 100 [abierta]
+2  Armería  [explorada]
+  S→4 costo 100 [cerrada]
+  O→1 costo 100 [abierta]
+3  sala avistada  [avistada]
+4  sala avistada  [avistada]
+> ir a 2
+Ya estás en el destino.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: destino
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  presupuesto: 999
+> step
+! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: destino
+  inv: — (pergaminos: 0)
+  · 4000|dano|e1-1|7
+  · 4000|atacar|jugador|e1-1
+  · 4000|muerte|e1-1|jugador
+  · Daño 8.
+  · 4666|dano|oleada-2|1
+  · 5000|mover|jugador|E
+  · 5499|mover|oleada-2|oleada-2->2
+  · 5833|dano|e2-1|3
+  · 6000|efecto|oleada|oleada-8
+  · 6000|atacar|jugador|e2-1
+  · Daño 13.
+  · 6332|dano|oleada-2|1
+  · 6666|dano|e2-1|4
+  · 6833|dano|oleada-8|2
+  · 7000|atacar|jugador|e2-1
+  · 7000|muerte|e2-1|jugador
+  · Daño 9.
+  · 7165|dano|oleada-2|2
+  · 7666|dano|oleada-8|3
+  · 7998|dano|oleada-2|1
+  ! ¿step? (ayuda: n/s/e/o, abrir, atacar, esperar, pisar, recoger, usar, soltar, equipar, deshacer)
+  presupuesto: 999
+> guardar t049-valido.bin
+guardada en t049-valido.bin
+> cargar t049-valido.bin
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  inv: — (pergaminos: 0)
+  presupuesto: 999
+> ir a 999
+! El destino debe ser una sala explorada.
+— sala 2 Armería [jugando]
+  puertas: O→1, S→4🔒
+  enemigos: e2-1(murcielago-e:0), oleada-2(murcielago-e:20), oleada-8(murcielago-e:20)
+  suelo: espada-hierro-01, escudo-madera-01
+  trampas: —
+  vida 71/100 atk 10 def 5 vel 10 efectos —
+  viaje detenido: cancelado
+  inv: — (pergaminos: 0)
+  ! El destino debe ser una sala explorada.
+  presupuesto: 999
+> salir
+sesión guardada sin terminar? use guardar. adiós.
+código de salida: 0

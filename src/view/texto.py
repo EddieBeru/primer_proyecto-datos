@@ -61,10 +61,19 @@ def nombre_corto(item_id: str) -> str:
     return nombre.replace("-", " ").replace("_", " ").strip() or str(item_id)
 
 
+def inicial_mayuscula(contenido: str) -> str:
+    """Mayúscula inicial de presentación, conservando el resto y las siglas."""
+    cadena = str(contenido)
+    for i, caracter in enumerate(cadena):
+        if caracter.isalpha():
+            return cadena[:i] + caracter.upper() + cadena[i+1:]
+    return cadena
+
+
 def etiqueta_item(item_id: str) -> str:
     """Nombre corto para inventario y suelo (sin unicode: la fuente Pygame
     no trae glifos emoji; el pictograma va dibujado en el mosaico)."""
-    return nombre_corto(item_id)
+    return inicial_mayuscula(nombre_corto(item_id))
 
 
 _DIRECCIONES = {"n": "norte", "s": "sur", "e": "este", "o": "oeste"}
@@ -151,7 +160,91 @@ def envolver(texto: str, fuente: "pygame.Font", ancho_max: int,
         lineas.append(actual)
     if len(lineas) > max_lineas:
         lineas = lineas[:max_lineas]
-        while lineas and fuente.size(lineas[-1] + "…")[0] > ancho_max:
+        while lineas and lineas[-1] and fuente.size(lineas[-1] + "…")[0] > ancho_max:
             lineas[-1] = lineas[-1][:-1]
-        lineas[-1] = (lineas[-1] + "…") if lineas else "…"
+        lineas[-1] = lineas[-1] + "…" if fuente.size("…")[0] <= ancho_max else ""
     return lineas
+
+
+# Registro de etiquetas truncadas del frame; solo presentación, sin estado del juego.
+_AYUDAS = []
+_AYUDA_TEXTO = ''
+_AYUDA_RECT = None
+_AYUDA_SCROLL = 0
+_AYUDA_MAX = 0
+
+
+def iniciar_frame():
+    _AYUDAS.clear()
+
+
+def elipsis(cadena, fuente, ancho):
+    cadena = str(cadena)
+    if fuente.size(cadena)[0] <= ancho: return cadena
+    if fuente.size('…')[0] > ancho: return ''
+    izq, der = 0, len(cadena)
+    while izq < der:
+        medio = (izq+der+1)//2
+        if fuente.size(cadena[:medio]+'…')[0] <= ancho: izq=medio
+        else: der=medio-1
+    return cadena[:izq]+'…'
+
+
+def registrar_ayuda(rect, contenido, enfocado=False):
+    _AYUDAS.append((rect.copy(), str(contenido), enfocado))
+
+
+def etiqueta(sup, fuente, contenido, rect, color, *, max_lineas=1, centrar=False, enfocado=False):
+    completo = inicial_mayuscula(contenido)
+    lineas = [elipsis(completo, fuente, rect.w)] if max_lineas == 1 else envolver(completo,fuente,rect.w,max_lineas)
+    truncado = (lineas[0] != completo) if max_lineas==1 else bool(lineas and lineas[-1].endswith('…'))
+    for i,linea in enumerate(lineas):
+        imagen = fuente.render(linea,True,color)
+        pos = imagen.get_rect(center=rect.center) if centrar else (rect.x,rect.y+i*fuente.get_linesize())
+        sup.blit(imagen,pos)
+    if truncado: registrar_ayuda(rect,completo,enfocado)
+    return truncado
+
+
+def desplazar_ayuda(delta, pos):
+    global _AYUDA_SCROLL
+    if _AYUDA_RECT is None or pos is None or not _AYUDA_RECT.collidepoint(pos): return False
+    _AYUDA_SCROLL = min(_AYUDA_MAX,max(0,_AYUDA_SCROLL-delta*2))
+    return True
+
+
+def dibujar_ayuda(sup, raton=None, foco=None):
+    """Tooltip opaco y desplazable; el foco de teclado ofrece el mismo texto completo."""
+    import pygame
+    from src.view.medidas import medidas
+    from src.view import paleta
+    global _AYUDA_TEXTO, _AYUDA_RECT, _AYUDA_SCROLL, _AYUDA_MAX
+    elegida = next((a for a in reversed(_AYUDAS) if raton is not None and a[0].collidepoint(raton)),None)
+    if elegida is None and raton is not None and _AYUDA_RECT is not None and _AYUDA_RECT.collidepoint(raton):
+        elegida = next((a for a in _AYUDAS if a[1]==_AYUDA_TEXTO),None)
+    if elegida is None:
+        elegida = next((a for a in _AYUDAS if a[2] or (foco is not None and foco.colliderect(a[0]))),None)
+    if elegida is None:
+        _AYUDA_RECT=None;_AYUDA_TEXTO='';_AYUDA_SCROLL=0
+        return
+    ancla,contenido,_ = elegida
+    if contenido != _AYUDA_TEXTO: _AYUDA_SCROLL=0
+    _AYUDA_TEXTO=contenido
+    fuente = medidas(sup).estilo('label')
+    ancho = max(1,min(480,sup.get_width()-48))
+    lineas = envolver(contenido,fuente,ancho, max_lineas=max(1,len(contenido)))
+    paso = fuente.get_linesize()
+    cantidad = max(1,(sup.get_height()-80)//paso)
+    _AYUDA_MAX = max(0,len(lineas)-cantidad)
+    _AYUDA_SCROLL=min(_AYUDA_SCROLL,_AYUDA_MAX)
+    visibles=lineas[_AYUDA_SCROLL:_AYUDA_SCROLL+cantidad]
+    alto=len(visibles)*paso+24
+    y=ancla.bottom+8
+    if y+alto>sup.get_height()-8: y=max(8,ancla.top-alto-8)
+    caja=pygame.Rect(min(ancla.x,sup.get_width()-ancho-32),y,ancho+24,alto)
+    caja.clamp_ip(sup.get_rect().inflate(-16,-16))
+    pygame.draw.rect(sup,paleta.PANEL,caja)
+    pygame.draw.rect(sup,paleta.TEXTO,caja,1)
+    for i,linea in enumerate(visibles):
+        sup.blit(fuente.render(linea,True,paleta.TEXTO),(caja.x+12,caja.y+8+i*paso))
+    _AYUDA_RECT=caja

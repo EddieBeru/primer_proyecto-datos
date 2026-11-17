@@ -139,8 +139,10 @@ class MapaConocido:
             return
         for direccion in DIRECCIONES:
             for salida in sala.salidas:
+                if salida.direccion != direccion:
+                    continue
                 destino = self.sala(salida.destino)
-                if salida.direccion == direccion and destino is not None and destino.estado == "explorada" \
+                if destino is not None and destino.estado == "explorada" \
                         and self.puerta(salida.puerta_id) == "abierta":
                     yield salida
 

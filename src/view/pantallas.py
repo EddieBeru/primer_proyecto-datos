@@ -29,31 +29,28 @@ if TYPE_CHECKING:  # solo tipos: en runtime la vista solo importa Sesion
 
 BLANCO = paleta.TEXTO
 GRIS = paleta.SECUNDARIO
-DORADO = paleta.TITULO
+DORADO = paleta.TEXTO_ACENTO
 FONDO = paleta.FONDO_APP
 
-FUENTE_FAMILIA = "consolas,monospace"
-_FUENTES: dict[tuple[int, bool], pygame.Font] = {}
 DAMERO_FONDO = (250, 233, 209)  # damero sutil del fondo de menús
 
 # Tamaños fijos (registro producto: escala consistente, no fluida).
-T_DISPLAY, T_TITULO, T_BOTON, T_CUERPO, T_NOTA = 64, 40, 24, 18, 14
+T_DISPLAY, T_TITULO, T_BOTON, T_CUERPO, T_NOTA = 64, 28, 14, 16, 12
 CONTROLES = ("WASD/flechas mover · E abrir · Espacio atacar · X objetivo · "
              "F recoger · Tab mochila (Shift atrás) · C orden · Enter equipar · "
              "R usar · Esc pausa")
 
 
-def _fuente(tam: int, negrita: bool = False) -> pygame.Font:
-    clave = (tam, negrita)
-    if clave not in _FUENTES:
-        _FUENTES[clave] = pygame.font.SysFont(FUENTE_FAMILIA, tam, bold=negrita)
-    return _FUENTES[clave]
+def _fuente(tam: int, negrita: bool = False):
+    from src.view.tipografia import fuente
+    return fuente(tam, negrita)
 
 
 class _DisposicionPanel:
     """Distribuye medidas de UI; texto y arte se dibujan a resolución nativa."""
 
     def __init__(self, sup: pygame.Surface):
+        self.sup = sup
         self.factor = medidas(sup).factor
         self.x = (sup.get_width() - round(920 * self.factor)) // 2
         self.y = (sup.get_height() - round(720 * self.factor)) // 2
@@ -64,7 +61,7 @@ class _DisposicionPanel:
                            round(w * self.factor), round(h * self.factor))
 
     def fuente(self, tam, negrita=False):
-        return _fuente(max(10, round(tam * self.factor)), negrita)
+        return medidas(self.sup).fuente(tam, negrita)
 
 
 def _texto_sombra(sup: pygame.Surface, fuente: pygame.Font, texto: str,
@@ -138,34 +135,27 @@ def boton(sup: pygame.Surface, rect: pygame.Rect, tecla: str, etiqueta: str,
     if habilitado and primario:
         fondo, borde, color = DORADO, (150, 60, 0), paleta.TEXTO_CLARO
         if resaltado:
-            fondo = (255, 172, 62)
+            fondo = (130, 48, 0)
     elif habilitado:
         fondo, borde, color = paleta.PANEL, DORADO, BLANCO
         if resaltado:
             fondo, borde = (252, 228, 198), (160, 70, 0)
     else:
-        fondo, borde, color = (238, 228, 214), (185, 170, 150), (150, 138, 122)
+        fondo, borde, color = (238, 228, 214), (185, 170, 150), paleta.SECUNDARIO
     _panel(sup, rect, fondo, borde)
-    _insignia(sup, (rect.x + p(34), rect.centery), tecla,
-              color=(150, 60, 0) if (habilitado and primario) else DORADO,
-              texto_claro=habilitado, lado=min(p(36), rect.h - p(8)))
-    tam = min(p(T_BOTON), max(p(12), rect.h // 2 - p(4)))
-    while tam > p(12) and _fuente(tam, True).size(etiqueta)[0] > rect.w - p(72):
-        tam -= 1
-    fuente = _fuente(tam, negrita=True)
-    etiqueta_sup = fuente.render(etiqueta, True, color)
-    x = rect.x + p(62)
-    y = rect.centery - etiqueta_sup.get_height() // 2
+    _insignia(sup,(rect.x+m.ui_px(24),rect.centery),tecla,
+              color=paleta.ACCION,texto_claro=True,lado=min(m.ui_px(32),rect.h-8))
+    fuente = m.estilo('boton')
+    x = rect.x + m.ui_px(48)
+    alto = fuente.get_height()
+    y = rect.centery - alto // 2 - (m.estilo('auxiliar').get_linesize()//2 if nota else 0)
+    _texto.etiqueta(sup, fuente, etiqueta,
+                    pygame.Rect(x,y,max(1,rect.right-x-p(8)),alto), color)
     if nota:
-        y -= 9
-    sup.blit(etiqueta_sup, (x, y))
-    if nota:
-        color_nota = (255, 226, 190) if (habilitado and primario) else (
-            color if not habilitado else GRIS)
-        fuente_nota = _fuente(min(p(T_NOTA), max(p(10), rect.h // 4)))
-        nota = _texto.envolver(nota, fuente_nota, max(1, rect.w - p(72)), 1)[0]
-        nota_sup = fuente_nota.render(nota, True, color_nota)
-        sup.blit(nota_sup, (x, rect.centery + p(6)))
+        color_nota = paleta.TEXTO_CLARO if (habilitado and primario) else (color if not habilitado else GRIS)
+        fuente_nota = m.estilo('auxiliar')
+        _texto.etiqueta(sup,fuente_nota,nota,
+                        pygame.Rect(x,y+fuente.get_linesize(),max(1,rect.right-x-p(8)),fuente_nota.get_height()),color_nota)
     return rect
 
 
@@ -220,7 +210,7 @@ def _puntos_dificultad(sup: pygame.Surface, x: int, y: int, nivel: int,
         nivel = max(0, min(int(nivel), maximo))
     except (TypeError, ValueError):
         nivel = 0
-    lado, hueco = 14, 6
+    lado, hueco = max(4,p(14)), max(4,p(6))
     for i in range(maximo):
         rect = pygame.Rect(x + i * (lado + hueco), y - lado // 2, lado, lado)
         if i < nivel:
@@ -245,11 +235,11 @@ def _encima(rect: pygame.Rect, raton: tuple[int, int] | None) -> bool:
     return raton is not None and rect.collidepoint(raton)
 
 
-def _pie(sup: pygame.Surface, texto: str) -> None:
+def _pie(sup: pygame.Surface, texto: str, color=None) -> None:
     """Línea de ayuda al pie, siempre igual en todos los menús."""
     m = medidas(sup)
     p = m.px
-    etiqueta = m.fuente(T_NOTA).render(texto, True, GRIS)
+    etiqueta = m.fuente(T_NOTA).render(_texto.inicial_mayuscula(texto), True, color or GRIS)
     sup.blit(etiqueta, (sup.get_width() // 2 - etiqueta.get_width() // 2,
                         sup.get_height() - p(34)))
 
@@ -280,6 +270,19 @@ def rect_caja_menu(sup: pygame.Surface) -> pygame.Rect:
     return rect
 
 
+def _fuente_titulo_caja(sup: pygame.Surface, titulo: str):
+    """Tamaño final proporcional al arte, sin aplicar dos veces la escala."""
+    rect = rect_caja_menu(sup)
+    escala = rect.h / CAJA_MENU_ALTO
+    ideal = max(18, round((T_DISPLAY if titulo == 'CRIPTA' else 32) * escala))
+    ancho = max(1, rect.w - round(32 * escala))
+    for tamano in range(ideal, 17, -1):
+        candidata = _fuente(tamano, negrita=True)
+        if candidata.size(titulo)[0] <= ancho:
+            return candidata
+    return _fuente(18, negrita=True)
+
+
 def _caja_menu(sup: pygame.Surface, sprites: SpriteManager | None,
                titulo: str | None = None, color: tuple = DORADO,
                sub: str | None = None,
@@ -294,18 +297,26 @@ def _caja_menu(sup: pygame.Surface, sprites: SpriteManager | None,
     rect = rect_caja_menu(sup)
     if sprites is not None:
         capas.dibujar_caja_cuerpo(sup, sprites, rect)
+    def texto_centrado(fuente, contenido, y):
+        imagen = fuente.render(contenido, True, paleta.TEXTO_CLARO)
+        contorno = fuente.render(contenido, True, paleta.TEXTO)
+        destino = imagen.get_rect(midtop=(rect.centerx, y))
+        grosor = max(1, p(1))
+        for dx, dy in ((-1,-1),(0,-1),(1,-1),(-1,0),(1,0),(-1,1),(0,1),(1,1)):
+            sup.blit(contorno, destino.move(dx*grosor, dy*grosor))
+        sup.blit(imagen, destino)
+
+    fuente_t = m.estilo('h1')
     if titulo:
-        fuente_t = m.fuente(T_BOTON, negrita=True)
-        for tam in (T_DISPLAY, T_TITULO, T_BOTON):
-            candidata = m.fuente(tam, negrita=True)
-            if candidata.size(titulo)[0] <= rect.w - p(44):
-                fuente_t = candidata
-                break
-        _texto_sombra(sup, fuente_t, titulo, (rect.centerx, rect.centery), color)
+        fuente_t = _fuente_titulo_caja(sup, titulo)
+        texto_centrado(fuente_t, titulo, rect.centery-fuente_t.get_height()//2)
     if sub:
-        etiqueta = m.fuente(T_NOTA).render(sub, True, GRIS)
-        sup.blit(etiqueta,
-                 etiqueta.get_rect(midtop=(rect.centerx, rect.centery + p(40))))
+        fuente_sub = m.estilo('auxiliar')
+        lineas = _texto.envolver(sub, fuente_sub, rect.w - 16, 3)
+        y = rect.centery + fuente_t.get_height()//2 + m.ui_px(8)
+        for linea in lineas:
+            texto_centrado(fuente_sub, linea, y)
+            y += fuente_sub.get_linesize()
     if sprites is not None:
         capas.dibujar_caja_tapa(sup, sprites, rect, stage)
     return rect
@@ -325,7 +336,7 @@ def pantalla_inicio(sup: pygame.Surface, fuente: pygame.Font,
     m = medidas(sup)
     p = m.px
     _fondo_menu(sup)
-    _caja_menu(sup, sprites, "CRIPTA", sub="explora · saquea · sobrevive",
+    _caja_menu(sup, sprites, "CRIPTA", sub="Explora · saquea · sobrevive",
                stage=stage_caja(apertura))
 
     # El prota asoma por la derecha, ya sin fondo ni cajas.
@@ -339,13 +350,13 @@ def pantalla_inicio(sup: pygame.Surface, fuente: pygame.Font,
         pygame.Rect(x0 + ancho_b + hueco_b, y, ancho_b, p(74)),
         pygame.Rect(x0 + 2 * (ancho_b + hueco_b), y, ancho_b, p(74)),
     ]
-    boton(sup, rects[0], "1", "Jugar", "elige tu cripta", primario=True,
+    boton(sup, rects[0], "1", "Jugar", "Elige tu cripta", primario=True,
           resaltado=_encima(rects[0], raton))
     boton(sup, rects[1], "2", "Continuar",
-          "partida guardada" if puede_continuar else "sin guardado aún",
+          "Partida guardada" if puede_continuar else "Sin guardado aún",
           habilitado=puede_continuar, resaltado=_encima(rects[1], raton))
     boton(sup, rects[2], "3", "Salir", "", resaltado=_encima(rects[2], raton))
-    _pie(sup, "pulsa el número o haz clic en la opción")
+    _pie(sup, "Pulsa el número o haz clic en la opción")
     hotspots = [(rects[0], pygame.K_1)]
     if puede_continuar:
         hotspots.append((rects[1], pygame.K_2))
@@ -368,18 +379,14 @@ def _tarjeta_cripta(sup: pygame.Surface, rect: pygame.Rect, numero: int,
            (160, 70, 0) if resaltada else DORADO)
     _insignia(sup, (rect.x + p(30), rect.centery), str(numero))
     fuente_nombre = m.fuente(T_CUERPO, negrita=True)
-    lineas = _texto.envolver(nombre, fuente_nombre, rect.w - p(160),
-                             2 if rect.h >= p(74) else 1)
-    y = rect.centery - len(lineas) * p(11)
-    for parte in lineas:
-        sup.blit(fuente_nombre.render(parte, True, BLANCO), (rect.x + p(58), y))
-        y += p(22)
+    nombre_rect = pygame.Rect(rect.x+p(58),rect.y+8,rect.w-p(70),fuente_nombre.get_linesize())
+    _texto.etiqueta(sup,fuente_nombre,nombre,nombre_rect,BLANCO)
     # Salas: puerta a escuadra + número.
     pygame.draw.rect(sup, paleta.MURO,
                      pygame.Rect(rect.x + p(58), rect.bottom - p(28), 14, 18))
     pygame.draw.rect(sup, paleta.PUERTA_ABIERTA,
                      pygame.Rect(rect.x + p(61), rect.bottom - p(25), 8, 12))
-    sup.blit(m.fuente(T_NOTA).render(f"{salas} salas", True, GRIS),
+    sup.blit(m.fuente(T_NOTA).render(f"Salas: {salas}", True, GRIS),
              (rect.x + p(78), rect.bottom - p(27)))
     _puntos_dificultad(sup, rect.right - p(104), rect.bottom - p(19), dificultad)
 
@@ -394,7 +401,7 @@ def pantalla_seleccion(sup: pygame.Surface, fuente: pygame.Font,
     p = m.px
     _fondo_menu(sup)
     rect_caja = _caja_menu(sup, sprites, "Elige tu cripta",
-                           sub="pulsa el número de la cripta · Esc vuelve")
+                           sub="Pulsa el número de la cripta · Esc vuelve")
     total = max(len(criptas), 1)
     columnas = 2 if total <= 4 else 3
     hueco = p(12)
@@ -438,7 +445,7 @@ def pantalla_carga(sup: pygame.Surface, fuente: pygame.Font,
         pep = pygame.Rect(0, 0, 8, 8)
         pep.center = (cx + dx, cy + dy)
         pygame.draw.rect(sup, paleta.PELIGRO, pep)
-    etiqueta = m.fuente(T_BOTON, negrita=True).render(detalle, True, BLANCO)
+    etiqueta = m.fuente(T_BOTON, negrita=True).render(_texto.inicial_mayuscula(detalle), True, BLANCO)
     sup.blit(etiqueta, (sup.get_width() // 2 - etiqueta.get_width() // 2,
                         cy + p(48)))
 
@@ -474,7 +481,7 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     m = medidas(sup)
     p = m.px
     sup.fill(FONDO)
-    titulo = fuente.render(f"Sala {foto.sala_id}: {foto.sala_nombre} [{foto.estado}]",
+    titulo = fuente.render(f"Sala {foto.sala_id}: {_texto.inicial_mayuscula(foto.sala_nombre)} [{_texto.inicial_mayuscula(foto.estado)}]",
                            True, DORADO)
     sup.blit(titulo, titulo.get_rect(midtop=(area_sala.centerx, p(8))))
     pygame.draw.line(sup, DORADO, (p(10), p(30)),
@@ -492,8 +499,8 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
         capas.dibujar_oscuridad(sup, area_sala, foto, pos_jugador)
     linea = capas.rect_caja(area_sala).bottom + p(2)
     if ui.es_panoramica(sup):
-        zona = pygame.Rect(sup.get_width() - p(ui.ANCHO_LATERAL) - p(16), p(46),
-                           p(ui.ANCHO_LATERAL), sup.get_height() - p(62))
+        zona = pygame.Rect(sup.get_width() - m.ui_px(ui.ANCHO_LATERAL) - p(16), p(46),
+                           m.ui_px(ui.ANCHO_LATERAL), sup.get_height() - p(62))
     else:
         zona = pygame.Rect(p(14), linea + p(4), sup.get_width() - p(28),
                            sup.get_height() - linea - p(14))
@@ -533,11 +540,12 @@ def _resumen_final(sup: pygame.Surface, rect: pygame.Rect, foto: "FotoEstado",
         sup.blit(izq, (x_izq, y))
         if cabe:
             sup.blit(der, (x_der - der.get_width(), y))
-            y += p(28)
+            y += fuente_et.get_linesize()+4
         else:
-            y += p(24)
-            sup.blit(der, (x_izq + p(10), y))
-            y += p(30)
+            y += fuente_et.get_linesize()
+            valor_rect = pygame.Rect(x_izq+p(10),y,x_der-x_izq-p(10),fuente_val.get_linesize())
+            _texto.etiqueta(sup,fuente_val,str(valor),valor_rect,BLANCO)
+            y += fuente_val.get_linesize()+4
         pygame.draw.line(sup, (232, 214, 190),
                          (x_izq, y - p(6)), (x_der, y - p(6)))
     return y
@@ -556,8 +564,8 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     color = paleta.VIDA if gano else paleta.PELIGRO
     rect_caja = _caja_menu(sup, sprites, "¡VICTORIA!" if gano else "DERROTA",
                            color=color,
-                           sub="escapaste con el botín" if gano
-                           else "la cripta te venció… esta vez")
+                           sub="Escapaste con el botín" if gano
+                           else "La cripta te venció… esta vez")
 
     y_fila = rect_caja.bottom + p(26)
     # El prota (rojo si cayó), con el botín al ganar.
@@ -569,6 +577,8 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
 
     # Resumen con datos legibles (nada de diccionarios crudos).
     rect = pygame.Rect(sup.get_width() - p(40) - p(372), y_fila, p(372), p(210))
+    if sup.get_width()<800:
+        rect = pygame.Rect(200,y_fila,sup.get_width()-224,p(210))
     _panel(sup, rect)
     _resumen_final(sup, rect, foto, reporte)
 
@@ -580,12 +590,12 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
             sup.blit(fuente.render(parte, True, GRIS), (x_col, y))
             y += p(18)
     if reporte and reporte.get("puntajes_ruta"):
-        for parte in _texto.envolver(f"puntajes: {reporte['puntajes_ruta']}",
+        for parte in _texto.envolver(f"Puntajes: {reporte['puntajes_ruta']}",
                                      fuente, ancho_col, 1):
-            sup.blit(fuente.render(parte, True, (180, 158, 136)), (x_col, y))
+            sup.blit(fuente.render(parte, True, paleta.SECUNDARIO), (x_col, y))
             y += p(18)
     if reporte and reporte.get("puntaje_error"):
-        error = f"no se guardó el puntaje: {reporte['puntaje_error']}"
+        error = f"No se guardó el puntaje: {reporte['puntaje_error']}"
         for parte in _texto.envolver(error, fuente, ancho_col, 2):
             sup.blit(fuente.render(parte, True, paleta.PELIGRO), (x_col, y))
             y += p(18)
@@ -595,7 +605,7 @@ def pantalla_fin(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     y_b = sup.get_height() - p(100)
     b1 = pygame.Rect(x0, y_b, ancho_b, p(60))
     b2 = pygame.Rect(x0 + ancho_b + hueco_b, y_b, ancho_b, p(60))
-    boton(sup, b1, "1", "Jugar de nuevo", "otra partida de la misma cripta",
+    boton(sup, b1, "1", "Jugar de nuevo", "Otra partida de la misma cripta" if b1.h>=48 else "",
           primario=True, resaltado=_encima(b1, raton))
     boton(sup, b2, "2", "Volver al menú", "", resaltado=_encima(b2, raton))
     return [(b1, pygame.K_1), (b2, pygame.K_2)]
@@ -611,19 +621,20 @@ def pantalla_error(sup: pygame.Surface, fuente: pygame.Font, mensaje: str,
     sup.fill(paleta.PELIGRO_FONDO)
     rect_caja = _caja_menu(sup, sprites, "Algo salió mal",
                            color=paleta.TEXTO_CLARO,
-                           sub="tu partida sigue a salvo")
+                           sub="Tu partida sigue a salvo")
     fuente_cuerpo = m.fuente(T_CUERPO)
     y = rect_caja.bottom + p(26)
-    for parte in _texto.envolver(mensaje, fuente_cuerpo,
-                                 sup.get_width() - p(160), 4):
-        sup.blit(fuente_cuerpo.render(parte, True, paleta.TEXTO_CLARO),
-                 (80, y))
-        y += p(24)
+    ancho = sup.get_width() - 48
+    lineas = _texto.envolver(mensaje, fuente_cuerpo, ancho, 4)
+    alto = len(lineas) * fuente_cuerpo.get_linesize()
+    _texto.etiqueta(sup, fuente_cuerpo, mensaje, pygame.Rect(24,y,ancho,alto),
+                    paleta.TEXTO_CLARO, max_lineas=4, enfocado=True)
+    y += alto
     boton_volver = pygame.Rect(0, 0, p(340), p(56))
     boton_volver.midtop = (sup.get_width() // 2, y + p(10))
     boton(sup, boton_volver, "Esc", "Volver al menú", "",
           resaltado=_encima(boton_volver, raton))
-    _pie(sup, "Esc o el botón vuelven al menú")
+    _pie(sup, "Esc o el botón vuelven al menú", paleta.TEXTO_CLARO)
     return [(boton_volver, pygame.K_ESCAPE)]
 
 
@@ -636,13 +647,15 @@ def pantalla_version(sup: pygame.Surface, fuente: pygame.Font, mensaje: str,
     p = m.px
     _fondo_menu(sup)
     rect_caja = _caja_menu(sup, sprites, "Versión anterior",
-                           sub="tu guardado no se cargó a medias")
+                           sub="Tu guardado no se cargó a medias")
     fuente_cuerpo = m.fuente(T_CUERPO)
     y = rect_caja.bottom + p(26)
-    for parte in _texto.envolver(mensaje, fuente_cuerpo,
-                                 sup.get_width() - p(160), 4):
-        sup.blit(fuente_cuerpo.render(parte, True, BLANCO), (80, y))
-        y += p(24)
+    ancho = sup.get_width() - 48
+    lineas = _texto.envolver(mensaje, fuente_cuerpo, ancho, 4)
+    alto = len(lineas) * fuente_cuerpo.get_linesize()
+    _texto.etiqueta(sup, fuente_cuerpo, mensaje, pygame.Rect(24,y,ancho,alto),
+                    BLANCO, max_lineas=4, enfocado=True)
+    y += alto
     boton_volver = pygame.Rect(0, 0, p(340), p(56))
     boton_volver.midtop = (sup.get_width() // 2, y + p(10))
     boton(sup, boton_volver, "Esc", "Volver al menú", "",
@@ -660,101 +673,110 @@ def menu_pausa(sup: pygame.Surface, fuente: pygame.Font,
     p = m.px
     _fondo_menu(sup)
     _titulo(sup, m.fuente(T_TITULO, True), "Pausa", y=min(p(64), sup.get_height() // 12))
-    y = min(p(270), sup.get_height() - p(396))
-    if sup.get_height() >= p(640):
+    alto, separacion = m.ui_px(48), m.ui_px(8)
+    y = min(p(270), sup.get_height()-6*(alto+separacion)-m.ui_px(24))
+    if sup.get_height() >= m.ui_px(800):
         _prota(sup, sprites, (sup.get_width() // 2, y - p(90)), 1.0)
-    ancho, alto = min(p(460), sup.get_width() - p(40)), p(52)
+    ancho = min(m.ui_px(460),sup.get_width()-m.ui_px(48))
     x = sup.get_width() // 2 - ancho // 2
     hotspots: list[tuple[pygame.Rect, int]] = []
     for tecla, etiqueta, nota, codigo in (
-            ("G", "Guardar", "guarda la partida actual", pygame.K_g),
-            ("C", "Cargar", "retoma el último guardado", pygame.K_c),
-            ("F10", "Ajustes", "ventana y pantalla completa", pygame.K_F10),
-            ("F2", "Controles", "guía de teclado y ratón", pygame.K_F2),
-            ("Esc", "Volver", "sigue jugando", pygame.K_ESCAPE),
-            ("Q", "Salir al menú", "no pierde el guardado", pygame.K_q)):
+            ("G", "Guardar", "Guarda la partida actual", pygame.K_g),
+            ("C", "Cargar", "Retoma el último guardado", pygame.K_c),
+            ("F10", "Ajustes", "Ventana y pantalla completa", pygame.K_F10),
+            ("F2", "Controles", "Guía de teclado y ratón", pygame.K_F2),
+            ("Esc", "Volver", "Sigue jugando", pygame.K_ESCAPE),
+            ("Q", "Salir al menú", "No pierde el guardado", pygame.K_q)):
         rect = pygame.Rect(x, y, ancho, alto)
         boton(sup, rect, tecla, etiqueta, nota,
               resaltado=_encima(rect, raton))
         hotspots.append((rect, codigo))
-        y += alto + p(10)
+        y += alto + separacion
     return hotspots
 
 
-def pantalla_ajustes(sup: pygame.Surface, fuente: pygame.Font,
-                      tamano: tuple[int, int], completa: bool, ayudas: bool,
-                      raton=None) -> list:
+def pantalla_ajustes(sup, fuente, tamano, completa, ayudas, raton=None):
     _fondo_menu(sup)
-    layout = _DisposicionPanel(sup)
-    fuente = layout.fuente(16)
-    _texto_sombra(sup, layout.fuente(40, True), "Ajustes", layout.rect(0, 0, 920, 48).center, DORADO)
-    nota = "Arrastra un borde para ajustar la ventana. F11: pantalla completa."
-    sup.blit(fuente.render(nota, True, GRIS), layout.rect(40, 70, 840, 24))
-    sup.blit(fuente.render("TAMAÑO DE VENTANA", True, DORADO), layout.rect(40, 124, 840, 24))
-    hotspots = []
-    for i, (w, h) in enumerate(RESOLUCIONES):
-        rect = layout.rect(40 + i % 2 * 430, 162 + i // 2 * 86, 410, 72)
-        activo = not completa and tamano == (w, h)
-        boton(sup, rect, str(i + 1), f"{w} × {h}",
-              ("Clásica" if i == 0 else "Panorámica 16:9") + (" · activa" if activo else ""),
-              primario=activo, resaltado=_encima(rect, raton))
-        hotspots.append((rect, pygame.K_1 + i))
-    actual = f"{'Pantalla completa' if completa else 'Ventana'} · {sup.get_width()} × {sup.get_height()}"
-    sup.blit(fuente.render(actual, True, GRIS), layout.rect(40, 342, 840, 24))
-    for i, (tecla, etiqueta, nota, key) in enumerate((
-            ("F11", "Pantalla completa: " + ("sí" if completa else "no"),
-             "F11 alterna y conserva el tamaño de ventana", pygame.K_F11),
-            ("H", "Ayudas en partida: " + ("sí" if ayudas else "no"),
-             "muestra los atajos básicos junto a la mochila", pygame.K_h),
-            ("F2", "Ver controles", "todos los atajos, agrupados por acción", pygame.K_F2))):
-        rect = layout.rect(40, 386 + i * 76, 840, 64)
-        boton(sup, rect, tecla, etiqueta, nota, resaltado=_encima(rect, raton))
-        hotspots.append((rect, key))
-    rect = layout.rect(40, 640, 300, 56)
-    boton(sup, rect, "Esc", "Volver", resaltado=_encima(rect, raton))
-    hotspots.append((rect, pygame.K_ESCAPE))
-    nota = "Se recuerda al salir · Flechas / Tab para elegir · Enter para activar"
-    sup.blit(layout.fuente(13).render(nota, True, GRIS), layout.rect(40, 702, 840, 18))
+    m=medidas(sup);p=m.ui_px;compacta=sup.get_height()<p(640)
+    margen=24;ancho=sup.get_width()-margen*2
+    titulo=m.estilo('h1');label=m.estilo('label');nota_f=m.estilo('auxiliar')
+    sup.blit(titulo.render('Ajustes',True,DORADO),(margen,16))
+    nota='Arrastra un borde para ajustar la ventana. F11: pantalla completa.'
+    _texto.etiqueta(sup,nota_f,nota,pygame.Rect(margen,56,ancho,nota_f.get_linesize()),GRIS)
+    sup.blit(m.estilo('h3').render('TAMAÑO DE VENTANA',True,DORADO),(margen,88))
+    y=120;alto=p(48 if compacta else 64);gap=p(8);columna=(ancho-gap)//2
+    hotspots=[]
+    for i,(w,h) in enumerate(RESOLUCIONES):
+        rect=pygame.Rect(margen+(i%2)*(columna+gap),y+(i//2)*(alto+gap),columna,alto)
+        activo=not completa and tamano==(w,h)
+        boton(sup,rect,str(i+1),f'{w} × {h}',('Clásica' if i==0 else 'Panorámica 16:9')+(' · activa' if activo else ''),
+              primario=activo,resaltado=_encima(rect,raton))
+        hotspots.append((rect,pygame.K_1+i))
+    y+=2*(alto+gap)
+    _texto.etiqueta(sup,label,f"{'Pantalla completa' if completa else 'Ventana'} · {sup.get_width()} × {sup.get_height()}",
+                    pygame.Rect(margen,y,ancho,label.get_linesize()),GRIS)
+    y+=label.get_linesize()+gap
+    opciones=(('F11','Pantalla completa: '+('sí' if completa else 'no'),'F11 alterna y conserva el tamaño de ventana',pygame.K_F11),
+              ('H','Ayudas en partida: '+('sí' if ayudas else 'no'),'Muestra los atajos básicos junto a la mochila',pygame.K_h),
+              ('F2','Ver controles','Todos los atajos, agrupados por acción',pygame.K_F2))
+    for i,(tecla,etiqueta,nota,key) in enumerate(opciones):
+        rect=(pygame.Rect(margen+(i%2)*(columna+gap),y+(i//2)*(alto+gap),columna,alto) if compacta else
+              pygame.Rect(margen,y+i*(alto+gap),ancho,alto))
+        boton(sup,rect,tecla,etiqueta,'' if compacta else nota,resaltado=_encima(rect,raton))
+        if compacta: _texto.registrar_ayuda(rect,nota)
+        hotspots.append((rect,key))
+    rect=pygame.Rect(margen,sup.get_height()-p(72), min(p(280),ancho),p(40))
+    boton(sup,rect,'Esc','Volver',resaltado=_encima(rect,raton));hotspots.append((rect,pygame.K_ESCAPE))
+    _texto.etiqueta(sup,nota_f,'Se recuerda al salir · Tab para elegir · Enter para activar',
+                    pygame.Rect(margen,sup.get_height()-24,ancho,nota_f.get_height()),GRIS)
     return hotspots
 
 
-def pantalla_controles(sup: pygame.Surface, fuente: pygame.Font, raton=None) -> list:
-    _fondo_menu(sup)
-    layout = _DisposicionPanel(sup)
-    fuente = layout.fuente(16)
-    _texto_sombra(sup, layout.fuente(40, True), "Controles", layout.rect(0, 0, 920, 48).center, DORADO)
-    grupos = (
-        ("EXPLORAR Y COMBATIR", (("WASD / flechas", "Caminar por la sala"),
-          ("E", "Abrir la puerta hacia la que miras"),
-          ("Espacio", "Atacar al enemigo cercano / objetivo"),
-          ("X / Shift+X", "Cambiar de objetivo"),
-          ("F", "Recoger un objeto cercano"),
-          ("T", "Cambiar selección del suelo"),
-          ("U", "Rebobinar con un pergamino"))),
-        ("MOCHILA Y MAPA", (("Tab / Shift+Tab", "Seleccionar objeto (también clic)"),
-          ("R / Enter / Q", "Usar / equipar / soltar selección"),
-          ("C / Shift+C", "Cambiar orden de la mochila"),
-          ("M", "Abrir / cerrar el mapa"),
-          ("Flechas + Enter", "Elegir sala del mapa y viajar"),
-          ("Esc", "Cerrar mapa / cancelar viaje"),
-          ("Rueda del ratón", "Recorrer la mochila"))),
-    )
-    for col, (titulo, filas) in enumerate(grupos):
-        rect = layout.rect(col * 472, 90, 448, 388)
-        _panel(sup, rect)
-        sup.blit(layout.fuente(T_CUERPO, True).render(titulo, True, DORADO),
-                 layout.rect(col * 472 + 18, 108, 412, 24))
-        for i, (tecla, accion) in enumerate(filas):
-            y = 150 + i * 44
-            sup.blit(fuente.render(tecla, True, DORADO), layout.rect(col * 472 + 18, y, 412, 20))
-            sup.blit(layout.fuente(T_NOTA).render(accion, True, BLANCO),
-                     layout.rect(col * 472 + 18, y + 20, 412, 20))
-    for i, linea in enumerate((
-            "G  Guardar     Esc  Pausa     F10  Ajustes     F11  Pantalla completa",
-            "F1  Desarrollo     Menús: flechas / Tab y Enter, atajos o clic",
-            "Las puertas abiertas se cruzan al acercarte. Caminar no consume turnos.",
-            "Al perder el foco, la partida se pausa. Esc vuelve a la pantalla anterior.")):
-        sup.blit(fuente.render(linea, True, GRIS), layout.rect(12, 510 + i * 28, 896, 24))
-    rect = layout.rect(310, 654, 300, 56)
-    boton(sup, rect, "Esc", "Volver", resaltado=_encima(rect, raton))
-    return [(rect, pygame.K_ESCAPE)]
+GRUPOS_CONTROLES=(
+    ('EXPLORAR Y COMBATIR',(('WASD / flechas','Caminar por la sala'),('E','Abrir la puerta hacia la que miras'),
+      ('Espacio','Atacar al enemigo cercano / objetivo'),('X / Shift+X','Cambiar de objetivo'),
+      ('F','Recoger un objeto cercano'),('T','Cambiar selección del suelo'),('U','Rebobinar con un pergamino'))),
+    ('MOCHILA, MAPA E HISTORIA',(('Tab / Shift+Tab','Seleccionar objeto (también clic)'),('R / Enter / Q','Usar / equipar / soltar selección'),
+      ('C / Shift+C','Cambiar orden de la mochila'),('M','Abrir / cerrar el mapa'),('H','Consultar el historial de la partida'),
+      ('Flechas + Enter','Elegir sala del mapa y viajar'),('Esc','Cerrar panel / cancelar viaje'),('Rueda del ratón','Recorrer mochila o panel'))),
+    ('OTROS CONTROLES',(('G / Esc','Guardar / pausar la partida'),('F10 / F11','Ajustes / pantalla completa'),
+      ('F1','Modo desarrollo'),('Menús','Tab o flechas para elegir; Enter, atajo o clic para activar'))),
+)
+
+
+def _filas_controles(sup):
+    m=medidas(sup);f=m.fuente(14);cabecera=m.estilo('h3');tecla=m.fuente(14,peso=600)
+    columnas=2 if sup.get_width()>=900 else 1
+    ancho=(sup.get_width()-48-24*(columnas-1))//columnas
+    filas=[];fondos=[0]*columnas
+    for i,(titulo,opciones) in enumerate(GRUPOS_CONTROLES):
+        col=i%columnas;y=fondos[col];x=24+col*(ancho+24)
+        filas.append((cabecera,titulo,x,y,ancho,DORADO));y+=cabecera.get_linesize()+8
+        for combinacion,descripcion in opciones:
+            filas.append((tecla,combinacion,x,y,ancho,DORADO));y+=tecla.get_linesize()
+            for linea in _texto.envolver(descripcion,f,ancho,100):
+                filas.append((f,linea,x,y,ancho,BLANCO));y+=f.get_linesize()
+            y+=8
+        fondos[col]=y+16
+    return filas,max(fondos)
+
+
+def limite_scroll_controles(sup):
+    return max(0,_filas_controles(sup)[1]-(sup.get_height()-160))
+
+
+def pantalla_controles(sup, fuente, raton=None, desplazamiento=0):
+    _fondo_menu(sup);m=medidas(sup);titulo=m.estilo('h1');aux=m.estilo('auxiliar')
+    sup.blit(titulo.render('Controles',True,DORADO),(24,16))
+    sup.blit(aux.render('↑ ↓ / rueda para desplazar · Tab y Enter para volver',True,GRIS),(24,56))
+    area=pygame.Rect(24,80,sup.get_width()-48,sup.get_height()-160)
+    anterior=sup.get_clip();sup.set_clip(area)
+    filas,alto=_filas_controles(sup);offset=min(limite_scroll_controles(sup),max(0,desplazamiento))
+    for fuente,cadena,x,y,ancho,color in filas:
+        sup.blit(fuente.render(cadena,True,color),(x,area.y+y-offset))
+    sup.set_clip(anterior)
+    boton_volver=pygame.Rect(24,sup.get_height()-64, min(280,sup.get_width()-48),40)
+    boton(sup,boton_volver,'Esc','Volver',resaltado=_encima(boton_volver,raton))
+    if alto>area.h:
+        sup.blit(aux.render('Continúa con ↑ ↓ / rueda',True,GRIS),(sup.get_width()-190,sup.get_height()-48))
+    return [(boton_volver,pygame.K_ESCAPE)]

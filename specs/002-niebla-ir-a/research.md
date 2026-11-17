@@ -108,3 +108,52 @@ sin aceptación registrada para002; sus cambios permanecen bloqueados por T001.
 Actualización2026-11-08: después del registro inicial, el usuario autorizó
 K1/K2/K3/K5 mediante «apruebo todos los contratos». Enmienda002 en CONTRATOS.md;
 no se atribuye esa frase a otra persona. La integración real001/004 sigue pendiente.
+
+
+## Contraste con fuente oficial aportada — 2026-11-09
+
+Leído `docs/Cripta Parte II.md` completo tras la indicación del usuario. La falta
+de fuente P2 queda resuelta para002. §§3.3–3.4 confirman los estados, memoria
+presencial, revelación con antorcha sin contenido/activación, rutas por conocimiento,
+recalcular por paso, detenciones, log y undo. §5.3 confirma la proporcionalidad
+de exploración y el registro reversible; §6.1 fija5 ms en el mapa completo de la
+referencia; §6.2 confirma las prohibiciones y §6.3 exige medir mapa/ir a con
+sintéticos por semilla. Apéndice B contiene exactamente los seis primeros casos
+de la especificación. §7.3 exige mapa, comando y motivo de detención.
+
+No aparece una contradicción esencial nueva: los casos añadidos por aclaración
+(efecto inmediato al encender, estados desconocidos de puertas remotas, enemigos
+iniciales y cancelación) permanecen como acuerdos del usuario para comportamientos
+no desarrollados explícitamente en el enunciado. La proporcionalidad se documenta
+como esperada amortizada, contando el rehash. No se afirma haber recibido la
+cripta de referencia junto con el enunciado; ese bloqueo continúa independiente.
+
+§2.5 exige que las pruebas citen IDs de requisito: se añadieron referencias a
+los casos automatizados y se mantiene la matriz requisito→tarea→prueba debajo.
+Las notas anteriores sobre fuente ausente son fotografías históricas.
+
+
+## Ajuste del método de medición — 2026-11-09
+
+La primera matriz exhaustiva de36 cargas por1000 consultas en cada alternativa
+resultó impráctica: la prueba piloto de una búsqueda de10000 salas superó400 ms,
+lo que implicaba decenas de minutos solo en una parte de la matriz. Se interrumpió
+esa ejecución sin publicar resultados agregados inexistentes. El diagnóstico de
+1000 consultas sobre tres mallas sí terminó; se conserva separado porque usaba
+la primera generación de grafos dirigidos, anterior a corregir los costos
+recíprocos. No se presenta como una cripta válida ni como referencia oficial.
+
+Se revisó el plan de medición, no los requisitos del juego: la matriz conserva36
+cargas, tamaños, formas, estados de conocimiento, semilla y ambas alternativas.
+El muestreo predeterminado es1000/100/10 para100/1000/10000 salas, con100/10/1
+calentamientos. Se publican tamaño de muestra, mediana, p95, máximo, memoria y
+fallos; p95 con10 muestras es aproximado y no sirve para certificar el límite
+oficial. Se puede pasar `muestras=1000` explícitamente a las funciones para una
+corrida extensa. P2§6.3 no prescribe1000 repeticiones; era una decisión del plan.
+
+La generación final usa costos positivos iguales en extremos recíprocos, misma
+identidad de puerta y grado≤4, comprobados con tests. El caso desactualizado
+recuerda cierres mientras el estado físico de referencia está abierto; la ruta
+no recibe ese estado físico. Se optimizó la adyacencia moviendo la consulta de
+destino después del filtro por dirección: una consulta por salida en vez de
+cuatro. Se conservan desempate N,S,E,O, decisiones y complejidad asintótica.

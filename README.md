@@ -59,7 +59,9 @@ python -m pytest tests/ -q
 
 ## Archivos generados
 
-- `partida.bin`: guardado binario v3 con conocimiento e índice por sala; v1/v2 se leen técnicamente, pero P2 rechaza cargarlos porque no guardan el conocimiento.
+- `partida.bin`: guardado binario v4 con conocimiento, historia e índice por
+  sala; el flujo de juego rechaza v1/v2/v3 (los lectores técnicos legados
+  quedan separados).
 - `partida.log`: bitácora append, primera línea `#cripta <id> <ver> <vercat> <semilla>`.
 - `puntajes.jsonl`: tabla local (nombre, cripta id+versión, acciones, derrotados, reloj).
 - `cache.pkl`: caché LRU persistida (pickle versión + orden).
@@ -77,7 +79,13 @@ consulta el estado actual. El cruce manual por puertas sigue disponible.
 
 En Pygame, **M** abre el mapa gráfico de nodos cuadrados y conexiones
 direccionales; **↑/↓/←/→** selecciona la sala vecina en esa dirección y **Enter**
-inicia el viaje. **Escape** lo cancela; WASD/flechas regresan al control manual.
+inicia el viaje (solo hacia salas exploradas). El panel muestra las salidas,
+costos y puertas recordadas de la sala seleccionada; las salas avistadas no
+exponen nombre. **Escape** lo cancela, también con el panel cerrado y viaje
+activo; WASD/flechas regresan al control manual. **U** durante un recorrido
+cancela el viaje y rebobina la última acción con 1 pergamino. Consultar u
+ordenar la mochila conserva el viaje. Una carga fallida también lo conserva;
+guardar, pausar y cargar correctamente lo detienen.
 
 ## Ventana y controles de Pygame
 
@@ -133,3 +141,29 @@ Reglas: C2 nunca importa `controller1` (sorts llegan inyectados como `orden_fn` 
   contenido) que viaja en el guardado; la vista dibuja velo con halo y lo
   levanta mientras dure el efecto `antorcha`. La consola avisa cómo iluminar.
   Todo probado offline con `paquete_demo/` (sala 3 «Capilla oscura»).
+
+### Historial de la partida (004)
+
+En Pygame, pulsa **H** o el botón **Historial**. El panel muestra el pasado sin
+alterar la partida: navega con ←/→ o los botones, elige **Acción** o **Tiempo**,
+escribe un número y pulsa Enter para consultar. Tab recorre controles; ↑/↓ o
+la rueda desplazan el detalle; Escape o el botón **Cerrar** salen. Una consulta
+inválida (futura o no numérica) muestra el error y conserva el último resumen
+válido. Mientras el panel tiene foco, el movimiento y el viaje automático
+quedan suspendidos, y nada de lo consultado cambia la partida, la bitácora ni
+la pila de deshacer.
+
+El detalle agrupa vida/estadísticas, inventario con sprites, efectos, enemigos
+y el mapa conocido en ese instante. La selección y los estados de puertas se
+identifican también con etiquetas y símbolos. Usa la paleta y escala existentes,
+con retícula lógica de8 px para separaciones; todos los bordes son rectos.
+
+En consola: `historia 300` o `historia #5`. Configura los puntos de control con
+`--checkpoint-cada 20`; `--replay partida.log --hasta 300` imprime el mismo
+resumen sin abrir Pygame. El uso del pergamino recorta la rama histórica; cada
+paso de viaje cuenta por separado. Los guardados nuevos de Sesión son **v4** y
+conservan la historia completa; los v1/v2/v3 se rechazan explícitamente.
+
+[Captura del panel a1024×800](docs/mediciones/004-historia-ui-1024.png). El
+recorrido T033 añade capturas con error, contenido extenso y los tamaños
+admitidos: ver `docs/mediciones/004-t033-panel-*.png` y su transcripción.

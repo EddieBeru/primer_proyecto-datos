@@ -54,8 +54,8 @@ definido en la guía.
 
 | Principio | Gate antes de diseñar | Plan de cumplimiento |
 | --- | --- | --- |
-| I. Cumplimiento del enunciado | **Condicional**: falta el enunciado íntegro P2; la guía es resumen. | Mantener el contraste oficial como bloqueo de aceptación académica. No inventar requisitos ausentes ni presentar objetivos de guía como resultado oficial. La base P1 §2.11 se consulta y se preserva. |
-| II. Separación y contratos | **Pasa con aprobación previa a implementación.** | `Sesion` coordina. C2 registra deltas e invierte sobre estado aislado; C1 solo persiste el DTO. Los contratos 004 son propuestas y requieren revisión/enmienda de `CONTRATOS.md` antes de modificar APIs compartidas. |
+| I. Cumplimiento del enunciado | **Pasa como preparación documental**: P2 disponible y contrastado. | Véase research.md: §§3.6,5.5,6.1–6.3 y Apéndice B. Preservar P1 §2.11 y distinguir aclaraciones locales de reglas oficiales; aceptación ejecutada pendiente. |
+| II. Separación y contratos | **Pasa con aprobación previa a implementación.** | `Sesion` coordina. C2 registra deltas e invierte sobre estado aislado; C1 solo persiste el DTO. Los contratos004 fueron aprobados explícitamente y registrados en CONTRATOS.md el2026-11-10. |
 | III. Estructuras justificadas | **Pasa con evidencia pendiente.** | Guardar deltas y checkpoints; usar lista cronológica con búsqueda binaria propia; sin `sorted()` ni dict como índice evaluado; medir tres K y alternativa sin checkpoints. |
 | IV. Determinismo/compatibilidad | **Pasa con cambio versionado.** | Registrar orden causal, reloj, RNG y agenda. Serializar línea completa en nuevo formato; rechazar explícitamente formatos sin línea y validar candidato antes de instalarlo. |
 | V. Validación | **Pasa como plan; evidencia pendiente.** | Casos aislados offline para estado, replay, undo, carga y 5 000 acciones. Registrar omisiones y mediciones; no activar API real. |
@@ -64,8 +64,8 @@ definido en la guía.
 
 **Gate**: continuar con el diseño local. No empezar cambios funcionales hasta
 que la propuesta de interfaz C2–orquestador quede aceptada por quienes comparten
-el contrato. La falta del enunciado P2 no bloquea investigación y planificación,
-pero sí la aceptación final.
+el contrato. El enunciado P2 ya está disponible y contrastado; la aceptación final
+requiere implementación, pruebas y mediciones, no solo esta preparación.
 
 ## Phase 0: Research summary
 
@@ -118,8 +118,9 @@ búsqueda binaria propia localiza el corte temporal.
   de 004 introduce un ordinal de línea separado y no puede cambiar esa regla.
 - Replay y carga dependen de versiones compatibles de cripta/catálogo; errores
   deben preservar el estado activo y no exponer resultados parciales.
-- El contraste del enunciado íntegro P2 y la aceptación del contrato compartido
-  siguen pendientes.
+- Contraste documental, receptor separado y formato v4 aprobados y registrados
+  el2026-11-10. La validación visual automatizada no sustituye el recorrido
+  manual humano pendiente de T033.
 
 ## Project Structure
 
@@ -164,13 +165,70 @@ y C1 trata los bytes; C1/C2 conservan su independencia.
 
 | Principio | Resultado tras diseño |
 | --- | --- |
-| Cumplimiento oficial | **Condicional**: la referencia oficial P2 sigue ausente; no se afirma cierre académico. |
-| Separación/contratos | **Pasa condicionado a aceptación**: se documentó el receptor propuesto; todavía no se modifica el contrato vigente. |
+| Cumplimiento oficial | **Pasa como diseño contrastado**: fuente P2 disponible; implementación y aceptación ejecutada pendientes. |
+| Separación/contratos | **Pasa**: receptor y formato v4 aprobados; enmienda004 registrada. |
 | Estructuras/evidencia | **Pasa**: lista cronológica y búsqueda binaria propia; rendimiento queda pendiente de benchmark. |
 | Determinismo/compatibilidad | **Pasa**: orden causal definido, nuevo formato y rechazos explícitos especificados. |
 | Validación | **Pasa como diseño**: offline, replay y carga candidata; ejecuciones pendientes. |
-| Spec Kit/trazabilidad | **Pasa** para plan; falta generar tareas y ejecutar analyze antes del código. |
+| Spec Kit/trazabilidad | **Pasa** para plan; tasks.md ya existe. La revisión inicial detectó la discrepancia entre receptores002/004; se concretaron y aprobaron interfaces antes del código. |
 | Registro LLM | **Pasa**: prompt resumido y uso registrados en `PROMPTS_LLM.md`. |
 
 No hay violaciones deliberadas que requieran excepción; la tabla Complexity
 Tracking queda vacía.
+
+## UI/UX de historia — solicitud del usuario, 2026-11-10
+
+La entrega incluye un panel gráfico de historia, además de consola y replay.
+Antes de implementarlo, revisar `src/view/app.py`, `ui.py`, `medidas.py`,
+`paleta.py`, `texto.py`, `entrada.py` y los paneles/pantallas existentes. Reutilizar
+componentes, sprites, convenciones de botones, tipografía y gestión del foco.
+
+Composición prevista: cabecera «Historial de la partida» con tiempo/acción y
+etiqueta de consulta histórica; navegación anterior/siguiente y selector de
+tiempo o acción; detalle dividido en estadísticas, inventario/efectos, enemigos
+locales y mapa conocido histórico. Diferenciar selección histórica del presente.
+No incorporar una acción de restaurar al consultar. Incorporar acceso visible
+y ayuda contextual; elegir atajo solo después de comprobar los existentes.
+
+Usar tokens compartidos de8/16/24/32 px lógicos para separaciones, padding,
+márgenes; mantener esquinas rectas y convertirlos con `Medidas.px` para la escala de la ventana.
+El grosor del trazo puede ser1/2 px lógicos para conservar legibilidad: no se
+interpreta la retícula como obligación de dibujar contornos de8 px. Conservar
+la jerarquía tipográfica existente. Evitar constantes de estilo nuevas dispersas.
+La revisión de consistencia no autoriza rediseñar pantallas ajenas a004.
+
+Teclado y ratón deben permitir navegación, selección, consulta y cierre con foco
+visible. El panel captura entrada y suspende movimiento y avance automático;
+cerrarlo devuelve control sin ejecutar pasos acumulados. Contenido extenso usa
+scroll y ajuste de texto sin ocultar controles. Identificar estados vacíos y
+errores mediante texto/iconos además de color; conservar la última consulta
+válida cuando haya error. Vista consume únicamente DTO de Sesión.
+
+Validar selección histórica y mapa pasado con pruebas de interacción; revisar
+capturas a1024×800 y otros tamaños admitidos, nombres largos y listas extensas,
+y ejecutar recorrido manual. No confundir renderizado headless con validación
+manual. La consola conserva el mismo contenido semántico del resumen.
+
+## Ajuste de implementación validado — 2026-11-10
+
+La auditoría encontró que las inversas P1 son incompletas para historia004.
+Se conserva PilaDeshacer y se añade un diario de escrituras observable en los
+modelos C2: asignaciones y cambios en listas/mapas producen deltas antes/después
+con ruta y presencia. Las listas de longitud variable guardan solo el segmento
+reemplazado. No se guarda una copia completa por acción. Los checkpoints y las
+consultas normalizan JSON sin referencias al motor; los cortes temporales y de
+acción conservan el orden causal mediante posiciones del diario. El formato
+v4 transporta este diario, sus cortes y checkpoints.
+
+La observación de conocimiento usa una proyección actual normalizada para
+calcular deltas, sin almacenar una proyección completa por acción. Es un costo
+de captura dependiente del mapa conocido que debe reevaluarse con cargas
+grandes; los tiempos de consulta se publican con el tamaño de estado medido.
+Las consultas reconstruyen desde el checkpoint posterior o el estado actual
+y aplican los deltas inversos sobre una copia aislada. Las escrituras se
+preparan antes de publicarse; fallos inyectados de captura/cierre, incluido
+pergamino, restauran estado y rama sin snapshot de transacción.
+
+La interfaz se implementó en src/view/historia.py con tokens compartidos en
+medidas.py, paleta existente, sprites y topología histórica cacheada. La
+validación visual headless se distingue del recorrido humano pendiente en T033.

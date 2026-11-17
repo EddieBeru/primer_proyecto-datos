@@ -158,3 +158,210 @@ oficiales, recorrido manual y dependencias externas de001/004 y de la referencia
 Revisión visual del usuario (2026-11-08): aprobó la apariencia del mapa. Este
 visto bueno no registra el recorrido manual de todos
 los escenarios ni sustituye la regresión pendiente tras los últimos retoques.
+
+## Verificación ampliada — 2026-11-09
+
+Checklist de calidad: 16/16 puntos completos (solo lectura). Se seleccionó002
+con `SPECIFY_FEATURE_DIRECTORY` absoluto y `SPECIFY_FEATURE_NO_PERSIST=1`, porque
+el estado local de Spec Kit conserva004; no se cambió la capacidad activa global.
+No hay `.specify/extensions.yml`: no hay hooks previos ni posteriores registrados.
+
+Regresión final tras las correcciones y ampliaciones de pruebas:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 415 passed, 1 skipped in 5.33s
+```
+
+La omitida sigue siendo la integración HTTP optativa. `git diff --check` y la
+compilación de los módulos modificados también pasan. El resultado inicial de
+esta sesión fue354 aprobadas/1 omitida: se añadieron61 casos efectivos.
+
+Evidencia adicional:
+
+- `tests/test_consola_viaje.py`: sondeo y reloj inyectados; mapa/foto/inventario/
+  ayuda conservan continuación; mostrar error de carga permite el siguiente
+  paso; guardar y cargar correctamente detienen; EOF/KeyboardInterrupt→130
+  cancelan sin tiempo. No se usa terminal ni espera real en estas pruebas.
+- `tests/test_vista.py`: separación mínima150 ms, cancelación sostenida antes de
+  avance, panel sin movimiento, U revierte, reposición junto a puerta y
+  `en_puerta`, mochila sin cancelación, caché por revisión, fallo de carga conserva
+  controlador y temporizador. El mapa muestra costos/estados desde el DTO.
+- `tests/test_sesion.py`: cargas normales/en frío con duplicados, destinos,
+  referencias de puerta y deltas inválidos conservan estado/viaje; roundtrip v3
+  permite deshacer; replay conserva conocimiento, sala, reloj y RNG. Candidato
+  LRU aislado: una escritura de caché anterior al fallo no toca la activa.
+- `tests/test_deltas_conocimiento.py`: colector recibe inicio/acción/evento,
+  reaplicación y reversión recuperan el mapa esperado; más de cinco intervalos
+  recibidos antes del descarte y truncamiento comprobados. Esto prueba el puerto
+  de002, no implementa ni acepta004.
+- `tests/test_bench_niebla.py`: heap/cola lineal equivalentes en cadenas, mallas,
+  empates, conocimiento parcial y recuerdos desactualizados; conteo de rehash
+  incluye cada registro movido. Las alternativas son implementaciones propias.
+
+Recorridos adicionales, diferenciados de una sesión manual humana:
+
+1. Ejecutable real `python -m src.main --jugar --offline ... --cripta
+   cripta-ejemplo` en directorio temporal, con comandos por stdin: `mapa`, destino
+   no explorado, `foto`, guardar, cargar, salir. Salida0; archivo creado,
+   costos/salidas visibles y destino inválido rechazado. Transcripción temporal:
+   `/tmp/cripta-002-consola.txt`.
+2. Pygame con `OfflineBackend` y SDL dummy: iniciar, abrir mapa con M, dibujar
+   captura1024×800 y revisar visualmente. Sala inicial identificada, dos vecinas
+   solo avistadas sin nombre, conexiones y detalles de costos/puertas legibles.
+   Captura temporal: `/tmp/cripta-002-mapa.png`. No equivale a jugar manualmente
+   todos los escenarios; T049 conserva esa parte pendiente.
+
+Pendientes externos: entrega ponderada001/coherencia física,
+referencia oficial offline e historia004 para T052. No se solicitaron servicios
+remotos ni se modificó código de cazadores/historia.
+
+
+## Fuente oficial disponible y contrastada — 2026-11-09
+
+El usuario indicó que las instrucciones ya están en docs. Se leyó completo
+`docs/Cripta Parte II.md`; el contraste de002 con §§3.3–3.4,5.3,6.1–6.3,7.3 y
+Apéndice B no encontró contradicciones esenciales nuevas. Se retira el bloqueo
+por fuente ausente: T003 satisface ahora su condición de contraste. Las notas
+anteriores sobre fuente faltante conservan únicamente valor histórico. La
+referencia oficial para rendimiento y las entregas001/004 siguen pendientes.
+
+| Caso Apéndice B | Requisitos | Prueba automatizada |
+|---|---|---|
+| Destino no explorado | FR-NIE-10 | test_controles_sin_tiempo_destino_actual_y_no_explorada |
+| Puerta recordada abierta pero cerrada | FR-NIE-05/13/14/15 | test_puerta_cerrada_no_abre_aun_con_llave |
+| Enemigos dormidos | FR-NIE-12/14 | test_dormidos_muertos_durante_drenaje_sin_dano_detienen_por_enemigos |
+| Entrada con antorcha | FR-NIE-06/07 | test_entrada_con_antorcha_revela_sin_activar_y_deshace |
+| Pergamino tras entrada con antorcha | FR-NIE-08 | test_entrada_con_antorcha_revela_sin_activar_y_deshace |
+| Pergamino durante viaje | FR-NIE-17 | test_pergamino_revierte_solo_ultimo_paso_y_cancela |
+
+La parte histórica de FR-NIE-08 sigue esperando004 real, aunque las pruebas
+locales de conocimiento/guardado/undo pasen.
+
+
+## Cierre de mediciones y regresión local — 2026-11-09
+
+`--bench` terminó con salida0: matriz final36 cargas, semilla20261106,
+1000/100/10 consultas por alternativa y100/10/1 calentamientos según tamaño.
+Ver [informe JSON](../../docs/mediciones/002-niebla-2026-11-09.json) y la sección
+«Mediciones finales de002» de [DECISIONES.md](../../DECISIONES.md). Se midieron
+índice/lineal, mapa completo, heap/cola lineal, memoria auxiliar, revelación y
+expansiones. Las36 comprobaciones de equivalencia pasaron. El método cambió por
+el costo excesivo del muestreo inicial; motivación y límites en research/plan.
+
+El máximo del heap en las cargas de100/1000/10000 salas fue23,142/86,251/452,053 ms.
+No se acredita5 ms en estas cargas ni se certifica la referencia oficial ausente.
+T045 se cierra como medición ejecutada con incumplimientos publicados y repetición
+tras optimizar adyacencia; no como aprobación de FR-NIE-19. T048 consolida datos y
+límites. Las tareas de aceptación integrada permanecen abiertas.
+
+Regresión después del contraste oficial y la generación simétrica final:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 418 passed, 1 skipped in 5.34s
+```
+
+Estado final de esta ejecución:46/52 tareas cerradas; pendientes T046/T047
+(integración001 y referencia), T049 (recorrido manual completo), T050 (cierre de
+regresión integrada, aunque la regresión local pasó), T051 (aceptación integral)
+y T052 (conocimiento histórico con004 real). El enunciado P2 ya está contrastado.
+
+
+## T052 y T050 — 2026-11-13
+
+La entrega de004 (línea de tiempo, DECISIONES §D, 2026-11-10) ya es compatible:
+formato v4, diario de escrituras, checkpoints y receptor de deltas en
+`src/controller2/linea_tiempo.py`, conectado por la Sesión como
+`receptor_historia`. Con eso se ejecutó T052 contra el 004 real, no el colector
+falso de T043, en los tres archivos que la tarea indica:
+
+- `tests/test_sesion.py::test_historia_conocimiento_entrada_antorcha_undo_carga`:
+  sesión real con antorcha y entrada; `LineaTiempo.reconstruir` devuelve en cada
+  frontera de acción el conocimiento exacto de ese momento (inicio de002,
+  antorcha, entrada); el retroceso restaura la rama histórica hasta la antorcha
+  y P1 concuerda; guardar/cargar v4 conserva `historia_accion(1..2)` y la
+  reconstrucción final.
+- `tests/test_deltas_conocimiento.py::test_receptor_historia_004_concuerda_con_deltas_002`:
+  colector de002 y línea de004 montados a la vez; re-aplicar los deltas
+  recibidos reproduce `estado.conocimiento` y las reconstrucciones históricas
+  coinciden frontera a frontera; la lejana pasa de ausente a avistada (antorcha)
+  y a explorada (entrada), y el deshacer la devuelve a avistada en ambas
+  representaciones.
+- `tests/test_savegame.py::test_historia_v4_conserva_y_valida_conocimiento`:
+  roundtrip v4 conserva la historia completa; un guardado con conocimiento que
+  no coincide con metadatos se rechaza con «conocimiento inválido» y un
+  checkpoint histórico alterado con «historia inválida»; en ambos casos la
+  sesión y su rama histórica quedan intactas.
+
+Evidencia adicional previa que se mantiene vigente:
+`tests/test_historia.py::test_historia_antorcha_entrada_undo_y_guardado` y
+`tests/test_sesion.py::test_roundtrip_conocimiento_deltas_y_undo`. Con esto la
+parte histórica de FR-NIE-08 queda verificada contra004 real. La dependencia
+formal T046 (costo/tiempo ponderado de001, simetría y observación) sigue
+abierta y bloquea la aceptación completa de002; este cierre no la alcanza.
+
+T050: regresión integrada completa, con SDL dummy y sin `CRIPTA_API_REAL`:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest tests/ -q
+# 501 passed, 1 skipped in 8.64s (antes: 498; +3 pruebas de T052)
+git diff --check  # sin errores
+```
+
+La omitida es la integración HTTP optativa de vista. No se resolvieron
+regresiones: no hubo fallos. Se conserva la separación de capas (004 no consulta
+el motor al reconstruir; 002 sigue sin retener la historia completa ni elegir K)
+y no se modificaron contratos, formatos de partida/log/foto ni reglas del motor.
+
+Pendientes tras este cierre: T046/T047 (001 y referencia oficial), T049
+(recorrido manual) y T051 (revisión de matriz y prompts; PROMPTS_LLM.md).
+
+## T049 — 2026-11-13
+
+Recorrido manual offline ejecutado con ejecutables reales y reloj/lector
+inyectados (pasos de viaje deterministas, sin terminal real), diferenciado de
+una partida humana. Transcripciones completas y capturas en `docs/mediciones/`
+(`002-t049-*.txt`, `002-t049-vista-*.png`). Consola en dos fases, semilla
+20261113, guardados v4 en directorio temporal:
+
+- **Fase A — `paquete_demo` tal cual** (enemigos, oleadas cada 3000 y trampas
+  vivos; combate reactivo del conductor, como una persona): `mapa` inicial con
+  salidas/costos/puertas; `ir a 3` rechazado sin tiempo (destino no explorado);
+  oleada programada a t=3000 y combatida; recogida y equipado de espada y
+  escudo del propio demo; viaje 2→1 detenido por daño de trampas al entrar
+  (`viaje detenido: dano`, §2.10/FR-NIE-12) y viaje 1→2 limpio completo. Al
+  re-entrar en la sala 1, `llamas-01` aplica quemadura 80×3=240 que el antídoto
+  no cura y la partida termina en `fin: derrota`. Limitación real registrada:
+  el demo no permite recorrer las ramas de viaje limpio ni la rama
+  antorcha+deshacer en una partida real (el pergamino está en la sala 5 y
+  volver a la sala 1 con llamas armadas es mortal).
+- **Fase B — fixture limpia** (sin enemigos, oleadas ni trampas, para las ramas
+  que el demo no contiene): todas las ramas del recorrido previsto: mapa;
+  rechazo de destino no explorado; cruce manual y recogidas; viajes 2→1 y
+  2→1→3 completados; antorcha con revelación inmediata y `deshacer` con
+  pergamino (el mapa anterior y posterior al retroceso concuerdan: la sala 2
+  vuelve a avistada); con el viaje 5→3 pendiente, `foto` lo conserva, la carga
+  de un archivo inexistente muestra un error amable y conserva sesión y viaje
+  (confirmado con `foto`), `cancelar` detiene antes del segundo cruce con
+  motivo visible y el reloj del último paso, y la carga válida instala la
+  partida con viaje inactivo; `ir a 999` sigue rechazándose sin tiempo;
+  `salir` → 0.
+- **Vista Pygame (headless SDL dummy) a 1024×800 y 640×480**: cruce manual por
+  proximidad sin paso automático adicional (reposo junto a la puerta); M abre
+  el mapa: salas exploradas con nombre y avistadas sin nombre (el DTO no
+  incluye `nombre` en avistadas); ↑/↓/←/→ seleccionan en cada dirección;
+  Enter inicia el viaje solo hacia exploradas (sobre una avistada no hace
+  nada); U durante el recorrido cancela el viaje y rebobina la última acción
+  cerrada con 1 pergamino (un viaje sin pasos aún no tiene inversa: revierte
+  el cruce anterior); Escape cancela el viaje con el panel abierto y también
+  fuera del panel; en pausa G guarda y la carga válida restaura; la carga
+  inexistente lanza `GuardadoError` con la sesión y el viaje intactos.
+  Capturas: juego/mapa/viaje a 1024×800 y mapa a 640×480, legibles en ambos
+  tamaños.
+
+`README.md` actualizado: guardado v4 (el flujo rechaza v1/v2/v3), U durante el
+recorrido, Escape fuera del panel y que el mapa no exponga nombres de
+avistadas. Queda registrada la diferencia entre estos recorridos dirigidos y
+una partida humana completa; T046/T047 siguen bloqueando la aceptación
+completa de002.

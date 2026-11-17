@@ -508,3 +508,279 @@ comparaciones se hacen dentro de la misma corrida).
     - Sensibilidad a mutación de puertas: `cazador_puertas_estables` = 0.000020 s vs `cazador_puertas_inestables` = 0.006242 s (invalidación O(1) vía `puertas_version`).
     - Estructuras evaluadas: `cazador_monticulo_minimo` garantiza O((V+E) log V) y estabilidad por secuencia de inserción, sin dependencias prohibidas.
     - Validación funcional: 19 pruebas de capacidad 001 aprobadas al 100% (cubriendo los 7 casos del Apéndice B y aclaraciones), regresión completa de 373 pruebas aprobadas (1 omitida por SDL).
+
+## C. Parte 2 — Niebla e «ir a» (002), 2026-11-09
+
+**Problema.** La precarga de salas es infraestructura y no conocimiento. El
+viaje debe usar solo salas exploradas y memoria de puertas, aceptar cancelación
+entre movimientos y permitir invertir cada paso sin copiar el mapa entero.
+
+**Alternativas.** Filtrar salas cargadas filtra infraestructura; las visitas
+físicas no representan la antorcha. Una copia por acción incumple la restricción
+de memoria. BFS ignora costos; compartir resultados de cazadores mezcla puertas
+vivas con memoria del jugador. Se comparan índice propio frente a búsqueda
+lineal y heap propio frente a cola de prioridad lineal en los benchmarks.
+
+**Elección.** `MapaConocido` con tablas hash propias redimensionables y registros
+inmutables; observación presencial separada de revelación remota; cambios
+antes/después por registro adjuntos a la inversa causal. Dijkstra neutral con
+heap e índice propios calcula cada paso sin caché de rutas, usando únicamente
+adyacencia conocida. Sesión ejecuta un movimiento ordinario y drena una vez;
+la UI espera al menos150 ms reales y procesa la entrada antes del siguiente paso.
+El receptor opcional para004 recibe deltas antes del descarte por tope cinco;
+002 no retiene la historia completa ni elige K.
+
+**Complejidad.** Índice: consulta esperadaO(1), inserción esperada amortizadaO(1),
+rehashO(n) al duplicar por carga0,75. DijkstraO((V+E)log(1+E)), espacioO(V+E)
+en la región conocida descubierta. Proyección completaO(VlogV+E) con mergesort;
+la UI la reutiliza por revisión. Revelación ordinaria depende de registros
+revelados/observados y sus salidas acotadas a cuatro; las expansiones se cuentan
+en el costo amortizado, no se esconden en las mediciones.
+
+**Validación funcional.** 415 pruebas aprobadas/1 omitida (HTTP optativo),
+5,33 s, con SDL dummy. Se corrigieron cruce visual automático sin reposición,
+consultas de mochila que cancelaban el viaje y copia superficial de la caché
+LRU candidata. Consola admite reloj/lector inyectados y muestra costos y memoria
+de puertas; EOF/KeyboardInterrupt cancelan. Guardado v3 y deltas sobreviven al
+roundtrip; las cargas corruptas preservan la sesión y el viaje. Evidencia y
+límites en `specs/002-niebla-ir-a/quickstart.md`.
+
+**Límites.** La entrega aislada no acredita costos/tiempos ponderados ni simetría
+física de001, historia004 o referencia oficial de5 ms.
+El recorrido con comandos por stdin y render headless no sustituye una sesión
+manual completa. §5.6 y la elección de K siguen fuera del alcance de002.
+
+
+**Fuentes y concordancia con el plan.** [Spec002](specs/002-niebla-ir-a/spec.md)
+y [plan002](specs/002-niebla-ir-a/plan.md). El diseño final conserva la elección
+del plan. Se eliminan consultas redundantes de adyacencia: cada destino se busca
+una vez por salida, conservando N,S,E,O. El enunciado íntegro aportado por el
+usuario, `docs/Cripta Parte II.md`, quedó leído y contrastado el2026-11-09;
+se retira el límite anterior por fuente P2 ausente, sin extenderlo a una supuesta
+entrega de la referencia oficial de rendimiento o de001/004.
+
+
+## Mediciones finales de002 — 2026-11-09
+
+Comando ejecutado con salida0: `.venv/bin/python -m src.main --bench`.
+Informe íntegro: [002-niebla-2026-11-09.json](docs/mediciones/002-niebla-2026-11-09.json).
+Semilla20261106; Python3.12.3, Linux, Intel Core i7-1185G7@3GHz. El informe incluye
+SO, CPU, base Git, estado modificado y SHA256 de las fuentes medidas. No se
+instancia vista ni red. Se conservaron todos los benchmarks anteriores.
+
+La matriz final contiene36 cargas: tres tamaños, cadenas/mallas/empates,
+conocimiento parcial/completo y puertas recordadas estables/desactualizadas.
+Los costos recíprocos son iguales y el grado es≤4. Cada carga comprueba igualdad
+de resultado entre heap y cola lineal antes de medir. El muestreo se ajustó a
+1000/100/10 consultas y100/10/1 calentamientos para100/1000/10000 salas: el plan
+original exigía1000 en todos los tamaños y resultó demasiado costoso. P2§6.3 no
+fija ese número. Se publica el cambio; p95 con10 muestras es aproximado. Los
+máximos observados son mediciones de esta ejecución, no garantías.
+
+Ejemplo: malla completamente conocida, memoria estable, ruta del inicio al final:
+
+| Salas | Consultas por alternativa | Heap mediana / p95 / máximo (ms) | Cola lineal mediana (ms) | Pico auxiliar heap (bytes) |
+|---:|---:|---:|---:|---:|
+| 100 | 1000 | 2.691 / 5.601 / 8.653 | 3.352 | 9280 |
+| 1000 | 100 | 34.766 / 40.203 / 42.801 | 40.554 | 71964 |
+| 10000 | 10 | 404.143 / 441.930 / 441.930 | 716.748 | 1413300 |
+
+**Resultado de rendimiento.** En la matriz completa, el máximo del heap fue
+23,142/86,251/452,053 ms para100/1000/10000 salas. Hubo581/1000/100 consultas por
+encima de5 ms, sobre12000/1200/120 consultas respectivamente. Estas cargas
+sintéticas no acreditan FR-NIE-19/SC-NIE-01. Falta la referencia oficial compatible;
+no se declara cumplido el presupuesto. El heap reduce la mediana frente a la
+cola lineal en la malla grande (404,143 frente a716,748 ms), con memoria auxiliar
+similar. Se conserva la estructura prevista en el plan, sin afirmar que ello
+resuelva todavía el límite temporal.
+
+**Consultas y revelación.** Para100/1000/10000 salas, la mediana de consulta por
+índice fue0,001004/0,001131/0,001652 ms; la alternativa lineal,
+0,001573/0,029619/0,180993 ms. Revelar las mismas dos salas produjo siempre cinco
+consultas y dos escrituras, sin rehash ordinario ni recorrido completo. Las
+secuencias de100/1000/10000 altas incluyeron5/8/11 expansiones y186/1530/12282
+registros movidos: ese costo no se excluye de la proporcionalidad amortizada.
+El mapa completo se mide separadamente; su extracción y orden no se confunden
+con una consulta puntual o revelación.
+
+**Optimización y límites.** La adyacencia consultaba cada destino en cada una de
+las cuatro vueltas por dirección; ahora filtra la dirección antes de buscarlo.
+La prueba de operaciones confirma una consulta por salida y conserva el orden
+N,S,E,O. La matriz final se ejecutó después de ese cambio. La matriz exhaustiva
+inicial fue interrumpida y no tiene resultados agregados publicados; el piloto
+dirigido anterior no es la referencia de esta tabla. No hay comparación temporal
+antes/después controlada con la misma carga, por lo que no se atribuye una razón
+de aceleración a la optimización. La justificación comprobada es reducir accesos
+redundantes. La aceptación de tiempos ponderados001, historia004 y referencia
+oficial permanece abierta. Esto no cierra§5.6 ni elige K.
+
+## D. Línea de tiempo004 — 2026-11-10
+
+**Problema y elección.** Consultar pasado sin alterar juego/undo, con hasta K
+acciones de reconstrucción y memoria proporcional a los cambios. Se eligió un
+diario de escrituras de C2: asignaciones y mutaciones de colecciones registran
+ruta, presencia y valores antes/después. Las inserciones/borrados de listas
+conservan solo el segmento afectado. La auditoría encontró que copiar las
+inversas P1 directamente perdería RNG, pergaminos y cambios de agenda posteriores
+al apilado. Se mantiene independiente la pila P1 de cinco intervalos y el
+colector de conocimiento002.
+
+Los checkpoints completos se crean al inicio y cada K acciones; la consulta
+copia el checkpoint posterior más cercano o el estado actual y aplica deltas
+inversos hasta el corte. Cortes/checkpoints se localizan por búsqueda binaria
+propia, O(log A). El costo de reconstrucción depende del tamaño del estado y
+los deltas de hasta K intervalos. El truncamiento trabaja sobre el sufijo
+revertido y sus checkpoints, sin recorrer el prefijo histórico. El pergamino
+conserva su ordinal separado y no cambia los contadores/exclusiones P1.
+
+**Alternativas.** Snapshot completo por acción viola la restricción de memoria.
+Reconstruir desde el principio evita checkpoints pero cuesta según la longitud
+de la historia; la alternativa medida a continuación usa inversión desde el
+estado actual sin checkpoints intermedios. Re-simulación desde un checkpoint
+es válida pero volvería a ejecutar reglas y exigiría aislar proveedor/catálogo;
+la inversión del diario reconstruye sin motor ni red.
+
+**Medición principal ejecutada.** 5.000 órdenes `esperar` aceptadas mediante
+Sesión y motor reales; tres salas hidratadas, sin enemigos/trampas, oleadas
+fuera del intervalo medido, semilla20261110. Incluye agenda/seq, RNG serializado,
+conocimiento y pila P1. 100 calentamientos +1.000 consultas por tiempo por K,
+sin red ni render; mismos resúmenes en todas las variantes. Datos completos en
+[004-historia-motor-2026-11-10.json](docs/mediciones/004-historia-motor-2026-11-10.json).
+Python3.12.3, Linux, Intel Core i7-1185G7; detalles en el informe.
+
+| K | Mediana ms | p95 ms | Máximo ms | Bytes checkpoints, JSON compacto | Memoria de estructura Python bytes | Máximo acciones reconstruidas |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 0,792 | 1,368 | 2,785 | 4.865.757 | 47.813.610 | 10 |
+| **20** | **0,997** | **1,954** | **2,862** | **2.437.388** | **39.122.486** | **20** |
+| 50 | 1,652 | 2,978 | 4,519 | 980.356 | 33.907.702 | 50 |
+| Sin intermedios, K=5001 | 112,345 | 238,222 | 485,004 | 8.993 | 30.431.238 | 5.000 |
+
+Se conserva **K=20** por reducir aproximadamente a la mitad los bytes de
+checkpoints frente a10, con margen temporal en la carga medida. K=50 ahorra
+más memoria y aumenta el tiempo de reconstrucción; no se afirma que20 sea
+óptimo para cualquier estado. Las tres variantes con checkpoints tuvieron cero
+consultas mayores de50 ms; la alternativa sin checkpoints tuvo777/1000.
+El máximo de acciones y deltas se instrumenta sobre consultas reales. La memoria
+Python se midió en una ejecución complementaria de la misma carga, contando
+objetos del bloque serializable y deduplicando referencias con TablaIndice
+propia; no incluye el juego vivo externo, la UI ni memoria temporal del índice
+de medición. El informe también registra pico temporal de consulta mediante
+tracemalloc y tamaño JSON compacto. No confundir bytes JSON con memoria RAM.
+
+Reproducción dirigida equivalente a la sección004 de `--bench`:
+
+```bash
+.venv/bin/python -c 'from src.orchestrator.bench_historia import bench_historia; print(bench_historia())'
+```
+
+Se conserva además el diagnóstico de diario sintético de una sala y dos eventos
+por acción en `docs/mediciones/004-historia-2026-11-10.json`; no sustituye el
+resultado del motor real. Sus tamaños parciales JSON iniciales incluyen espacios,
+mientras que el tamaño total es compacto; la tabla anterior usa exclusivamente
+el informe principal con separadores consistentes.
+
+**Compatibilidad y errores.** Formato v4 con índice de64 bits y bloque histórico
+versionado en core. El flujo de juego rechaza v1/v2/v3; lectores técnicos legados
+permanecen separados. Carga candidata valida cortes, deltas, checkpoints y su
+coherencia antes de instalar. Pruebas de fallos inyectados de captura/cierre,
+incluido retroceso, verifican rollback por deltas y estado/ramas/log intactos.
+Abrir una puerta ya abierta se trata como éxito sin acción ni avance temporal;
+se corrigió la rama previa que apilaba esa apertura vacía.
+
+**UI/UX.** Panel H/Historial con navegación por tiempo/acción, foco, teclado y
+ratón, barra de vida, sprites de inventario, secciones y grafo del mapa histórico.
+Paleta/fuentes/escala compartidas; tokens de8/24 px para espacio/margen y esquinas rectas, coherentes con el pixel-art.
+La geometría histórica se cachea por consulta; controles siguen visibles con
+listas largas y scroll. Capturas offline revisadas a1024×800 y640×480; pruebas
+a640×480,1024×800,1280×720 y1920×1080. El panel suspende movimiento/viaje y
+restablece el temporizador al cerrar sin pasos acumulados.
+
+**Límites.** La medición confirma el umbral solo para la carga publicada; no
+certifica estados mayores o cazadores de001. La captura de conocimiento utiliza
+una proyección normalizada del mapa actual y su costo debe reevaluarse con mapas
+grandes. §5.6 completo conserva su alcance transversal y espera también la carga
+nueva de A. El recorrido manual humano de UI sigue pendiente (T033); capturas y
+eventos headless no se presentan como esa validación. Regresión final:464
+aprobadas/1 omitida (integración HTTP opcional), 14,39 s.
+
+### Corrección visual004 — 2026-11-10
+
+Por instrucción explícita del usuario («remueve las esquinas redondeadas. eso
+aquí no se permite»), se eliminan los radios de paneles, botones, campos,
+barras y nodos del historial, incluido su acceso desde el juego. La retícula
+de8 px se aplica al espaciado y los márgenes; no autoriza esquinas redondeadas.
+Se corrigen especificación, plan, tareas, contrato y capturas para mantener la
+estética de rectángulos duros ya documentada en la decisión30.
+
+### Tipografía compartida y recuperación tras cierre — 2026-11-10
+
+Se retoma el cambio de presentación que había quedado en el árbol de trabajo.
+`src/view/tipografia.py` centraliza Lato con archivos originales Regular400,
+Medium500, Semibold600 y Bold700, incluidos en `assets/fonts/` con licencia OFL.
+Los roles tienen tamaño mínimo real, interlineado en múltiplos de4 px,
+tracking medido y caché de fuentes. Las cifras0–9 tienen ancho uniforme en las
+cuatro variantes. La geometría del escenario conserva su escala; la lectura no
+se comprime al reducir la ventana. No se modifican contratos ni reglas del motor.
+
+Se integran roles en menús, HUD e historial; se ajustan textos y acciones a
+ventanas pequeñas. Controles permite desplazamiento con rueda/flechas/PageUp/
+PageDown. Las etiquetas truncadas registran texto completo para tooltip con
+ratón o foco/selección; el tooltip envuelve, permite scroll y queda en la ventana.
+Se corrige también la envoltura cuando ni la elipsis cabe, evitando un bucle.
+El mapa usa respaldo opaco y medidas legibles para separar título/instrucciones.
+Los títulos y subtítulos sobre arte tienen respaldo sólido; botones deshabilitados
+usan texto legible. Se corrigen el margen del botón Volver a4K, filas del resumen
+final y escala de indicadores de dificultad. Se conservan las esquinas rectas.
+
+Validación: `.venv/bin/python -m pytest -q`: **487 aprobadas/1 omitida**
+(integración HTTP opcional),6,22 s. `git diff --check` sin errores. Pruebas nuevas
+verifican archivos/pesos originales, cifras tabulares, caché, métricas de dibujo,
+interlineados, mínimos, parejas de contraste compartidas y tooltip completo con
+foco/scroll. Los colores normales compartidos pasan4.5:1 en panel, fondo, hover
+y deshabilitado; acción clara y error sobre rojo oscuro también pasan4.5:1.
+Estas comprobaciones parciales no equivalen a conformidad WCAG global.
+
+Evidencia visual headless con sprites reales y FakeBackend de `tests/test_vista.py`:
+`docs/mediciones/tipografia-640.png`, `tipografia-1024.png` y `tipografia-1280.png`.
+Cada mosaico conserva píxeles nativos de640×480,1024×800 o1280×720:
+filas inicio/selección, pausa/ajustes, controles/HUD, mapa/historia y fin/error.
+Incluyen cinco criptas de nombre largo, historia con40 objetos y nombre extenso,
+y error largo con acceso completo. Se revisaron capturas para detectar solapes;
+la regresión también verifica límites de controles hasta3840×2160.
+No sustituye un recorrido humano interactivo ni cierra T033 de004.
+
+Antes del commit, el usuario solicita mayúscula inicial como mínimo en los
+elementos visibles. Se incorpora `texto.inicial_mayuscula` para etiquetas,
+objetos, tooltips, avisos y nombres de presentación; se corrigen ayudas,
+subtítulos y leyendas del mapa. Se conserva el resto del texto y las siglas,
+sin alterar identificadores ni datos del motor. Se regeneran los tres mosaicos.
+Regresión final con esta corrección: **494 aprobadas/1 omitida**,6,19 s;
+`git diff --check` sin errores.
+
+### Títulos sobre arte sin panel blanco — 2026-11-10
+
+Por corrección explícita del usuario, `_caja_menu` elimina los rectángulos
+blancos del título y subtítulo. Ambos se dibujan directamente sobre el arte,
+con texto claro y contorno oscuro limitado a los glifos. Cada línea del
+subtítulo se centra respecto al mismo eje del título, también cuando envuelve.
+La pareja texto claro/contorno oscuro supera4.5:1; no se afirma conformidad
+global sobre el arte. Se actualizan los mosaicos de640×480,1024×800 y1280×720
+y se revisa la selección a tamaño nativo. Validación dirigida:133 aprobadas/
+1 omitida (vista, historial y tipografía),4,57 s; `git diff --check` sin errores.
+
+### Proporción del título al redimensionar — 2026-11-10
+
+Se reemplaza la selección entre dos tamaños fijos del título sobre la caja por
+un tamaño proporcional al alto real del arte, calculado en píxeles finales.
+El ajuste anterior mantenía demasiado grande el texto pequeño y podía caer a
+la fuente de botón en ventanas grandes. El nuevo cálculo aplica la escala una
+sola vez, mide el ancho y ajusta gradualmente, con mínimo18 px para este título
+compacto y peso600 si es menor de24 px. No cambia los mínimos de texto continuo.
+Ejemplo «Elige tu cripta»:19 px a640×480,31 a1024×800,28 a1280×720,
+42 a1920×1080 y84 a3840×2160. La escala sigue la caja y su espacio vertical.
+Se conservan subtítulo centrado y ausencia de fondos blancos.
+
+Validación dirigida:137 aprobadas/1 omitida (4,63 s). Pruebas de proporción,
+crecimiento y encaje de cuatro títulos entre640×480 y4K. Se regeneran los tres
+mosaicos y se revisan capturas nativas a640×480 y1920×1080. Revisión headless;
+`git diff --check` sin errores.

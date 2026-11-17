@@ -78,3 +78,200 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
 | 2026-11-09 | Antigravity (Gemini 3.8 Flash) | «/speckit.plan Para la especificación 001-terreno-cazador. Restricciones obligatorias: Está PROHIBIDO usar heapq, deque y set (ni como estructura auxiliar). Implementa nuestra propia cola de prioridad / montículo. Evalúa en el plan si la lista enlazada de la agenda sirve para la ruta más barata o si es demasiado lenta; compara con montículo propio. Decide si cada cazador calcula por su cuenta o comparten cálculo. Cuándo reutilizar ruta e invalidación. Desempate menor id (FR-CAZ-09) y equivalencia cálculo desde cero (FR-CAZ-11). Bounded por rango (FR-CAZ-14). Cambios API: costo en salidas y cazador+rango en catálogo. Plan de medición --bench (FR-CAZ-15). Trazabilidad FR-CAZ-xx. Registra en DECISIONES.md.» | Generación del plan técnico completo para 001-terreno-cazador: specs/001-terreno-cazador/plan.md, research.md (evaluación montículo propio vs lista enlazada, estrategias individual acotada vs compartida, invalidación estricta de rutas y poda por rango), data-model.md (SalidaViva, Enemy, RutaCazador, DecisionCazador), contracts/interfaces.md (propuestas K1, K2, K3, K5 y CLI), quickstart.md (validación de los 7 escenarios del Apéndice B y métricas --bench), y registro formal de la Decisión 68 en DECISIONES.md con trazabilidad exhaustiva a FR-CAZ-01 hasta FR-CAZ-15. |
 | 2026-11-09 | Antigravity (Gemini 3.8 Flash) | «/speckit.tasks Genera el tasks.md de 001-terreno-cazador a partir del plan. Cada tarea debe referenciar los IDs FR-CAZ-xx que cubre, y debe haber tareas de prueba para cada uno de los 7 escenarios de aceptación del Apéndice B, escritas antes de la implementación correspondiente. Incluye tareas para: costo de salidas e intervalo (FR-CAZ-01/02/03/12), comportamiento cazador (FR-CAZ-04 a 11), vista de costos y distinción de cazadores (FR-CAZ-13), rendimiento (FR-CAZ-14) y --bench (FR-CAZ-15). Verifica que ninguna tarea introduzca heapq, deque ni set.» | Generación estructurada de specs/001-terreno-cazador/tasks.md con 43 tareas divididas en 7 fases (Setup, Foundational, US1 a US4, Polish), con formato de checklist estricto, IDs T001 a T043, marcas [P] de paralelismo, trazabilidad [FR-CAZ-xx], enfoque TDD estricto con pruebas previas para cada uno de los 7 casos del Apéndice B, y verificación de exclusión total de heapq, deque y set. |
 | 2026-11-16 | Antigravity (Gemini 3.8 Flash) | «/speckit.implement Implementa las tareas de 001-terreno-cazador en el orden de tasks.md. Reglas: no uses heapq, deque ni set; cada escenario de aceptación debe tener su prueba y pasar; no cambies decisiones del spec.md sin avisarme. Al terminar, ejecuta las pruebas y el --bench de esta capacidad y deja los resultados listos para DECISIONES.md.» | Ejecución íntegra y ordenada de las 43 tareas de specs/001-terreno-cazador/tasks.md: verificación y purga estricta de heapq, deque y set en código de la capacidad; modelos Exit.costo, SalidaViva.costo, Enemy.rango y puertas_version; dijkstra_acotado, distancias_desde_destino y dijkstra_individual con MonticuloMinimo y TablaIndice; desempate determinista por menor id e invalidación instantánea; suite completa de 19 pruebas en tests/test_terreno_cazador.py (100% de éxito en los 7 casos del Apéndice B y aclaraciones); suite bench_cazadores en src/orchestrator/bench.py evaluando los 5 ejes requeridos; registro de resultados empíricos en DECISIONES.md y 373 pruebas aprobadas en regresión total. |
+
+## Continuación de 002 — 2026-11-09
+
+- **Modelo:** Codex (familia GPT-6; variante no confirmada).
+- **Prompt literal:** «qué hay pendiente para la persona B?» y «terminemos 002».
+- **Uso:** revisión local de tareas, implementación y pruebas; correcciones de
+  consola/viaje, reposición visual tras cruce, consultas de mochila, aislamiento
+  de caché al cargar y detalles del mapa. Nuevas pruebas offline de conocimiento,
+  deltas, viaje, interfaces, persistencia y replay; benchmarks de mapa/rutas con
+  índice y heap propios frente a alternativas lineales. Resultados ejecutados y
+  limitaciones se registran en quickstart y DECISIONES.md; no se atribuye cierre
+  académico a pruebas sintéticas ni se implementa004 como parte de002.
+
+- **Aclaración literal posterior:** «ya estan las instrucciones en docs».
+  Uso: lectura íntegra de `docs/Cripta Parte II.md`, contraste de002, actualización
+  de fuentes y eliminación del bloqueo por enunciado ausente; trazabilidad de los
+  seis casos oficiales a IDs de requisito y pruebas automatizadas.
+
+- **Consulta literal durante la ejecución:** «what else». Uso: estado de pendientes
+  y rendimiento observado; ajuste documentado del muestreo de benchmarks después
+  de una corrida exhaustiva demasiado costosa. No se atribuyen resultados a la
+  matriz interrumpida; el diagnóstico inicial dirigido se distingue de la matriz
+  final con costos recíprocos válidos.
+
+- **Resultado ejecutado:** regresión final418 aprobadas/1 omitida (5,34 s);
+  `--bench` salida0 y matriz final36 cargas en el informe JSON versionable de
+  `docs/mediciones/`. Se publican fallos sintéticos de5 ms y el muestreo revisado;
+  quedan46/52 tareas cerradas y seis de aceptación/integración pendientes.
+
+## Preparación004 — 2026-11-10
+
+- Prompt literal: «actualiza la preparación». Contexto: identificar trabajo de
+  persona B que puede avanzar sin persona A.
+- Uso: contraste de004 con `docs/Cripta Parte II.md` (§§3.6,5.5,6.1–6.3 y
+  Apéndice B); actualización de spec, plan, research, tasks y quickstart.
+- Resultado: T001 completada; T002/T003 conservadas pendientes por diferencias
+  entre receptor propuesto004 y contrato aprobado002, y definición de v4.
+  No se cambian código, contratos compartidos ni se atribuye aceptación ejecutada.
+- Validación: revisión documental y `git diff --check`; sin pruebas funcionales
+  porque solo se actualizaron documentos.
+
+## Inicio de implementación004 — 2026-11-10
+
+- Prompt literal: «sigamos con 004 para terminarlo».
+- Uso: habilidad speckit-implement, prerrequisitos004 y checklist16/16; inspección
+  del motor, agenda, RNG, undo, Sesión y persistencia. Propuesta concreta del
+  receptor004 separado de002 y layout v4 en contracts/interfaces.md.
+- Hallazgo: las inversas P1 omiten cambios que sí debe preservar la historia
+  (pergaminos, RNG y operaciones de agenda posteriores al apilado). Se registra
+  matriz preliminar de captura; no se marca T016 ni aceptación funcional.
+- Pendiente: aceptación explícita T002/T003 conforme a la constituciónII y
+  CONTRATOS.md regla6.3 antes de modificar interfaces compartidas.
+
+## Requisito UI/UX de004 — 2026-11-10
+
+- Prompt literal: «quiero resaltar la importancia de un buen UI/UX a la hora de implentar. no solo texto sin más. a la hora de implementar, revisar el resto de la implementación de interfaz y mantener consistencia además de buenas practicas como multiplos de 8px en bordes».
+- Uso: inspección inicial de medidas, paleta y paneles existentes; incorporación
+  de FR-LIN-15/16, tareas T031–T033 y criterios de validación visual. Retícula de
+  8 px lógicos para espaciados/padding/radios y trazos finos permitidos.
+- Resultado: alcance gráfico explícito con navegación, jerarquía, mapa histórico,
+  foco, errores/vacíos y revisión visual/manual. No se implementa aún ni se
+  consideran aprobados los contratos internos pendientes.
+- Validación documental: git diff --check.
+
+## Implementación004 y UI/UX — 2026-11-10
+
+- Modelo: Codex; identificador específico del modelo no expuesto en esta sesión.
+- Prompts literales: «sigamos con 004 para terminarlo»; «apruebo» (receptor
+  histórico y formato v4); «recuerda hacer commit cada que sea necesario».
+- Requisito UI/UX literal registrado arriba: consistencia con la interfaz
+  existente, presentación visual y múltiplos de8 px.
+- Uso: speckit-implement, revisión de contratos y auditoría de escrituras;
+  diario de mutaciones, checkpoints, consultas puras t/#k, replay, v4 y validación
+  candidata. Panel H/Historial con navegación, teclado/ratón, foco, sprites,
+  barra de vida y grafo histórico. Tokens, paleta y fuentes compartidos.
+- Validación: pruebas de estado completo, eventos empatados, antorcha/undo,
+  pasos de viaje, corrupción/incompatibilidad y fallos inyectados; capturas
+  revisadas con OfflineBackend real. Se distingue revisión headless de recorrido
+  humano pendiente. Pruebas usan cuatro tamaños y contenido largo.
+- Medición:5.000 esperar aceptadas mediante Sesión/motor, K10/20/50 y sin
+  intermedios;100 calentamientos y1000 consultas por alternativa. K20: máximo
+  2,862450 ms; RAM de estructura serializable39.122.486 bytes. Se conserva20
+  por compromiso medido de memoria/latencia, sin extrapolar a otros estados.
+- Commits locales por hitos: especificación/contratos antes del código; base002
+  separada; motor004; correcciones, interfaz y evidencia en commits siguientes.
+  No se hicieron operaciones remotas de GitHub. Archivos ajenos no se incluyen.
+- Resultado funcional y detalles de regresión en quickstart.md; T033 queda
+  abierto por recorrido humano. No se declara cierre académico total ni se
+  adjudican001 o la revisión transversal completa§5.6 a esta entrega004.
+
+- Regresión final004:464 aprobadas/1 omitida (14,39 s); git diff --check sin errores.
+
+## Corrección visual004 — 2026-11-10
+
+- Prompt literal: «remueve las esquinas redondeadas. eso aquí no se permite».
+- Uso: eliminar redondeo en el historial y su botón de acceso, retirar el token
+  de radio y corregir los criterios actuales de diseño. Los registros previos
+  que describen radios reflejan la implementación anterior, reemplazada aquí.
+- Validación: pruebas existentes de interfaz, regeneración y revisión de capturas
+  offline a1024×800 y640×480, y git diff --check.
+- Resultado de esta corrección:103 pruebas de interfaz aprobadas/1 omitida; capturas revisadas y ausencia de border_radius en src/view.
+
+## Recuperación y validación de tipografía — 2026-11-10
+
+- Prompts literales: «somwthing must have been left out before the force close.
+  anything left behind? related with the fonts maybe»; «can you keep it going?
+  do you need more context?».
+- Modelo: Codex; identificador específico no expuesto en esta sesión.
+- Uso: recuperar cambios locales de Lato y roles compartidos; revisar
+  `docs/diseno-ui.md`; corregir distribución4K, mapa, nombres truncados, errores,
+  contraste y resumen final. Añadir pruebas significativas de fuentes y tooltips.
+- Validación:487 pruebas aprobadas/1 omitida; `git diff --check` sin errores.
+  Capturas headless con FakeBackend/sprites reales a640×480,1024×800 y1280×720,
+  con nombres/listas/errores largos, guardadas en `docs/mediciones/tipografia-*.png`.
+  Detalle y límites en DECISIONES.md; no se declara recorrido humano ni
+  conformidad WCAG completa. Sin operaciones remotas de GitHub.
+- Los archivos ajenos `cache.pkl.fichas` y `docs/Cripta Parte II.md` se preservan.
+- Prompts adicionales: «commit de eso»; «ocupo que te asegures que todo tengas
+  mayusculas iniciales como minimo. muchos elementos se ven mal si están full
+  en minúscula». Se añade mayúscula inicial a textos visibles y etiquetas de
+  objetos, conservando siglas/datos originales. Se regeneran capturas y se
+  valida con494 pruebas aprobadas/1 omitida (6,19 s), antes del commit local.
+
+## Título y subtítulo sin fondo blanco — 2026-11-10
+
+- Prompt literal: «el titulo y su subtitulo tiene un fondo blanco que no me
+  gusta. además que el subtitulo no está ni centrado».
+- Cambio: retirar ambos respaldos blancos del encabezado sobre arte; centrar
+  cada línea del subtítulo y usar contorno oscuro de glifos para legibilidad.
+- Validación:133 pruebas aprobadas/1 omitida; capturas actualizadas a640×480,
+  1024×800 y1280×720 y selección revisada a resolución nativa. Sin recorrido
+  humano interactivo. `git diff --check` sin errores.
+
+## Proporción del título — 2026-11-10
+
+- Prompt literal: «el tamaño del titulo no está proporcional. en ventanas
+  pequeñas es muy grande y en ventanas grandes es muy pequeño».
+- Cambio: tamaño final proporcional al arte de la caja, ajuste gradual por
+  ancho y eliminación del doble escalado/fallback a fuente de botón.
+- Validación:137 aprobadas/1 omitida; pruebas de proporción hasta4K, capturas
+  actualizadas y revisión visual a640×480 y1920×1080. Se documenta la excepción
+  del encabezado compacto en `docs/diseno-ui.md`.
+
+## Cierre de 002: T052, T050, T049 y T051 — 2026-11-13
+
+- Modelo: GLM-5.3-Flash Free vía OpenCode (asistente de código en terminal;
+  sin atribución de proveedor adicional).
+- Prompts literales: «empieza» (tras el informe de pendientes); «sí» (autoriza
+  el commit por hito de T049); «no entiendo lo que dice la 47»; «pero no
+  entiendo a que paquete se refiere. ya no hay entregables de parte del profe
+  para este proyecto, te refieres a algo en su servidor?»; «pues creo que
+  queda irresolvible».
+- Prompts previos en la misma sesión (paráfrasis): preguntar qué queda en el
+  proyecto; pedir ejecutar T050 y T052; pedir el siguiente paso.
+- Uso: T052 verificada contra el 004 real con tres pruebas nuevas
+  (reconstrucción por frontera de acción, concordancia deltas 002↔historia
+  004, validación/conservación v4) y T050 con la regresión completa; T049
+  ejecutada como recorrido offline con ejecutables reales y reloj/lector
+  inyectados (consola en dos fases: demo real con oleadas/trampas y fixture
+  limpia para las ramas ausentes del demo; vista headless SDL dummy a
+  1024×800 y 640×480 con capturas en `docs/mediciones/002-t049-*`), con
+  actualización de `README.md` (v4, U en recorrido, Escape fuera del panel);
+  T051 como revisión de matriz FR/escenarios, declaración de pendientes
+  (T046 bloqueada por la entrega de001 de la persona A, fuera del alcance de
+  B; T047 como bloqueo externo sin resolución prevista según el equipo) y
+  este registro.
+- Aclaraciones registradas: se explicó que el «paquete oficial» de T047 es la
+  cripta de referencia del enunciado §6.1 (no un servidor ni un entregable
+  nuevo); con la evaluación del equipo de que no se publicará, T047 se
+  declara bloqueo externo definitivo y la aceptación formal de002 queda
+  incompleta, sin sustitutos sintéticos. El usuario aclaró además que 001 y
+  003 pertenecen a la persona A y que él es la persona B, por lo que ambos
+  bloqueos de002 quedan fuera de su alcance.
+- Validación: regresión completa501 aprobadas/1 omitida (6,48 s), `git diff
+  --check` sin errores; commits `db9be79` (T052/T050) y `e285829` (T049).
+  Recorridos dirigidos, no partidas humanas; queda registrado en quickstart.
+  El commit de T051 queda pendiente de autorización.
+
+## T033 panel de historia — 2026-11-13
+
+- Modelo: GLM-5.3-Flash Free vía OpenCode (misma sesión que la sección
+  anterior).
+- Prompt literal: «dale» (tras preguntar «¿Comiteo el hito T051 y sigo con
+  T033?»); autoriza el commit y el recorrido del panel.
+- Aclaraciones de la misma sesión: el usuario indica que 001 y 003 pertenecen
+  a la persona A y él es la persona B, por lo que T046/T047 quedan fuera de
+  su alcance; se corrige el registro de T051 en consecuencia.
+- Uso: T033 como recorrido headless del panel de historia con ejecutables
+  reales y fixture limpia (apertura, navegación por teclado y ratón, consulta
+  inválida y válida, scroll con contenido extenso, cierre y verificación de
+  ausencia de mutaciones); capturas a los tamaños admitidos en
+  `docs/mediciones/004-t033-*`; ayuda completada en `README.md`; registro en
+  quickstart y cierre de la casilla en `tasks.md` de004.
+- Validación: verificación de controles íntegros en las cinco resoluciones;
+  igualdad de `a_dict`, bitácora, pila, reloj, posición, sala y viaje antes y
+  después del recorrido. Regresión completa y commit en la sección de T033
+  del quickstart de004; recorrido dirigido, no partida humana interactiva.

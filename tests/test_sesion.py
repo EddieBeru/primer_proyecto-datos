@@ -359,3 +359,140 @@ def test_backends_cumplen_protocolo():
         for m in ("info_cripta", "version_cripta", "version_catalogo",
                   "esqueleto_completo", "contenido", "lote_catalogo_auto"):
             assert hasattr(b, m), (b, m)
+
+
+@pytest.mark.parametrize('en_frio', [False, True])
+@pytest.mark.parametrize('corrupcion', ['duplicada', 'destino', 'puerta', 'delta'])
+def test_carga_p2_corrupta_preserva_sesion_y_viaje(tmp_path, en_frio, corrupcion):
+    from copy import deepcopy
+    from src.controller1 import savegame
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    ses.estado.sala_en_curso().enemigos.clear()
+    ses.estado.conocimiento.revelar(1, ses.proveedor.datos_sala, True)
+    data = deepcopy(ses.fachada.guardar())
+    if corrupcion == 'duplicada':
+        data['conocimiento']['salas'].append(data['conocimiento']['salas'][0])
+    elif corrupcion == 'destino':
+        sala = next(s for s in data['conocimiento']['salas'] if s['estado'] == 'explorada' and s['salidas'])
+        sala['salidas'][0]['destino'] = 999999
+    elif corrupcion == 'puerta':
+        data['conocimiento']['puertas'][0]['direccion'] = 'X'
+    else:
+        data['pila_deshacer'] = [{'op': 'esperar', 'datos': {}, 'eventos': [],
+            'cambios_conocimiento': [{'tipo': 'sala', 'clave': 1, 'antes': None,
+                                     'despues': {'id': 2, 'estado': 'avistada'}}]}]
+    ruta = str(tmp_path/'corrupta.bin')
+    savegame.guardar(ruta, data)
+    assert ses.paso('ir a 2')[0]
+    antes = ses.estado.a_dict()
+    identidad = ses.fachada
+    with pytest.raises((GuardadoError, ValueError)):
+        (ses.cargar_en_frio if en_frio else ses.cargar)(ruta)
+    assert ses.fachada is identidad
+    assert ses.estado.a_dict() == antes
+    assert ses.fachada.viaje.activo
+
+
+def test_roundtrip_conocimiento_deltas_y_undo(tmp_path):
+    """FR-NIE-08/17: conocimiento y deltas persistidos para retroceso."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    antes = ses.estado.conocimiento.a_dict()
+    assert ses.paso('e')[0]
+    despues = ses.estado.conocimiento.a_dict()
+    ruta = str(tmp_path/'niebla.bin')
+    ses.guardar(ruta)
+    ses.cargar_en_frio(ruta)
+    assert ses.estado.conocimiento.a_dict() == despues
+    assert not ses.fachada.viaje.activo
+    # Dotar de pergamino para probar la inversa persistida sin otra acción.
+    ses.estado.jugador.inventario.append("pergamino-01")
+    assert ses.paso('deshacer')[0]
+    assert ses.estado.conocimiento.a_dict() == antes
+
+
+def test_historia_conocimiento_entrada_antorcha_undo_carga(tmp_path):
+    """FR-NIE-08 (T052): con004 real, el conocimiento histórico se reconstruye."""
+    from src.controller2.linea_tiempo import conocimiento_serializado
+    ses = nueva_sesion(tmp_path, checkpoint_cada=2)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    ses.proveedor.catalogo.update(ses.backend.fake._fichas)
+    ses.estado.jugador.vida_max = ses.estado.jugador.vida_actual = 1000
+    ses.estado.jugador.inventario.extend(['antorcha-01', 'pergamino-01'])
+    inicio = conocimiento_serializado(ses.estado)
+    assert ses.paso('usar antorcha-01')[0]
+    torch = conocimiento_serializado(ses.estado)
+    assert ses.paso('s')[0]
+    entrada = conocimiento_serializado(ses.estado)
+    assert inicio != torch != entrada
+    # La reconstrucción de004 devuelve el conocimiento de cada frontera:
+    # inicio de002, antorcha (acción 1) y entrada (acción 2).
+    assert ses.linea.reconstruir(0)['conocimiento'] == inicio
+    assert ses.linea.reconstruir(ses.linea.acciones[1][0])['conocimiento'] == torch
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == entrada
+    mapa_previo = ses.historia_accion(1).mapa
+    mapa_entrada = ses.historia_accion(2).mapa
+    assert sum(f[2] == 'explorada' for f in mapa_entrada) > sum(f[2] == 'explorada' for f in mapa_previo)
+    # El retroceso restaura la rama histórica hasta la antorcha.
+    assert ses.paso('deshacer')[0]
+    assert conocimiento_serializado(ses.estado) == torch
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == torch
+    ruta = str(tmp_path/'t052.bin')
+    ses.guardar(ruta)
+    ses.cargar_en_frio(ruta)
+    assert ses.historia_accion(1).mapa == mapa_previo
+    assert ses.historia_accion(2).mapa == mapa_entrada
+    assert ses.linea.reconstruir(len(ses.linea.registros))['conocimiento'] == torch
+
+
+def test_replay_viaje_equivale_a_movimientos_individuales(tmp_path):
+    """FR-NIE-16: replay ignora comentario y conserva determinismo."""
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID, semilla=7)
+    # Sala 1 ya explorada: el comentario aceptado no ejecuta acciones al reproducir.
+    assert ses.paso('ir a 1')[0]
+    assert ses.paso('e')[0]
+    ruta = str(tmp_path/'p.log')
+    otro = nueva_sesion(tmp_path, log_ruta=None)
+    otro.reproducir(ruta)
+    assert otro.estado.conocimiento == ses.estado.conocimiento
+    assert otro.estado.sala_actual == ses.estado.sala_actual
+    assert otro.estado.reloj == ses.estado.reloj
+    assert otro.fachada.azar.estado() == ses.fachada.azar.estado()
+    assert not otro.fachada.viaje.activo
+
+
+def test_candidato_fallido_no_comparte_cache_lru(tmp_path, monkeypatch):
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID)
+    ruta = str(tmp_path/'p.bin')
+    ses.guardar(ruta)
+    antes = [(n.clave, n.valor) for n in ses.cache._orden]
+    from src.controller2.fachada import Fachada
+    def fallar(fachada, data):
+        # El proveedor candidato escribe antes de que la validación fracase.
+        fachada.proveedor.loader.cache.guardar('intruso', object())
+        raise GuardadoError('fallo candidato')
+    monkeypatch.setattr(Fachada, 'cargar', fallar)
+    with pytest.raises(GuardadoError):
+        ses.cargar(ruta)
+    assert [(n.clave, n.valor) for n in ses.cache._orden] == antes
+    assert ses.cache.obtener('intruso') is None
+
+
+def test_metadatos_no_hidratan_ni_consumen_cache_presupuesto(tmp_path):
+    ses = nueva_sesion(tmp_path)
+    ses.iniciar(CRIPTA_ID)
+    antes = (ses.budget.get_presupuesto(), list(ses.estado.salas),
+             list(ses.estado.salas_visitadas), [(n.clave,n.valor) for n in ses.cache._orden])
+    for sala_id in ses.loader.plano:
+        ses.proveedor.datos_sala(sala_id)
+    assert antes == (ses.budget.get_presupuesto(), list(ses.estado.salas),
+             list(ses.estado.salas_visitadas), [(n.clave,n.valor) for n in ses.cache._orden])
+    mapa = ses.mapa_conocido()
+    avistadas = [s for s in mapa.salas if s['estado'] == 'avistada']
+    assert avistadas
+    assert all('nombre' not in s and 'salidas' not in s for s in avistadas)
+    mapa.salas[0]['nombre'] = 'mutado por consumidor'
+    assert ses.mapa_conocido().salas[0]['nombre'] != 'mutado por consumidor'

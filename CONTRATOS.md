@@ -98,3 +98,16 @@ Se registra esa aprobación directa, sin atribuir un mensaje a otra persona.
   antes de descartar intervalos por tope cinco. No se implementan historia ni
   checkpoints en002. Su aceptación integrada y la temporal ponderada de001 quedan
   pendientes de entregas reales, igual que el contraste del enunciado íntegro P2.
+
+## Enmienda004 — 2026-11-10
+
+Aprobación explícita del usuario: «apruebo», tras presentar los contratos del
+receptor histórico y guardado v4 en specs/004-linea-de-tiempo/contracts/interfaces.md.
+El receptor004 es independiente del colector002. Registra deltas completos con
+orden causal, cierra acciones después del drenaje y recorta solo el sufijo
+revertido; conserva las exclusiones y tope cinco del undo P1. Consultas por
+tiempo/ordinal no mutan el motor. Guardado v4 conserva índice <qqq> de v3 y
+añade bloque historia versionado al core; el flujo004 rechaza v1/v2/v3 de
+forma explícita y valida candidato antes de reemplazar la sesión activa.
+Interfaz gráfica con panel navegable, mapa histórico y retícula base8 px según
+FR-LIN-15/16. Detalles y garantías en el contrato004 aprobado.
