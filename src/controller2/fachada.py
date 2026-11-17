@@ -70,6 +70,7 @@ class Fachada:
                  bitacora=None, semilla: int | None = None, orden_fn=None,
                  oleada_cada: int | None = None, receptor_cambios=None, receptor_historia=None) -> None:
         self.estado = estado
+        self._reindexar_enemigos()
         self.receptor_historia = receptor_historia
         self.proveedor = proveedor
         self.catalogo: dict = catalogo or {}
@@ -97,6 +98,8 @@ class Fachada:
                 self.azar.llamadas = int(getattr(estado, "azar_llamadas", 0))
             except Exception:
                 pass
+        if self.estado.azar_estado is None:
+            self.estado.azar_estado = self.azar._rng.getstate()
         # §4.8: buffer circular de capacidad fija; insertar es O(1) y la
         # memoria no crece (antes: lista + self.mensajes[-20:] por mensaje).
         self.mensajes = BufferCircular(MENSAJES_MAX)
@@ -119,6 +122,27 @@ class Fachada:
                 self._asegurar_oleada()
         except Exception:
             pass
+
+    def _reindexar_enemigos(self):
+        from src.estructuras.tabla_indice import TablaIndice
+        self._indice_enemigos = TablaIndice()
+        for sala in self.estado.salas.values():
+            for enemigo in sala.enemigos:
+                self._indice_enemigos[enemigo.instancia] = enemigo
+
+    def _ubicar_enemigo(self, instancia):
+        enemigo = self._indice_enemigos.obtener(instancia)
+        if enemigo is not None:
+            sala = self.estado.salas.get(enemigo.sala_actual)
+            if sala is not None and any(e is enemigo for e in sala.enemigos):
+                return sala, enemigo
+        # Nuevas oleadas o consumidores técnicos que añaden actores directamente.
+        for sala in self.estado.salas.values():
+            for enemigo in sala.enemigos:
+                if enemigo.instancia == instancia:
+                    self._indice_enemigos[instancia] = enemigo
+                    return sala, enemigo
+        return None, None
 
     def _asegurar_oleada(self) -> None:
         """Una oleada programada siempre (sin duplicar; vive en agenda K2)."""
@@ -256,6 +280,10 @@ class Fachada:
                     return e.tipo_id
         return None
 
+    def _azar_antes_serializado(self):
+        from src.controller2.registro_mutaciones import dato
+        return dato(self.estado.azar_estado)
+
     def _inversa_accion(self, op: str, datos: dict | None = None,
                         eventos: list[int] | None = None) -> dict:
         """Entrada de pila para una accion del jugador (C2-9).
@@ -267,6 +295,8 @@ class Fachada:
         base: dict = {
             "reloj_antes": int(self.reloj.ahora),
             "acciones_antes": int(getattr(self.estado, "acciones_jugador", 0)),
+            "azar_estado_antes": self._azar_antes_serializado(),
+            "azar_llamadas_antes": self.estado.azar_llamadas,
         }
         sala = self.estado.salas.get(self.estado.sala_actual)
         if sala is not None:
@@ -345,6 +375,8 @@ class Fachada:
                              self.reloj, self.catalogo)
         if not res.ok:
             return self._fail(res.mensaje)
+        for enemigo in self.estado.sala_en_curso().enemigos:
+            self._indice_enemigos[enemigo.instancia] = enemigo
         self._apilar(self._inversa_accion(
             "mover",
             {"origen": origen, "abrio": False, "sala_puerta": origen,
@@ -582,8 +614,7 @@ class Fachada:
 
     # -- enemigos (C2-8) y reloj (C2-3) --
     def turno_enemigo(self, instancia_id: str, turno_antes: dict | None = None, ubicacion=None, sincronizar=True) -> tuple[bool, str]:
-        from src.controller2.enemigos import _sala_de
-        sala, actor = ubicacion if ubicacion is not None else _sala_de(self.estado, instancia_id)
+        sala, actor = ubicacion if ubicacion is not None else self._ubicar_enemigo(instancia_id)
         origen = sala.id if sala is not None else None
         primera_seq = self.agenda._seq
         rango = int(getattr(self.catalogo.get(actor.tipo_id if actor else None), "rango", 0) or 0)
@@ -630,6 +661,8 @@ class Fachada:
                                          "oleada_antes": oleada_antes},
                                "eventos": eventos})
             if inst is not None:
+                for enemigo in self.estado.sala_en_curso().enemigos:
+                    self._indice_enemigos[enemigo.instancia] = enemigo
                 self._anotar("efecto", "oleada", inst)
         elif ev.tipo == "cierre_puerta":
             sala = self.estado.salas.get(d.get("sala"))
@@ -691,14 +724,7 @@ class Fachada:
                              "eventos": [seq_pulso] if seq_pulso is not None else []})
         elif ev.tipo == "turno" and (d.get("kind") == "enemigo" or d.get("actor", "").startswith("e")):
             actor = d.get("actor")
-            sala_a, obj = None, None
-            for s in self.estado.salas.values():
-                for e in s.enemigos:
-                    if e.instancia == actor:
-                        sala_a, obj = s, e
-                        break
-                if obj is not None:
-                    break
+            sala_a, obj = self._ubicar_enemigo(actor)
             if obj is None or not obj.vivo:
                 self._sync()
                 return ev.tipo
@@ -735,9 +761,23 @@ class Fachada:
     # -- deshacer §2.11 (intervalo: una llamada revierte hasta acción jugador) --
     def deshacer(self) -> tuple[bool, str]:
         self.cancelar_viaje()
+        azar_historico = None
+        for inversa in self.pila:
+            if inversa.get("op") in ACCIONES_JUGADOR:
+                if "azar_estado_antes" not in inversa.get("datos", {}) and self.receptor_historia is not None:
+                    azar_historico = self.receptor_historia.azar_antes_ultimo_intervalo()
+                break
         ok, msg = deshacer_una(self.estado, self.agenda, self.pila, self.catalogo)
         if not ok:
             return self._fail(msg)
+        if azar_historico is not None:
+            self.estado.azar_estado = azar_historico['azar_estado']
+            self.estado.azar_llamadas = azar_historico['azar_llamadas']
+        self._reindexar_enemigos()
+        ae = self.estado.azar_estado
+        if ae is not None:
+            self.azar = Azar.desde_estado(self.estado.semilla, self.estado.azar_llamadas,
+                                         (ae[0], tuple(ae[1]), ae[2]))
         if self.receptor_cambios is not None:
             self.receptor_cambios.truncar_ultimo_intervalo()
         # §2.11: usar el pergamino no consume tiempo virtual. El reloj vuelve
@@ -795,6 +835,9 @@ class Fachada:
         conocimiento.revision = self.estado.conocimiento.revision + 1
         candidato.conocimiento = conocimiento
         self.estado = candidato
+        self._reindexar_enemigos()
+        from src.controller2.rutas import CampoCazadores
+        self._campo_cazadores = CampoCazadores(candidato, self.proveedor)
         self.viaje = ControlViaje()
         self.agenda = Agenda.desde_lista(self.estado.agenda or [])
         self.agenda._seq = max(self.agenda._seq, self.estado.agenda_seq)

@@ -677,7 +677,7 @@ def test_rendimiento_rango_pequeno_independiente_tamano_cripta():
     assert accion == "mover"
     assert dest == 1
     # SC-CAZ-02: tiempo < 1.0 ms (0.001 s)
-    assert dt < 0.005, f"Decisión tomó {dt:.5f} s"
+    assert dt < 0.001, f"Decisión tomó {dt:.5f} s"
 
 
 def test_bench_suite_cazador_ejecucion():
@@ -886,3 +886,17 @@ def test_sync_rng_actualiza_aunque_contador_estado_ya_coincida():
     fachada._sync()
     assert estado.azar_estado != previo
     assert estado.azar_estado == fachada.azar._rng.getstate()
+
+
+def test_turno_rango_pequeno_no_barre_salas_para_ubicar_cazador():
+    estado = crear_estado_base(salas_total=10000)
+    for i in range(1, 10000):
+        conectar_salas(estado, i, "E", i+1, "O")
+    estado.salas[9999].enemigos.append(EnemigoInstancia("lejano", "cazador-corto", 15, 9999))
+    fachada = Fachada(estado, object(), CatalogoSintetico()._fichas)
+    class SalasSinBarrido(dict):
+        def values(self):
+            pytest.fail("el turno de rango pequeño barrió todas las salas")
+    estado.salas = SalasSinBarrido(estado.salas)
+    assert fachada.turno_enemigo("lejano")[0]
+    assert estado.salas[9999].enemigos[0].instancia == "lejano"

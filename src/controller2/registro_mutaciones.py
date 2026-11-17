@@ -199,6 +199,9 @@ def sincronizar_secuencia(estado, nombre, nueva, ordenada=False):
         nuevos = [dato(v) for v in nueva[inicio:len(nueva)-fin]]
         cambios.append([[nombre], True, dato(anterior[inicio:len(anterior)-fin]), True, nuevos, inicio])
         resultado = list(anterior[:inicio]) + nuevos + (list(anterior[len(anterior)-fin:]) if fin else [])
+    cambios = [c for c in cambios if c[2] != c[4]]
+    if not cambios:
+        return
     receptor = estado.__dict__.get('_registro')
     if receptor is not None and receptor.activo:
         comienzo = len(receptor.registros)

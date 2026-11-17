@@ -387,6 +387,7 @@ class Sesion:
         anterior = self.linea.revertir()
         self.estado = EstadoPartida.desde_dict(anterior)
         self.fachada.estado = self.estado
+        self.fachada._reindexar_enemigos()
         from src.controller2.rutas import CampoCazadores
         self.fachada._campo_cazadores = CampoCazadores(self.estado, self.proveedor)
         self.fachada.agenda = Agenda.desde_lista(self.estado.agenda)

@@ -128,6 +128,21 @@ class LineaTiempo:
         del self.registros[self._inicio:]
         del self.cortes[self._cortes_inicio:]
 
+    def azar_antes_ultimo_intervalo(self):
+        """Compatibilidad4/5: invertir solo deltas RNG, sin reconstruir la partida."""
+        i = len(self.acciones)-1
+        while i >= 0 and self.acciones[i][2] == 'deshacer':
+            i -= 1
+        if i < 0:
+            raise ValueError('intervalo histórico inexistente')
+        campos = {'azar_estado': dato(self.estado.azar_estado),
+                  'azar_llamadas': self.estado.azar_llamadas}
+        posicion = self.acciones[i][0]
+        for cambio in reversed(self.registros[posicion:]):
+            if cambio[0] and cambio[0][0] in campos:
+                aplicar(campos, cambio, adelante=False)
+        return campos
+
     def truncar_intervalo(self, contexto):
         """Elimina solo el sufijo del último intervalo ordinario, incluso tras scrolls."""
         self.activo = False

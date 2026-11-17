@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-11-16",
+  "commit_base": "ee8885636e379e3dfb1fbac21cf804e4660c7667",
+  "python": "3.12.3",
+  "maquina": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "metodo": "1000 salas,50 cazadores; accion esperar+drenaje+cierre historico; inversas RNG activas; preparacion fuera del reloj; sin HTTP/render",
+  "muestras_ms": [
+    11.906427,
+    10.903545000000001,
+    11.818652,
+    10.670325,
+    13.81635,
+    9.793311000000001,
+    9.670618000000001
+  ],
+  "maximo_ms": 13.81635,
+  "cumple_20ms": true
+}
