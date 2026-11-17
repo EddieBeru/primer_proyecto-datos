@@ -115,3 +115,18 @@ def test_contraste_del_reporte_supera_minimo_de_texto_normal():
     assert contraste(paleta.TEXTO, paleta.PANEL) >= 4.5
     assert contraste(paleta.ACCION, paleta.PANEL) >= 4.5
     assert contraste(paleta.TEXTO_CLARO, paleta.ACCION) >= 4.5
+
+
+def test_botones_reporte_contienen_nota_sin_comprimir_fuente(monkeypatch):
+    from src.view import texto
+    pygame.init()
+    ventana = pygame.Surface((640,480))
+    notas = []
+    original = texto.etiqueta
+    def dibujar(sup,fuente,contenido,rect,color,**kwargs):
+        if contenido == 'Inicio bloqueado': notas.append(rect.copy())
+        return original(sup,fuente,contenido,rect,color,**kwargs)
+    monkeypatch.setattr(texto,'etiqueta',dibujar)
+    hotspots,_ = pantallas.pantalla_reporte_resolubilidad(
+        ventana,pygame.font.Font(None,20),'Error con identificador extenso',puede_continuar=False)
+    assert notas and hotspots[0][0].contains(notas[0])

@@ -488,18 +488,20 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
     sup.fill(FONDO)
     titulo = fuente.render(f"Sala {foto.sala_id}: {_texto.inicial_mayuscula(foto.sala_nombre)} [{_texto.inicial_mayuscula(foto.estado)}]",
                            True, DORADO)
-    sup.blit(titulo, titulo.get_rect(midtop=(area_sala.centerx, p(8))))
-    pygame.draw.line(sup, DORADO, (p(10), p(30)),
-                     (sup.get_width() - p(10), p(30)), m.trazo(2))
+    rect_titulo = titulo.get_rect(midtop=(area_sala.centerx, p(8)))
+    sup.blit(titulo, rect_titulo)
+    linea_titulo = max(p(30), ((rect_titulo.bottom+7)//4)*4)
+    pygame.draw.line(sup, DORADO, (p(10), linea_titulo),
+                     (sup.get_width() - p(10), linea_titulo), m.trazo(2))
     if mostrar_canvas:
         # El zoom menú -> caja esconde el canvas: solo se ve la caja encogiendo.
         capas.dibujar_fondo(sup, area_sala, foto, sprites, fuente)
-        capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo, fuente,
+        etiquetas = capas.dibujar_estatica(sup, area_sala, foto, sprites, sel_suelo, fuente,
                                spots, trampas_fuego)
         capas.dibujar_actores(sup, area_sala, foto, sprites, fuente,
                               sel_enemigo, ref_vida, facing, desplaza,
                               paso_jugador, pos_jugador, golpe, alcance,
-                              tinte_dano, tajo, espejo, golpes)
+                              tinte_dano, tajo, espejo, golpes, etiquetas_ocupadas=etiquetas)
         # Mejoras 2026-10: sala oscura -> velo con halo (o luz con antorcha).
         capas.dibujar_oscuridad(sup, area_sala, foto, pos_jugador)
     linea = capas.rect_caja(area_sala).bottom + p(2)
@@ -650,8 +652,10 @@ def pantalla_reporte_resolubilidad(sup, fuente, reporte, scroll=0,
     p = m.px
     _fondo_menu(sup)
     margen = p(24)
+    alto_boton = m.ui_px(52)
+    yb = sup.get_height() - margen - alto_boton
     caja = pygame.Rect(margen, p(24), sup.get_width() - 2 * margen,
-                       sup.get_height() - p(116))
+                       yb - m.ui_px(16) - p(24))
     _panel(sup, caja, paleta.PANEL, DORADO)
     titulo = m.estilo("h2")
     sup.blit(titulo.render("Verificación de resolubilidad", True, DORADO),
@@ -677,9 +681,8 @@ def pantalla_reporte_resolubilidad(sup, fuente, reporte, scroll=0,
             break
     sup.set_clip(previo)
     ancho = min(p(300), (sup.get_width() - p(48)) // 2)
-    yb = sup.get_height() - p(76)
-    continuar = pygame.Rect(sup.get_width() // 2 - ancho - p(8), yb, ancho, p(52))
-    volver = pygame.Rect(sup.get_width() // 2 + p(8), yb, ancho, p(52))
+    continuar = pygame.Rect(sup.get_width() // 2 - ancho - p(8), yb, ancho, alto_boton)
+    volver = pygame.Rect(sup.get_width() // 2 + p(8), yb, ancho, alto_boton)
     boton(sup, continuar, "1", "Continuar", "Se aplica la advertencia de forzado" if puede_continuar else "Inicio bloqueado",
           primario=True, habilitado=puede_continuar, resaltado=_encima(continuar, raton))
     boton(sup, volver, "Esc", "Volver", "", resaltado=_encima(volver, raton))

@@ -258,6 +258,26 @@ def dibujar_fondo(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                 sup.blit(etiqueta, (x, y + tam + p(2)))
 
 
+def dibujar_etiqueta_capa(sup, fuente, contenido, ancla, limites, *, enfocado=False, ocupadas=()):
+    """Mantener la etiqueta junto al sprite y dentro de su zona visible."""
+    alto = ((max(fuente.get_linesize(), fuente.get_height())+3)//4)*4 + 8
+    completo = _texto.inicial_mayuscula(contenido)
+    ancho = min(limites.w, fuente.size(completo)[0]+8)
+    rect = pygame.Rect(0, ancla.bottom+4, ancho, alto)
+    rect.centerx = ancla.centerx
+    rect.clamp_ip(limites)
+    for y in (ancla.bottom+4, ancla.top-alto-4, *range(limites.y, limites.bottom-alto+1, 4)):
+        candidata = pygame.Rect(rect.x,y,ancho,alto)
+        if (limites.contains(candidata) and not candidata.colliderect(ancla)
+                and not any(candidata.colliderect(otra) for otra in ocupadas)):
+            rect = candidata
+            break
+    sup.fill(paleta.ETIQUETA_FONDO, rect)
+    _texto.etiqueta(sup, fuente, contenido, rect.inflate(-8,-8),
+                    paleta.TEXTO, centrar=True, enfocado=enfocado)
+    return rect
+
+
 def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                      sprites: SpriteManager, sel_suelo: int = 0,
                      fuente: pygame.Font | None = None,
@@ -273,6 +293,7 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     m = Medidas(sprites.escala)
     p = m.px
     tam = sprites.tam
+    etiquetas = []
     suelo = list(foto.objetos_suelo or [])
     trampas = list(foto.trampas or [])
     if spots is None:
@@ -284,12 +305,10 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         sup.blit(sprites.sprite(item_id), (x, y))
         if i == sel_suelo % max(len(suelo), 1):
             pygame.draw.rect(sup, paleta.TITULO, pygame.Rect(x, y, tam, tam), m.trazo(2))
-            etiqueta = fuente.render(_texto.etiqueta_item(item_id), True, paleta.TEXTO) \
-                if fuente is not None else None
-            if etiqueta is not None:
-                fondo = pygame.Rect(x, y + tam + p(2), etiqueta.get_width() + p(4), fuente.get_linesize())
-                sup.fill(paleta.ETIQUETA_FONDO, fondo)
-                sup.blit(etiqueta, (x + p(2), y + tam + p(2)))
+            if fuente is not None:
+                etiquetas.append(dibujar_etiqueta_capa(sup, fuente, _texto.etiqueta_item(item_id),
+                    pygame.Rect(x,y,tam,tam), rect_caja(area).inflate(-8,-8),
+                    enfocado=True, ocupadas=etiquetas))
     for j, trampa in enumerate(trampas):
         cx, cy = puntos_trampas[j]
         x, y = cx - tam // 2, cy - tam // 2
@@ -302,6 +321,7 @@ def dibujar_estatica(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         if fase:
             dibujar_fuego_trampa(sup, (cx, cy), fase)
 
+    return etiquetas
 
 def dibujar_fuego_trampa(sup: pygame.Surface, centro: tuple[float, float],
                          fase: float) -> None:
@@ -377,7 +397,8 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
                     tinte_dano: bool = False,
                     tajo: tuple[str, float] | None = None,
                     espejo: bool | None = None,
-                    golpes: dict[str, float] | None = None) -> None:
+                    golpes: dict[str, float] | None = None,
+                    etiquetas_ocupadas=()) -> None:
     """Capa 3: jugador + enemigos con barra de vida y color por comportamiento.
 
     `facing` dibuja hacia dónde mira el personaje; `desplaza` es un offset
@@ -390,6 +411,7 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
     `golpes` = {instancia: fase 0..1}: el enemigo embiste hacia el jugador y
     destella al atacarte (mismo lenguaje que la embestida del prota).
     """
+    etiquetas = list(etiquetas_ocupadas)
     m = Medidas(sprites.escala)
     p = m.px
     tam = sprites.tam
@@ -446,10 +468,10 @@ def dibujar_actores(sup: pygame.Surface, area: pygame.Rect, foto: "FotoEstado",
         bx, by = cx - tam // 2, cy - tam // 2  # casilla del enemigo
         _barra(sup, bx, cy - img.get_height() // 2 - p(10), tam, p(6), vida,
                max(ref_vida.get(enemigo.get("instancia", ""), vida), vida, 1))
-        etiqueta = fuente.render(f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
-                                  True, paleta.TEXTO)
-        sup.blit(etiqueta, (cx - etiqueta.get_width() // 2,
-                            cy + img.get_height() // 2 + p(2)))
+        etiquetas.append(dibujar_etiqueta_capa(sup, fuente,
+            f"{i + 1}:{enemigo.get('instancia', '?')} {vida}",
+            img.get_rect(center=(cx,cy)), rect_caja(area).inflate(-8,-8),
+            enfocado=(i == sel_enemigo), ocupadas=etiquetas))
         if enemigo.get("instancia") == golpe:
             pygame.draw.rect(sup, (255, 255, 255), pygame.Rect(bx - p(2), by - p(2), tam + p(4), tam + p(4)), m.trazo(3))
         if enemigo.get("instancia") in alcance:

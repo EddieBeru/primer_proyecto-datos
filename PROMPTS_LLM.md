@@ -440,3 +440,5 @@ Continuación2026-11-16: reducir costo residual del ciclo completo con historia.
 Continuación2026-11-16: diario estructural de agenda y alta incremental de pila, con prueba primero del número de serializaciones. El benchmark ahora mide ciclos nuevos con historia y descarta caché accidental en mediciones de rango.48 pruebas específicas pasan; siete ciclos14,6–18,0ms. No se declara cierre de001.
 
 Continuación2026-11-16: cerrar aceptación001/004 y escalabilidad con actor distante. Uso: TablaIndice de localización, pruebas integradas reales, corrección RNG al deshacer y compatibilidad4/5 por deltas mínimos;608 pruebas aprobadas/1 omitida, decisión local<1ms y ciclo13,82ms máximo. CLI --bench completo iniciado; no se declara terminado antes de su salida.
+
+Continuación2026-11-16: aplicar ui-design-craft y docs/diseno-ui.md al cierre visualT045. Uso: capturas en3 resoluciones, detección/corrección de solapes y nota de botón recortada; regresiones primero y contraste medido13,57:1/6,92:1. Revisión headless del agente, sin atribuir recorrido humano ni WCAG global.

@@ -196,6 +196,14 @@ conserva cada muestra, versión, contadores y entorno en
 | 12 | `test_reporte_negativo_sin_ciclo_y_con_categorias_vacias` |
 | 13 | `test_escenario13_ciclo_de_alternativas_y_otras_causas` |
 
-Las capturas y el script están en `docs/mediciones/003-reporte/`. La revisión
-headless de las pantallas solicitadas está hecha; T045 permanece abierta solo
-para el recorrido humano.
+Las capturas y el script están en `docs/mediciones/003-reporte/`. La revisión headless de las pantallas solicitadas se amplió en el cierre de T045 que sigue; se distingue de un recorrido humano no ejecutado.
+
+## 2026-11-16 — T045: revisión visual integrada
+
+Regeneradas con `python docs/mediciones/003-reporte/capturar_estados.py` y revisadas visualmente menú, selección/nombre completo, reporte/error largo y scroll, HUD, mapa e historial en640×480,1024×800 y1280×720. La inspección detectó línea atravesando encabezado, etiqueta de suelo oculta por HUD y nota de botón fuera del control a640px. Se corrigió colocación (sin bajar tamaño), altura de botones por medidas reales y etiquetas con fondo compartido/colocación sin taparse. Nombres que requieren elipsis ofrecen tooltip completo al seleccionar o pasar el ratón; una regresión evita truncar etiquetas ordinarias por diferencias de mayúsculas.
+
+Pruebas nuevas fallaron antes del cambio: geometría del encabezado, etiqueta dentro del área, acceso completo, no solape de etiquetas y nota de botón contenida. Se preservan esquinas rectas y retícula4/8px. Contraste texto/etiqueta y texto/panel13,57:1; título/panel6,92:1. Las parejas comprobadas superan4,5:1; no se declara conformidad WCAG global. Capturas vigentes en docs/mediciones/003-reporte/.
+
+T045 se cierra con revisión dirigida headless y eventos de teclado/ratón cubiertos por tests/test_vista_resolubilidad.py, tests/test_vista.py y tests/test_vista_historia.py. No hubo recorrido humano en ventana real. La tarea exige distinguir esa evidencia; no impone aprobación humana adicional. La nota histórica que la dejaba abierta únicamente por esa aprobación se sustituye por este alcance explícito. No se modifican reglas del motor ni accesos C1/API en la vista.
+
+Validación final del hito visual: `python -m pytest tests/ -q`:615 pasan,1 omitida (14,66s). `git diff --check` sin errores.

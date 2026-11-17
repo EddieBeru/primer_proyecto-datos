@@ -1391,3 +1391,60 @@ def test_mapa_cacheado_por_revision_y_datos_sin_fugas(app, monkeypatch):
     app.foto = app.ses.foto()
     app._mapa_actual()
     assert len(llamadas) == 2
+
+
+@pytest.mark.parametrize('tamano', [(640,480),(1024,800),(1280,720)])
+def test_etiqueta_del_suelo_cabe_sobre_hud_y_nombre_completo(app, tamano):
+    from src.view import capas, texto
+    app.redimensionar(tamano)
+    limites = capas.rect_caja(app.area_sala()).inflate(-8,-8)
+    ancla = pygame.Rect(limites.centerx, limites.bottom-20, 16, 16)
+    nombre = 'Objeto con identificador muy extenso para verificar acceso completo 0123456789'
+    texto.iniciar_frame()
+    rect = capas.dibujar_etiqueta_capa(app.ventana, app.fuente, nombre, ancla,
+                                     limites, enfocado=True)
+    assert limites.contains(rect)
+    assert not rect.colliderect(ancla)
+    texto.dibujar_ayuda(app.ventana)
+    assert texto._AYUDA_TEXTO == nombre
+    assert app.ventana.get_rect().contains(texto._AYUDA_RECT)
+
+
+def test_linea_del_encabezado_no_cruza_texto_a_640(app, monkeypatch):
+    from src.view import pantallas
+    from src.view.medidas import medidas
+    app.redimensionar((640,480))
+    lineas = []
+    original = pygame.draw.line
+    def dibujar(sup, color, inicio, fin, *args):
+        lineas.append((inicio,fin))
+        return original(sup,color,inicio,fin,*args)
+    monkeypatch.setattr(pygame.draw,'line',dibujar)
+    pantallas.pantalla_juego(app.ventana,app.fuente,app.foto,app.sprites,
+                            app.area_sala(),mostrar_canvas=False)
+    assert lineas[0][0][1] >= medidas(app.ventana).px(8) + app.fuente.get_height() + 4
+
+
+def test_etiqueta_enemigo_normal_no_trunca_ni_abre_tooltip(app):
+    from src.view import capas, texto
+    texto.iniciar_frame()
+    limites = capas.rect_caja(app.area_sala()).inflate(-8,-8)
+    capas.dibujar_etiqueta_capa(app.ventana,app.fuente,'1:e1-1 40',
+        pygame.Rect(limites.centerx,limites.centery,24,24),limites,enfocado=True)
+    assert not texto._AYUDAS
+
+
+def test_etiquetas_de_objeto_y_enemigo_no_se_tapan_a_640(app,monkeypatch):
+    from src.view import capas, pantallas
+    app.redimensionar((640,480))
+    etiquetas = []
+    original = capas.dibujar_etiqueta_capa
+    def dibujar(*args,**kwargs):
+        rect = original(*args,**kwargs)
+        etiquetas.append(rect.copy())
+        return rect
+    monkeypatch.setattr(capas,'dibujar_etiqueta_capa',dibujar)
+    pantallas.pantalla_juego(app.ventana,app.fuente,app.foto,app.sprites,app.area_sala())
+    assert len(etiquetas) >= 2
+    for i,rect in enumerate(etiquetas):
+        assert all(not rect.colliderect(otra) for otra in etiquetas[i+1:])

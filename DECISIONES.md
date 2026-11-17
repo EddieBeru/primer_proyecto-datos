@@ -973,3 +973,13 @@ Validación final de este hito: `python -m pytest tests/ -q`:605 pasan,1 omitida
 Se añadió localización por TablaIndice en la fachada, preparada una vez y mantenida al cargar/entrar/oleadas/deshacer/revertir errores. La prueba con10000 salas falla si el turno intenta barrerlas. `python docs/mediciones/001-local/medir.py`:1000 decisiones frescas por mapa, mediana0,01643ms en100 salas y0,01706ms en10000 (variación3,8%), máximos0,170121/0,185839ms. Preparación excluida, localización indexada incluida y jugador distante. `docs/mediciones/001-local/resultado.json` guarda muestras.
 
 `python -m pytest tests/ -q`:608 pasan,1 omitida (12,56s). Siete ciclos completos con inversas RNG:9,67–13,82ms, máximo13,81635ms; evidencia en `docs/mediciones/001-ciclo-integrado-2026-11-16.json`. T048 cerrada. T047 espera terminar el comando CLI --bench completo, actualmente en ejecución.
+
+## 2026-11-16 — T045: revisión visual integrada
+
+Regeneradas con `python docs/mediciones/003-reporte/capturar_estados.py` y revisadas visualmente menú, selección/nombre completo, reporte/error largo y scroll, HUD, mapa e historial en640×480,1024×800 y1280×720. La inspección detectó línea atravesando encabezado, etiqueta de suelo oculta por HUD y nota de botón fuera del control a640px. Se corrigió colocación (sin bajar tamaño), altura de botones por medidas reales y etiquetas con fondo compartido/colocación sin taparse. Nombres que requieren elipsis ofrecen tooltip completo al seleccionar o pasar el ratón; una regresión evita truncar etiquetas ordinarias por diferencias de mayúsculas.
+
+Pruebas nuevas fallaron antes del cambio: geometría del encabezado, etiqueta dentro del área, acceso completo, no solape de etiquetas y nota de botón contenida. Se preservan esquinas rectas y retícula4/8px. Contraste texto/etiqueta y texto/panel13,57:1; título/panel6,92:1. Las parejas comprobadas superan4,5:1; no se declara conformidad WCAG global. Capturas vigentes en docs/mediciones/003-reporte/.
+
+T045 se cierra con revisión dirigida headless y eventos de teclado/ratón cubiertos por tests/test_vista_resolubilidad.py, tests/test_vista.py y tests/test_vista_historia.py. No hubo recorrido humano en ventana real. La tarea exige distinguir esa evidencia; no impone aprobación humana adicional. La nota histórica que la dejaba abierta únicamente por esa aprobación se sustituye por este alcance explícito. No se modifican reglas del motor ni accesos C1/API en la vista.
+
+Validación final del hito visual: `python -m pytest tests/ -q`:615 pasan,1 omitida (14,66s). `git diff --check` sin errores.
