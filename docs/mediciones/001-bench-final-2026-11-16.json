@@ -1,0 +1,24 @@
+{
+  "fecha": "2026-11-16",
+  "commit_base": "547f1a4983874bfcb87bda6ea76fe489ed434111",
+  "python": "3.12.3",
+  "maquina": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "metodo": "suite001 completa,3 repeticiones; puerta inestable alterna apertura/cierre fisico mediante cambiar_puerta; ciclos nuevos incluyen historia, preparacion excluida",
+  "metricas_s": {
+    "cazador_1_drenaje_real": 0.000668566,
+    "cazadores_50_drenaje_real": 0.007138503,
+    "cazador_1_ciclo": 0.000668566,
+    "cazadores_50_ciclo": 0.007138503,
+    "cazador_rango_pequeno_100": 1.327700010733679e-05,
+    "cazador_rango_pequeno_10k": 1.4330000340123661e-05,
+    "cazador_rango_grande_1k": 0.00044408999929146376,
+    "cazador_individual": 0.008303701999466284,
+    "cazador_compartido": 0.0002769450002233498,
+    "cazador_reutilizacion": 0.0005593679998128209,
+    "cazador_recalculo": 0.010773257999971975,
+    "cazador_puertas_estables": 4.0222999814432114e-05,
+    "cazador_puertas_inestables": 0.0032528730007470585,
+    "cazador_monticulo_minimo": 0.002112914999088389,
+    "cazador_lista_enlazada": 0.0016861429994605714
+  }
+}

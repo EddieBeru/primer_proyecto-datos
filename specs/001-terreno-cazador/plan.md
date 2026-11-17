@@ -80,7 +80,7 @@ src/
 ├── estructuras/
 │   ├── monticulo_minimo.py     # Heap binario mínimo propio (cola de prioridad)
 │   └── tabla_indice.py         # Tabla hash propia con encadenamiento amortizado
-├── modelos/
+├── models/
 │   ├── rooms.py                # Exit.costo (entero >= 1, default 100)
 │   ├── catalog.py              # Enemy: comportamiento "cazador", rango (int >= 1)
 │   └── conocimiento.py         # DatosSalida.costo (coordinado con 002)
@@ -93,7 +93,7 @@ src/
 │   ├── sesion.py               # Drenaje de turnos y sincronización con FotoEstado
 │   └── bench.py                # Micro-benchmarks de la suite de cazadores (FR-CAZ-15)
 └── view/
-    ├── ui.py / sf.py           # Presentación de costos en salidas y distinción del cazador
+    ├── capas.py / sprites.py           # Presentación de costos en salidas y distinción del cazador
 tests/
 └── test_terreno_cazador.py     # Suite de pruebas unitarias y de los 7 casos del Apéndice B
 ```
@@ -178,3 +178,9 @@ Una ruta en memoria se reutiliza únicamente si se cumplen simultáneamente:
 | **Montículo binario mínimo propio** | Garantiza $O((V+E)\log V)$ en Dijkstra para cumplir $\le 20\text{ ms}$. | Lista enlazada de la agenda: rechazada por costo cuadrático $O(V^2)$ que supera 100 ms en grafos grandes. |
 | **Poda de búsqueda por rango** | Permite que cazadores con rango pequeño tarden $< 1\text{ ms}$ en mapas de $10\,000$ salas. | Dijkstra global en toda la cripta: rechazada porque violaría `FR-CAZ-14` al tardar proporcional a toda la cripta. |
 | **Contador `puertas_version`** | Invalida de forma instantánea ($O(1)$) cualquier ruta en caché al cambiar una puerta. | Comparación exhaustiva del grafo o recálculo incondicional siempre: overhead innecesario en puertas estables. |
+
+## Contraste de implementación — 2026-11-16
+
+La búsqueda local permanece para rangos≤200; rangos mayores pueden compartir distancias inversas con arcos entrantes del esqueleto neutral y estado actual de puertas. TablaIndice localiza actores para no barrer la cripta en cada decisión. Salas ocupadas sin contenido se completan después preservando visitantes/puertas, con compatibilidad4/5 documentada en CONTRATOS.md. La historia sincroniza diarios/segmentos y las inversas capturan RNG únicamente si cambia, sin snapshots de partida para deshacer.
+
+Las predicciones de superioridad20× del montículo eran estimaciones; la cadena medida favoreció ligeramente la lista enlazada. La elección se justifica por complejidad de frontera general y aceptación del ciclo completo, no por una ventaja universal de constantes. Evidencia final en quickstart.md.

@@ -680,11 +680,19 @@ def test_rendimiento_rango_pequeno_independiente_tamano_cripta():
     assert dt < 0.001, f"Decisión tomó {dt:.5f} s"
 
 
-def test_bench_suite_cazador_ejecucion():
+def test_bench_suite_cazador_ejecucion(monkeypatch):
     """T036 / FR-CAZ-15: Ejecución íntegra y sin errores de la suite de cazadores en --bench."""
     from src.orchestrator.bench import bench_cazadores
 
+    from src.controller2 import movimiento
+    cambios = []
+    original = movimiento.cambiar_puerta
+    def cambiar(estado, sala, direccion, cerrada):
+        cambios.append(cerrada)
+        return original(estado, sala, direccion, cerrada)
+    monkeypatch.setattr(movimiento, "cambiar_puerta", cambiar)
     res = bench_cazadores(repeticiones=1)
+    assert True in cambios and False in cambios
     assert isinstance(res, dict)
     assert len(res) >= 5
 

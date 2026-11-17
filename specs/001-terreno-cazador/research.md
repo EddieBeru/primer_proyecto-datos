@@ -1,5 +1,7 @@
 # Phase 0: Research & Technical Decisions — Terreno y cazador (001)
 
+> Diseño previo: las cifras de operaciones y latencia de este documento son estimaciones, no resultados ejecutados. El contraste experimental final de2026-11-16 se registra abajo.
+
 Este documento consolida la investigación técnica, evaluación de alternativas y justificación de decisiones para la capacidad `001-terreno-cazador`, en cumplimiento estricto con la constitución del proyecto (`.specify/memory/constitution.md`) y las restricciones académicas de `docs/enunciado.md`.
 
 ---
@@ -199,3 +201,9 @@ El comando `python -m src.main --bench` incorporará una suite de pruebas de ren
 5. **Montículo propio (`MonticuloMinimo`) vs. Lista enlazada ordenada**: Medición comparativa que justifique empíricamente en `DECISIONES.md` el rechazo de la lista enlazada para grafos medianos y grandes.
 
 *Trazabilidad*: Cubre `FR-CAZ-14`, `FR-CAZ-15`, `SC-CAZ-01`, `SC-CAZ-02`.
+
+## Contraste experimental final — 2026-11-16
+
+En la cadena de500 salas medida, montículo2,113ms y lista enlazada1,686ms: la frontera pequeña favorece las constantes de la lista. La estimación previa de ventaja20× no es un resultado experimental ni se cumple en esta carga. El montículo se conserva por costo logarítmico de operaciones en fronteras generales y por medición del ciclo completo dentro de20ms; no se afirma que supere siempre a la lista. Los cinco ejes se comparan como cargas sintéticas de decisiones, sin atribuir una partida de200 turnos no ejecutada. Puertas inestables alternan apertura/cierre físico y versiones. Las decisiones de rango pequeño se miden frescas, evitando aciertos accidentales de caché.
+
+Fuente reproducible: docs/mediciones/001-bench-final-2026-11-16.json y python -m src.main --bench. La guía final incluye carga, método y límites.

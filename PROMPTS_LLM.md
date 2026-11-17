@@ -450,3 +450,5 @@ Continuación2026-11-16: revisión de consistencia documental del cierre; se cor
 Continuación2026-11-16: optimizar información inversa RNG tras observar memoria del benchmark de historia; captura únicamente al cambiar, preservando rollback exacto. Prueba de intervalo sin azar y suite618 pasan/1 omitida; benchmark anterior detenido explícitamente para repetir contra código final.
 
 Continuación2026-11-16: completar documentación de usuario e integración004 (costos/cazadores y formatos4/5); sin cambios de código ni nuevas pruebas artificiales.
+
+Continuación2026-11-16: cierre de benchmark CLI (salida0) y cinco ejes001. Se corrigió escenario de puertas para alternar estado físico; prueba primero falló y luego pasó. Suite001 posterior3 repeticiones y suite completa618 pasan/1 omitida. Investigación/plan distinguen estimaciones20× de resultados reales (lista mejor en cadena). T047 cerrada y matriz de aceptación001–004 registrada, sin atribuir recorrido humano.

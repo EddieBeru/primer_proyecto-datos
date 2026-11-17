@@ -476,8 +476,9 @@ def bench_cazadores(repeticiones: int = 3) -> dict:
             decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
 
     def puertas_inestables():
+        from src.controller2.movimiento import cambiar_puerta
         for i in range(2, 22):
-            est_comp.puertas_version += 1
+            cambiar_puerta(est_comp, 1, "E", not est_comp.salas[1].salidas["E"].cerrada)
             decidir_accion_cazador(est_comp, f"caz-c{i}", catalogo=cat)
 
     t_estables = _mide(puertas_estables, repeticiones)

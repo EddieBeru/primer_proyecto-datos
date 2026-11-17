@@ -77,7 +77,7 @@ python -m src.main --bench
    - `cazador_rango_pequeno_10k`: $< 1.0\text{ ms}$ por decisión en cripta de $10\,000$ salas.
    - La variación del tiempo entre una cripta de 100 salas y una de $10\,000$ salas para un rango pequeño ($R=200$) debe ser menor al 10%.
 3. **Comparativa de estructuras**:
-   - `cazador_monticulo_minimo`: $< 0.5\text{ ms}$ vs. `cazador_lista_enlazada`: $> 10\text{ ms}$ en mapas medianos, justificando experimentalmente la elección en `DECISIONES.md`.
+   - Medir ambos métodos sobre la misma topología y rango. No se exige una razón fija ni una ventaja del montículo en toda carga; las cifras previas eran hipótesis. Resultados reales y límites al final de esta guía.
 
 ## Convergencia2026-11-16 (en curso)
 
@@ -110,3 +110,26 @@ Se añadió localización por TablaIndice en la fachada, preparada una vez y man
 ValidaciónT049/auditoría: `python -m pytest tests/ -q`:617 pasan,1 omitida (11,82s); `git diff --check` sin errores. El benchmark completo se ejecuta en proceso independiente con PID/archivo de salida para conservar su ejecución larga; no hay resultado final todavía.
 
 2026-11-16, costo de RNG reversible: la comparación global de historia reveló memoria innecesaria por copiar624 valores en cada acción aunque el RNG no cambiara. Ahora cada inversa guarda el contador y captura el estado anterior solo en la primera llamada aleatoria del intervalo; el ataque del jugador lo captura antes de consumir RNG. Los intervalos sin azar no almacenan ese snapshot. La reversión conserva exactitud y compatibilidad histórica. Regresión explícita para acciones sin RNG y prueba integrada de ataque/retroceso/carga. `python -m pytest tests/ -q`:618 pasan,1 omitida (7,58s). El segundo benchmark global se interrumpió voluntariamente para no aceptar mediciones con la captura redundante; el primero había terminado con señal143. Se repite sobre la versión final.
+
+## Cierre001 e integración — 2026-11-16
+
+`python -m src.main --bench` terminó con salida0; salida completa conservada en docs/mediciones/001-004-bench-global-2026-11-16.txt. Ciclo real50 cazadores+historia7,084ms; rango pequeño100/10000 salas0,014/0,015ms. Historia K20: máximo1,722ms en1000 consultas tras100 calentamientos,0 fallos50ms. La referencia sin checkpoints produjo185,615ms y717 fallos50ms: es el comparador lento, no la configuración elegida. El modo CLI actualiza además docs/mediciones/003-resolubilidad-sinteticas.json.
+
+Después se corrigió solo el escenario de puertas inestables del benchmark (antes incrementaba versión sin mover puerta). La prueba falló antes y ahora exige aperturas y cierres físicos. Se repitió toda la suite001 con3 repeticiones: ciclo50 con historia7,139ms, individual8,304ms/compartido0,277ms, reutilización0,559ms/recálculo10,773ms, puertas estables0,040ms/inestables3,253ms. Resultado completo en docs/mediciones/001-bench-final-2026-11-16.json. La conexión CLI/correr_todo permanece idéntica; el log global precede únicamente a este ajuste del escenario y la suite001 posterior verifica el código actualizado.
+
+Comparación honesta de estructuras en cadena500: montículo2,113ms, lista enlazada1,686ms; no se cumple la ventaja20× predicha en el diseño. Se corrigió la guía para distinguir estimaciones de mediciones, conservando la elección por complejidad general y presupuesto global demostrado. No se fuerza un resultado favorable a una estructura.
+
+`python -m pytest tests/ -q`:618 pasan,1 omitida (7,46s). Omisión: integración HTTP opcional; pruebas solicitadas offline ejecutadas. git diff --check sin errores. Todas las tareas001–004 están verificadas y marcadas completas; no se atribuye recorrido humano a la revisión headless.
+
+| Requisitos001 | Evidencia principal |
+|---|---|
+| FR-CAZ-01–03,12; SC-CAZ-04 | tests/test_terreno_cazador.py: costos/default/simetría/intervalo/reescala y errante/rastreador; pruebas001_002 de Sesión |
+| FR-CAZ-04–09; SC-CAZ-03 | casos1–7, rango exacto, ataque, puerta cerrada, desempate y comparación dirigido individual/compartido |
+| FR-CAZ-10–11 | salas descargadas, extremo canónico ausente, aperturas/cierres/undo, test_integracion_001_004.py y esquema4 anterior |
+| FR-CAZ-13 | FotoEstado, sprites/tinte, mapa/costos y capturas003 a640×480/1024×800/1280×720 |
+| FR-CAZ-14; SC-CAZ-01–02 | ciclo completo con historia, prueba sin barridos, 1000 decisiones locales por tamaño y auditoría AST |
+| FR-CAZ-15 | CLI global exitoso y suite001 final con puertas reales y los cinco ejes |
+
+La aceptación002 integra modelos reales001, esqueleto compartido003, historia004 y referencia publicada cripta-06 f9ed9afa683d. La aceptación visual003 distingue revisión headless del agente de recorrido humano no ejecutado. Guardado/carga/replay/retroceso conservan costos, cazadores, conocimiento e historia con RNG reversible.
+
+Comandos finales de quickstart001: ejecución detallada (-v)31 pruebas aprobadas; cuatro selectores de frontera, cierre pendiente, salida final y ataque directo:1 aprobada cada uno. CLI global salida0, suite general618/1 omitida y diff limpio completan T042/T047.
