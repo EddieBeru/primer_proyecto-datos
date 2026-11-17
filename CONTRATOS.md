@@ -111,3 +111,33 @@ añade bloque historia versionado al core; el flujo004 rechaza v1/v2/v3 de
 forma explícita y valida candidato antes de reemplazar la sesión activa.
 Interfaz gráfica con panel navegable, mapa histórico y retícula base8 px según
 FR-LIN-15/16. Detalles y garantías en el contrato004 aprobado.
+
+## Enmienda003 — 2026-11-16
+
+Aprobación explícita del usuario en esta sesión: «apruebo todo con tal que se
+mantenga consistente con el resto del proyecto. incluyendo decisiones del
+diseño», tras revisar las propuestas de
+`specs/003-resolubilidad/contracts/interfaces.md` y
+`specs/003-resolubilidad/contracts/esqueleto-compartido.md`. Se registra esta
+aprobación del usuario sin atribuirla a responsables de001/C1/C2. La integración
+queda sujeta a conservar K1/K5, la misma instancia neutral compartida con001,
+compatibilidad con002/004, y reglas de interfaz y decisiones ya asentadas.
+
+- K1: el esqueleto compartido añade costo validado (default100), llave opcional
+  y estado inicial de puerta; preserva orden fuente e identidad de puertas
+  paralelas. Reciprocidad opuesta declarada debe coincidir en costo/llave/estado;
+  se rechazan contradicciones y no se inventan inversas. `preparar_metadatos`
+  sigue siendo la fuente neutral consumida por001/002/003.
+- K1: se agrega `/criptas/{id}/llaves` con validación estricta, versión,
+  completitud y orden; cuenta cada intento en el budget. Cache y paquete offline
+  validan id/versión y se publican atómicamente. Verificación no descarga
+  catálogo/contenido.
+- K5: preparación de inicio no crea estado ni vista; el resultado tipado se
+  conserva para reporte. Inicio no resoluble se bloquea salvo `--forzar`, y
+  datos incompletos nunca se fuerzan. `--verificar` no inicia ni crea vista;
+  carga/replay conservan su comportamiento. Consola y vista consumen el mismo
+  texto de reporte y la vista recibe Sesión/DTO, sin acceso a C1 ni reglas.
+- No se cambian guardado v4 ni las decisiones de `specs/003-resolubilidad/spec.md`.
+  Las reglas de presentación siguen `docs/diseno-ui.md`; quedan sujetos a
+  verificación los detalles de integración en el código existente y la
+  disponibilidad del endpoint/paquete oficial externo.

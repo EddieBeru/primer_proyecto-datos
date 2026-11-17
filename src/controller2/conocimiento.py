@@ -50,7 +50,8 @@ def _registro(valor):
     if valor.estado == "explorada":
         resultado["nombre"] = valor.nombre
         resultado["salidas"] = [{"direccion": s.direccion, "destino": s.destino,
-            "costo": s.costo, "puerta_id": [s.puerta_id[0], s.puerta_id[1]]} for s in valor.salidas]
+            "costo": s.costo, "puerta_id": [s.puerta_id[0], s.puerta_id[1]],
+            "llave": s.llave, "cerrada_inicial": s.cerrada_inicial} for s in valor.salidas]
     return resultado
 
 
@@ -63,7 +64,9 @@ def _leer_registro(dato):
         return SalaConocida(dato["id"], "avistada")
     if dato.get("estado") != "explorada" or type(dato.get("salidas")) is not list:
         raise ValueError("estado de conocimiento inválido")
-    salidas = tuple(DatosSalida(s["direccion"], s["destino"], s["costo"], tuple(s["puerta_id"])) for s in dato["salidas"])
+    salidas = tuple(DatosSalida(s["direccion"], s["destino"], s["costo"],
+        tuple(s["puerta_id"]), s.get("llave"), s.get("cerrada_inicial", False))
+        for s in dato["salidas"])
     sala = DatosSala(dato["id"], dato["nombre"], salidas)
     return SalaConocida(sala.id, "explorada", sala.nombre, sala.salidas)
 

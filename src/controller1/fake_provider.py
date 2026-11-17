@@ -14,6 +14,7 @@ from src.models.objects import (
 )
 from src.models.roomContents import EnemyPlacement, RoomContentEntry, TrapPlacement
 from src.models.rooms import Exit, Room
+from src.models.resolubilidad import UbicacionLlave, UbicacionesLlaves
 from src.models.types import Entidad
 
 CRIPTA_ID = "cripta-ejemplo"
@@ -163,7 +164,7 @@ def _esqueleto() -> dict[int, Room]:
             "E": Exit(sala=6, cerrada=True, llave="llave-salida-01"),
         }),
         6: Room(id=6, nombre="Salida", salidas={
-            "O": Exit(sala=5),
+            "O": Exit(sala=5, cerrada=True, llave="llave-salida-01"),
             "N": Exit(sala=4),
         }),
     }
@@ -193,7 +194,7 @@ def _contenido() -> dict[int, RoomContentEntry]:
         4: RoomContentEntry(
             sala=4,
             enemigos=[EnemyPlacement(instancia="e4-1", tipo="esqueleto-guardian-01", vida=40)],
-            objetos=["antidoto-01", "pocion-veloz-01"],
+            objetos=["antidoto-01", "pocion-veloz-01", "llave-salida-01"],
             trampas=[TrapPlacement(instancia="t4-1", tipo="pinchos-01")],
         ),
         5: RoomContentEntry(
@@ -202,7 +203,7 @@ def _contenido() -> dict[int, RoomContentEntry]:
                 EnemyPlacement(instancia="e5-1", tipo="murcielago-errante-01", vida=None),
                 EnemyPlacement(instancia="e5-2", tipo="sombra-rastreadora-01", vida=30),
             ],
-            objetos=["llave-salida-01", "pergamino-01"],
+            objetos=["pergamino-01"],
             trampas=[],
         ),
         6: RoomContentEntry(
@@ -260,6 +261,14 @@ class FakeProvider:
             return self._metadatos[sala_id]
         except KeyError:
             raise NotFoundError(f"sala inexistente: {sala_id}") from None
+
+    def ubicaciones_llaves(self, cripta_id, budget=None, version_cripta=None):
+        if cripta_id != CRIPTA_ID:
+            raise NotFoundError(f"cripta inexistente: {cripta_id}")
+        return UbicacionesLlaves(CRIPTA_ID, self._general.version, True, (
+            UbicacionLlave("llave-hierro-01", 3),
+            UbicacionLlave("llave-salida-01", 4),
+        ))
 
     # K1: lista criptas (endpoint 1)
     def listar_criptas(self) -> CriptasResponse:

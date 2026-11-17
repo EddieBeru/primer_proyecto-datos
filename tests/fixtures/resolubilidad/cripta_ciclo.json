@@ -1,0 +1,1 @@
+{"id":"ciclo","version":"v1","salas_total":2,"paginas":1,"salas_por_pagina":50,"sala_inicial":1,"sala_salida":2,"llave_salida":"final","presupuesto_solicitudes":10,"inventario_max":10,"jugador":{"vida_max":100,"ataque":10,"defensa":5,"velocidad":10}}

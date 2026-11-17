@@ -275,3 +275,148 @@ Los resultados indicados son documentales, sin ejecución de pruebas del juego.
   igualdad de `a_dict`, bitácora, pila, reloj, posición, sala y viaje antes y
   después del recorrido. Regresión completa y commit en la sección de T033
   del quickstart de004; recorrido dirigido, no partida humana interactiva.
+
+## Especificación de verificación de resolubilidad — 2026-11-16
+
+- Modelo: GPT-6 (Codex; identificador exacto de variante no expuesto).
+- Prompt (paráfrasis): ejecutar `$speckit-specify` para comprobar antes de jugar
+  si la cripta puede ganarse usando esqueleto y ubicaciones de llaves; devolver
+  orden determinista o diagnóstico con llaves inaccesibles, frontera, ubicaciones
+  y ciclo concreto; permitir `--forzar` y `--verificar <cripta>` sin vista;
+  mostrar reporte al iniciar; exigir ≤ 200 ms, crecimiento aproximadamente lineal,
+  recorrido compartido sin recorridos por llave y consumo de la consulta dentro
+  de `presupuesto_solicitudes`; no mencionar estructuras de datos, clases ni módulos.
+- Uso: creación de `specs/005-verificacion-resolubilidad/spec.md`, checklist de
+  calidad y actualización de `.specify/feature.json` conforme a la habilidad.
+  Se conservó el antecedente 003 sin modificarlo. Se documentaron los supuestos
+  sobre llaves opcionales, rutas alternativas, ciclos, errores de información y
+  condiciones de medición. No se modificaron código, interfaz ni contratos.
+- Validación: revisión documental de consistencia con constitución, enunciado
+  y contratos; checklist 16/16. Comprobación de artefactos y `git diff --check`;
+  no corresponde ejecutar pruebas de código ni afirmar mediciones de rendimiento.
+
+## Aclaraciones de 003-resolubilidad — 2026-11-16
+
+- Modelo: GPT-6 (Codex; variante exacta no expuesta).
+- Prompt (paráfrasis): aplicar `$speckit-clarify` a003 y registrar seis respuestas
+  sobre desempate determinista, puertas sin llave o ubicación, multiplicidad de
+  llaves y puertas, selección de ciclos, declaración de salida en P1 y formato
+  textual del reporte; aplicar P1 donde responda y preguntar las ambigüedades,
+  sin nombrar estructuras de datos, clases ni módulos en el spec.
+- Uso: se registraron las respuestas de P1 sobre reutilización de llaves,
+  llave única por puerta y datos generales de salida; se añadieron requisitos
+  y escenarios pertinentes. Las decisiones no resueltas por P1 se consultan
+  secuencialmente, sin convertir supuestos anteriores en decisiones aceptadas.
+- Validación parcial: lectura de P1 §2.1, §2.4, §2.5 y §3; checklist16/16 →15/16
+  mientras se aclaran las decisiones pendientes. Sin cambios de código ni
+  mediciones de rendimiento. No hay `.specify/extensions.yml` ni hooks registrados.
+
+- Respuesta posterior del usuario: «A». Se registra la distinción entre puerta
+  cerrada sin llave declarada (error sin veredicto) y llave declarada ausente
+  de consulta completa (bloqueada/no obtenible, ubicación no declarada), en
+  Clarifications, FR-RES-14, escenarios7/8 y Assumptions de003.
+
+- Cierre de aclaraciones: el usuario responde «todo lo recomendado. luego me
+  dices que es». Se aplica A para orden de descubrimiento (salas por descubrimiento,
+  salidas N/S/E/O, llaves según consulta) y se concretan las recomendaciones
+  restantes: un ciclo bloqueante, primero según el orden declarado de entrada y
+  seguimiento de dependencias; reporte textual común en español con secciones,
+  identificadores, ubicaciones y categorías vacías explícitas. Se registran las
+  seis respuestas solicitadas en Clarifications, FR-RES-05/07/10/14/15,
+  escenarios y criterios de aceptación; sin nombres de estructuras, clases ni
+  módulos en el spec. Se activa003 en `.specify/feature.json` por la selección
+  explícita del usuario. Preguntas formuladas:2; respondidas:2 (la segunda junto
+  con autorización para resolver las restantes recomendaciones).
+- Validación final documental: checklist15/16 →16/16, sin regresiones ni
+  pendientes de calidad. El único cambio del checklist fue el marcador del
+  requisito de comprobabilidad. Verificada coherencia de los seis registros,
+  ausencia de términos prohibidos y `git diff --check`; sin pruebas de código
+  ni mediciones, pues el cambio es documental. El contraste del enunciado íntegro
+  de P2 y las mediciones de rendimiento siguen pendientes para aceptación futura.
+
+## Plan003-resolubilidad — 2026-11-16
+
+- Modelo: GPT-6 (Codex; variante exacta no expuesta).
+- Prompt (paráfrasis): ejecutar `$speckit-plan` para003, prohibir heapq/deque/set
+  incluso auxiliares; un recorrido incremental compartido con reporte/orden,
+  determinismo, `/llaves` presupuestado/persistible por versión, forzar/verificar
+  sin vista, reporte gráfico,≤200 ms, benchmark único vs repetido por llave con
+  sintéticas encadenadas por semilla; compartir esqueleto con001, trazar FR-RES
+  y registrar estructuras justificadas por mediciones en DECISIONES.md.
+- Aclaración: se preguntó por ciclos de alternativas frente a dependencias
+  inevitables; el usuario preguntó qué se recomienda y autorizó «pues hazlo»
+  tras recomendar ciclo concreto acompañado de todas las alternativas aún
+  bloqueadas. Se actualizó FR-RES-07/15, aclaración y escenario13 sin nombres
+  de estructuras, clases ni módulos en el spec. Desempate concretado por primera
+  llave participante según consulta y primer retorno con orden fijo.
+- Uso: plan.md, research.md, data-model.md, quickstart.md y propuestas de
+  contratos de API/Sesión/CLI/UI y esqueleto compartido. Investigación delegada
+  conforme a speckit-plan para revisar ciclos y medir alternativas estructurales.
+  Script y JSON de medición en docs/mediciones/003-estructuras-plan.*;
+  decisiones y limitaciones en DECISIONES.md. Sin implementación del verificador,
+  tareas, commits, cambios a contratos firmados ni llamadas remotas.
+- Validación: microbenchmarks estructurales ejecutados (dos calentamientos y
+  siete muestras, semilla300316, checksums), revisión documental/IDs/enlaces,
+  restricción terminológica del spec y git diff --check. No se afirma ejecutar
+  pruebas del verificador, capturas de la UI ni200 ms en la cripta publicada.
+  No hay archivo extensions.yml ni hooks registrados para plan.
+
+- Revisión final del plan003: compuerta explícita para llaves antes de salidas;
+  índice textual FNV-1a64 medido frente a codificación entera/búsqueda lineal,
+  con comparación de igualdad completa. Se descarta codificación entera por su
+  peor costo con enteros largos, sin atribuir ventaja temporal a FNV. Cifras
+  actualizadas a la última ejecución. Plan, contratos, modelo y guía verificados;
+  spec conserva IDs FR-RES-01–15 y ausencia de términos de implementación.
+
+## Tareas003-resolubilidad — 2026-11-16
+
+- Modelo: GPT-6 (Codex; variante exacta no expuesta).
+- Prompt (paráfrasis): ejecutar `$speckit-tasks` para003 a partir del plan;
+  cada tarea debe referenciar FR-RES, incluir pruebas previas de los cuatro
+  escenarios del Apéndice B, consumo /llaves, recorrido único con orden/reporte,
+  forzar/verificar sin vista, reporte gráfico y benchmark; ninguna introduce
+  heapq, deque ni set.
+- Uso: generado `specs/003-resolubilidad/tasks.md` con47 tareas:2 setup,
+  6 fundamentos,31 US1 (única historia del spec),8 transversales y8 oportunidades
+  paralelas. T009–T012 prueban B1–B4 antes de sus implementaciones; compuerta
+  T009–T018 antes de T019. Contratos, shared001, presupuesto, alternativas de
+  ciclo y aceptación de200 ms conservan las condiciones del plan.
+- Validación documental: IDs T001–T047 consecutivos, referencias FR-RES-01–15,
+  casillas/etiquetas/rutas/dependencias previas, matriz de cobertura, precedencia
+  de pruebas y prohibiciones comprobadas. Sin código ni pruebas ejecutadas de
+  la funcionalidad; sin modificaciones al spec/plan ni aprobación implícita
+  de contratos. No hay extensions.yml ni hooks previos/posteriores.
+
+## Implementación003-resolubilidad — 2026-11-16
+
+- Modelo: GPT-6 (Codex; variante exacta no expuesta).
+- Prompt (paráfrasis): ejecutar `$speckit-implement` por orden de `tasks.md`, sin
+  heapq/deque/set y con un solo recorrido incremental; probar todos los
+  escenarios, no cambiar decisiones del spec sin aviso, correr suite y `--bench`
+  y dejar evidencia lista para DECISIONES.md.
+- Autorización de diseño: el usuario aprobó las propuestas mientras mantengan
+  coherencia con el resto del proyecto, incluidas las decisiones compartidas.
+  `specs/003-resolubilidad/spec.md` no se editó durante la implementación.
+- Uso: DTO/endpoint/cache offline, propagación con cola propia, diagnóstico
+  residual iterativo, política de inicio/CLI/reporte visual y benchmark sintético;
+  integración construida sobre el modelo compartido de salas. Se añadió
+  `--verificar` y `--forzar`; las fixtures no usan HTTP real.
+- Validación: prueba dirigida del adaptador legacy `tests/test_llaves.py` y
+  `tests/test_sesion_resolubilidad.py`: 13 aprobadas. En la API, solo se adapta
+  la forma exacta `{llaves: [...]}` del endpoint no paginado, usando la versión
+  validada de la ficha; `spec.md` permanece intacto. En `cripta-06` (300 salas,
+  versión `f9ed9afa683d`) se midieron 100 verificaciones completas: mediana
+  1.504 ms, máximo 7.660 ms, todas bajo 200 ms. Evidencia:
+  `docs/mediciones/003-resolubilidad-publicada.json`.
+- Validación: `.venv/bin/python -m pytest tests/ -q`: 573 aprobadas/1 omitida;
+  `.venv/bin/python -m src.main --bench` terminó con código0 e incluyó 003.
+  Los benchmarks sintético y publicado están en sus JSON bajo
+  `docs/mediciones/`; la auditoría AST y `git diff --check` pasan. El comando
+  integral tarda unos seis minutos porque ejecuta también las cargas históricas.
+  La secuencia test-first de T009–T018 no se puede afirmar como cumplida: se detectó
+  que el núcleo ya estaba escrito antes de cerrar el registro de fallos previos;
+  se conserva esa desviación explícita y las pruebas no se debilitaron.
+- Integración remota: `origin` solo publica `main`, igual a `HEAD` local en
+  `b81b1af`; no existe rama publicada separada de001. `gh auth status` muestra
+  token local inválido, pero el fetch público de `origin/main` funcionó sin
+  autenticación y no encontró commits nuevos.

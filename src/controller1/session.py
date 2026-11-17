@@ -44,8 +44,5 @@ def iniciar_cripta(
     for _ in range(intentos):
         budget.gastar()
     if contar_lista:
-        try:
-            budget.gastar()  # la lista previa de esta partida también cuenta
-        except Exception:
-            pass
+        budget.gastar()  # la lista previa de esta partida también cuenta
     return ficha, budget

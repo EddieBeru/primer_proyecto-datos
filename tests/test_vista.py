@@ -49,6 +49,9 @@ class FakeBackend:
     def esqueleto_completo(self, cripta_id, budget=None, info=None):
         return dict(self.fake._salas)
 
+    def ubicaciones_llaves(self, cripta_id, budget=None, version_cripta=None):
+        return self.fake.ubicaciones_llaves(cripta_id, budget, version_cripta)
+
     def contenido(self, cripta_id, salas, budget=None):
         return ContenidoResponse(
             contenido=[self.fake._contenido[s] for s in salas])
@@ -67,12 +70,13 @@ def app(tmp_path):
     vista = VistaApp(ses, ventana=pantalla,
                      save_path=str(tmp_path / "partida.bin"))
     vista.iniciar_partida(CRIPTA_ID)
+    vista.manejar_tecla(pygame.K_1)
     return vista
 
 
 RUTA_VICTORIA = ["s", "recoger llave-hierro-01", "e", "abrir N", "n",
-                 "abrir S", "s", "s", "o", "recoger llave-salida-01",
-                 "abrir E", "e"]
+                 "abrir S", "s", "recoger llave-salida-01", "s", "abrir O",
+                 "o", "abrir E", "e"]
 
 
 # ------------------------------------------------------- §12 checklist imports
@@ -103,6 +107,16 @@ def test_mapa_movimiento(app):
     assert mover_para_tecla(pygame.K_a) == "o"
     assert mover_para_tecla(pygame.K_d) == "e"
     assert mover_para_tecla(pygame.K_F5) is None
+
+
+def test_inicio_presenta_reporte_completo_antes_de_crear_partida(app):
+    from src.orchestrator.reporte_resolubilidad import texto_reporte
+    app.foto = None
+    app.iniciar_partida(CRIPTA_ID)
+    assert app.pantalla == "reporte_resolubilidad" and app.foto is None
+    assert app.reporte_resolubilidad == texto_reporte(app.ses.reporte_inicio())
+    app.manejar_tecla(pygame.K_1)
+    assert app.pantalla == "juego" and app.foto is not None
 
 
 def test_mapa_acciones(app):
@@ -295,7 +309,9 @@ def test_zoom_de_menu_a_partida(app, tmp_path):
     vista.preparar_menu([{"id": CRIPTA_ID, "nombre": "A", "salas": 6,
                           "dificultad": 1}], False)
     vista.manejar_tecla(pygame.K_1)  # menú -> selección
-    assert vista.manejar_tecla(pygame.K_1) == "@jugar"
+    assert vista.manejar_tecla(pygame.K_1) == "@reporte"
+    assert vista.pantalla == "reporte_resolubilidad"
+    vista.manejar_tecla(pygame.K_1)
     assert vista.pantalla == "juego" and vista.zoom_ttl == 0
     for _ in range(ZOOM_FRAMES):
         vista.dibujar()
@@ -389,7 +405,9 @@ def test_fin_teclas_jugar_de_nuevo_y_menu(app):
     assert app.pantalla == "inicio"
     app.pantalla = "fin"
     app.dibujar()
-    assert app.manejar_tecla(pygame.K_1) == "@jugar"
+    assert app.manejar_tecla(pygame.K_1) == "@reporte"
+    assert app.pantalla == "reporte_resolubilidad"
+    app.manejar_tecla(pygame.K_1)
     assert app.pantalla == "juego" and app.cripta_actual == CRIPTA_ID
     assert app.foto.estado == "jugando" and app.reporte is None
 
@@ -521,6 +539,7 @@ def test_jingle_al_empezar_partida(app, monkeypatch):
     monkeypatch.setattr(app.sfx, "jingle_inicio",
                         lambda: llamadas.append("jingle") or True)
     app.iniciar_partida(CRIPTA_ID)
+    app.manejar_tecla(pygame.K_1)
     assert llamadas == ["jingle"]
     app.guardar()
     app.cargar_partida()  # retomar también es empezar a jugar
@@ -1035,7 +1054,10 @@ def test_raton_interactua_con_botones_de_menu(app):
     assert app.manejar_clic(rect_jugar.center) == "@jugar"
     assert app.pantalla == "seleccion"
     app.dibujar()
-    assert app.manejar_clic(app.hotspots[0][0].center) == "@jugar"
+    assert app.manejar_clic(app.hotspots[0][0].center) == "@reporte"
+    app.dibujar()
+    assert app.pantalla == "reporte_resolubilidad"
+    app.manejar_tecla(pygame.K_1)
     assert app.pantalla == "juego" and app.cripta_actual == CRIPTA_ID
     # Pausa: clic en Volver reanuda y clic en Salir al menú vuelve al inicio.
     assert app.manejar_tecla(pygame.K_ESCAPE) == "@pausa"

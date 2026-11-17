@@ -50,9 +50,13 @@ class VistaApp:
     def __init__(self, sesion: Sesion, ancho: int = 1024, alto: int = 800,
                  dev: bool = False, save_path: str = "partida.bin",
                  ventana: pygame.Surface | None = None,
-                 preferencias: dict | None = None) -> None:
+                 preferencias: dict | None = None, forzar: bool = False) -> None:
         self.ses = sesion
         self.dev = dev
+        self.forzar_inicio = bool(forzar)
+        self.reporte_resolubilidad = ""
+        self.cripta_pendiente = None
+        self.scroll_reporte = 0
         self.save_path = save_path
         self.sprites = SpriteManager()
         self.sfx = Sonidos()  # solo audio local: nunca rompe la partida
@@ -198,11 +202,49 @@ class VistaApp:
     def iniciar_partida(self, cripta_id: str, semilla: int = 0,
                         animar: bool = False) -> "FotoEstado":
         self._pintar_carga(f"Preparando {cripta_id}…")
+        # Adaptadores de prueba/terceros legados que exponen solo iniciar()
+        # conservan su protocolo; la Sesión oficial siempre prepara primero.
+        if not hasattr(self.ses, "preparar_inicio"):
+            try:
+                self.foto = self.ses.iniciar(cripta_id, semilla=semilla)
+            except Exception as e:
+                self.pantalla = "error"
+                self.ultimo_error = str(e)
+                return None
+            self._reset_vista()
+            self.memoria_spots = {}
+            self.reporte = None
+            self.cripta_actual = str(cripta_id)
+            self.pantalla = "juego"
+            self.zoom_ttl = 0 if animar else None
+            return self.foto
         try:
-            self.foto = self.ses.iniciar(cripta_id, semilla=semilla)
-        except Exception:
+            from src.orchestrator.reporte_resolubilidad import texto_reporte
+            resultado = self.ses.preparar_inicio(cripta_id)
+            self.reporte_resolubilidad = texto_reporte(resultado)
+            self.cripta_pendiente = (str(cripta_id), semilla, resultado, animar)
+            self.scroll_reporte = 0
+            self.pantalla = "reporte_resolubilidad"
+            return None
+        except Exception as e:
             self.pantalla = "error"
-            raise
+            self.ultimo_error = str(e)
+            return None
+
+    def confirmar_inicio(self):
+        if self.cripta_pendiente is None:
+            return
+        cripta_id, semilla, resultado, animar = self.cripta_pendiente
+        if resultado.estado == "incompleta" or (
+                resultado.estado == "no_resoluble" and not self.forzar_inicio):
+            return
+        try:
+            self.foto = self.ses.iniciar(cripta_id, semilla=semilla,
+                                         forzar=self.forzar_inicio)
+        except Exception as e:
+            self.ultimo_error = str(e)
+            self.pantalla = "error"
+            return
         self._reset_vista()
         self.memoria_spots = {}  # partida nueva: scatter reproducible
         self.reporte = None
@@ -285,8 +327,10 @@ class VistaApp:
             coordenadas[raiz] = ancla
             ocupadas[ancla] = raiz
             pendientes = [raiz]
-            while pendientes:
-                origen = pendientes.pop(0)
+            cursor_pendientes = 0
+            while cursor_pendientes < len(pendientes):
+                origen = pendientes[cursor_pendientes]
+                cursor_pendientes += 1
                 x, y = coordenadas[origen]
                 salidas = por_id[origen].get("salidas", ())
                 for direccion in ("N", "S", "E", "O"):
@@ -301,18 +345,21 @@ class VistaApp:
                         # en una cuadrícula sin cruces: desempatar con una celda
                         # libre próxima sin mover los nodos ya situados.
                         if propuesta in ocupadas:
-                            frontera, vistos = [propuesta], {propuesta}
-                            while frontera:
-                                cx, cy = frontera.pop(0)
+                            frontera, vistos = [propuesta], [propuesta]
+                            cursor_frontera = 0
+                            encontrada = False
+                            while cursor_frontera < len(frontera) and not encontrada:
+                                cx, cy = frontera[cursor_frontera]
+                                cursor_frontera += 1
                                 libres = ((cx, cy - 1), (cx + 1, cy),
                                           (cx, cy + 1), (cx - 1, cy))
                                 for celda in libres:
                                     if celda in vistos:
                                         continue
-                                    vistos.add(celda)
+                                    vistos.append(celda)
                                     if celda not in ocupadas:
                                         propuesta = celda
-                                        frontera = []
+                                        encontrada = True
                                         break
                                     frontera.append(celda)
                         coordenadas[destino] = propuesta
@@ -559,13 +606,15 @@ class VistaApp:
             return
         _, puntos = self._spots()
         jx, jy = self._pos_px()
-        cerca = set()
+        cerca = []
         for i, trampa in enumerate(self.foto.trampas or []):
             if i >= len(puntos):
                 break
             cx, cy = puntos[i]
             if ((jx - cx) ** 2 + (jy - cy) ** 2) ** 0.5 <= capas.RADIO_TRAMPA * self.escala:
-                cerca.add(trampa.get("instancia", ""))
+                instancia = trampa.get("instancia", "")
+                if instancia not in cerca:
+                    cerca.append(instancia)
         if self.trampa_pisada not in cerca:
             self.trampa_pisada = None
         for i, trampa in enumerate(self.foto.trampas or []):
@@ -767,7 +816,7 @@ class VistaApp:
             return accion if ok else None
         if self.pantalla == "pausa":
             return self._tecla_pausa(key)
-        if self.pantalla in ("inicio", "seleccion"):
+        if self.pantalla in ("inicio", "seleccion", "reporte_resolubilidad"):
             return self._tecla_menu(key)
         if self.pantalla == "fin":
             if key == pygame.K_1:
@@ -850,7 +899,7 @@ class VistaApp:
             return "@jugar"
         try:
             self.iniciar_partida(self.cripta_actual, animar=True)
-            return "@jugar"
+            return "@reporte"
         except Exception as e:  # la vista no muestra trazas al jugador
             self.ultimo_error = str(e)
             self.pantalla = "error"
@@ -918,6 +967,14 @@ class VistaApp:
         return None
 
     def _tecla_menu(self, key: int) -> str | None:
+        if self.pantalla == "reporte_resolubilidad":
+            if key == pygame.K_1:
+                self.confirmar_inicio()
+                return "@continuar"
+            if key == pygame.K_ESCAPE:
+                self.cripta_pendiente = None
+                self.pantalla = "seleccion"
+                return "@volver"
         if self.pantalla == "inicio":
             if key == pygame.K_1:
                 self.listar_para_seleccion(self.criptas, self.puede_continuar)
@@ -939,7 +996,7 @@ class VistaApp:
                 crip = self.criptas[idx]
                 cid = crip.get("id", crip.get("cripta_id", "")) if isinstance(crip, dict) else crip.id
                 self.iniciar_partida(str(cid), animar=True)
-                return "@jugar"
+                return "@reporte"
             if key == pygame.K_ESCAPE:
                 self._abrir_menu()
                 return "@menu"
@@ -1019,6 +1076,14 @@ class VistaApp:
             self.hotspots = pantallas.pantalla_seleccion(
                 self.ventana, self.fuente, self.criptas, self.sprites,
                 raton=self.raton_pos)
+        elif self.pantalla == "reporte_resolubilidad":
+            resultado = self.cripta_pendiente[2] if self.cripta_pendiente else None
+            puede = resultado is not None and resultado.estado != "incompleta" and (
+                resultado.estado != "no_resoluble" or self.forzar_inicio)
+            self.hotspots, limite = pantallas.pantalla_reporte_resolubilidad(
+                self.ventana, self.fuente, self.reporte_resolubilidad,
+                self.scroll_reporte, puede, self.raton_pos)
+            self.scroll_reporte = min(self.scroll_reporte, limite)
         elif self.pantalla == "carga":
             pantallas.pantalla_carga(self.ventana, self.fuente,
                                      sprites=self.sprites)
@@ -1066,7 +1131,7 @@ class VistaApp:
             self.tick_total += 1
             jx, jy = self._pos_px()
             area = self.area_sala()
-            alcance = frozenset(
+            alcance = tuple(
                 e["instancia"] for i, e in enumerate(
                     [x for x in (self.foto.enemigos or []) if x.get("vida", 0) > 0])
                 if ((jx - capas.pos_enemigo_animada(area, i, self.tick_total, self.escala)[0]) ** 2
@@ -1194,7 +1259,7 @@ class VistaApp:
                             origen_y + (y - min_y) * paso)
                       for sid, (x, y) in coordenadas.items()}
 
-        dibujadas = set()
+        dibujadas = []
         colores_puerta = {"abierta": (90, 210, 125), "cerrada": (240, 95, 80),
                           "desconocida": (130, 140, 154), None: (130, 140, 154)}
         for sala in salas:
@@ -1207,7 +1272,7 @@ class VistaApp:
                 llave = tuple(salida["puerta_id"])
                 if llave in dibujadas:
                     continue
-                dibujadas.add(llave)
+                dibujadas.append(llave)
                 a, b = posiciones[origen], posiciones[destino]
                 color = colores_puerta.get(salida.get("estado"), colores_puerta[None])
                 dx, dy = b[0] - a[0], b[1] - a[1]
@@ -1300,6 +1365,8 @@ class VistaApp:
             if self.raton_pos is not None:
                 self.manejar_clic(self.raton_pos)
         elif evento.type == pygame.MOUSEWHEEL:
+            if self.pantalla == "reporte_resolubilidad":
+                self.scroll_reporte = max(0, self.scroll_reporte - evento.y * 48)
             if self.pantalla == 'controles':
                 self.scroll_controles=max(0,min(pantallas.limite_scroll_controles(self.ventana),self.scroll_controles-evento.y*48))
             if self.pantalla == "juego" and not self.panel_mapa and self.inv_orden:

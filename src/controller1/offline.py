@@ -24,6 +24,7 @@ from src.models.dungeons import CriptasResponse, DungeonGeneral, DungeonVersion
 from src.models.errors import NotFoundError
 from src.models.roomContents import ContenidoResponse
 from src.models.rooms import SkeletonPage
+from src.models.resolubilidad import UbicacionesLlaves
 from src.controller1.unicos import unicos
 
 
@@ -57,6 +58,17 @@ class OfflineBackend:
     def esqueleto(self, cripta_id: str, pagina: int = 1, budget=None) -> SkeletonPage:
         return SkeletonPage.from_dict(
             _leer_json(self._ruta(f"esqueleto_{cripta_id}_p{pagina}.json")))
+
+    def ubicaciones_llaves(self, cripta_id: str, budget=None, version_cripta=None):
+        dato = _leer_json(self._ruta(f"llaves_{cripta_id}.json"))
+        if type(dato) is not dict or dato.get("formato") != 1:
+            raise ValueError("formato de ubicaciones offline inválido")
+        ubicaciones = UbicacionesLlaves.desde_dict(dato)
+        if ubicaciones.cripta_id != cripta_id:
+            raise ValueError("id de cripta distinta en paquete offline de llaves")
+        if version_cripta is not None and ubicaciones.version_cripta != version_cripta:
+            raise ValueError("versión de cripta distinta en paquete offline de llaves")
+        return ubicaciones
 
     def esqueleto_completo(self, cripta_id: str, budget=None, info=None):
         info = info or self.info_cripta(cripta_id)

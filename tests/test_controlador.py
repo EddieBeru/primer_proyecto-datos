@@ -375,9 +375,10 @@ def test_recorre_cripta_fake_6_salas():
     assert mover("N").sala == 2
     abrir("S")  # 2->4 abre la otra puerta
     assert mover("S").sala == 4
+    est.jugador.inventario.append("llave-salida-01")
     mover("S")  # 4->6
+    abrir("O")  # 6->5 requiere la llave de salida
     mover("O")  # 6->5
-    est.jugador.inventario.append("llave-salida-01")  # recoger (se prueba aparte)
     abrir("E")  # 5->6 abre salida
     assert mover("E").sala == 6
     assert len(est.salas_visitadas) == 6
@@ -1014,8 +1015,8 @@ def test_consola_solo_fachada_llega_a_victoria():
     fac, _ = fachada_fake()
     # §2.5: abrir y mover separados; victoria exige puerta salida abierta.
     salidas = fac.consola(["s", "recoger llave-hierro-01", "e", "abrir N", "n",
-                           "abrir S", "s", "s", "o", "recoger llave-salida-01",
-                           "abrir E", "e", "foto"])
+                           "abrir S", "s", "recoger llave-salida-01", "s",
+                           "abrir O", "o", "abrir E", "e", "foto"])
     assert fac.estado.estado == "victoria", salidas
     assert len(fac.estado.salas_visitadas) == 6
 

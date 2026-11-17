@@ -5,6 +5,26 @@ import pytest
 from src.estructuras.tabla_indice import TablaIndice
 
 
+def test_claves_textuales_utf8_comparan_texto_completo_y_crecen():
+    indice = TablaIndice(capacidad=4)
+    valores = [f"llave-á-{i:04d}" for i in range(180)]
+    for ordinal, clave in enumerate(valores):
+        indice[clave] = ordinal
+    assert all(indice[clave] == ordinal for ordinal, clave in enumerate(valores))
+    assert indice.capacidad >= 256
+    indice["llave-á-0000"] = "actualizada"
+    assert indice["llave-á-0000"] == "actualizada"
+
+
+def test_orden_fuente_no_depende_del_orden_de_cubetas():
+    fuente = ["llave-Z", "llave-á", "llave-A", "llave-ñ"]
+    indice = TablaIndice()
+    for valor in fuente:
+        indice[valor] = valor
+    assert tuple(fuente) == ("llave-Z", "llave-á", "llave-A", "llave-ñ")
+    assert tuple(indice[clave] for clave in fuente) == tuple(fuente)
+
+
 def test_consulta_reemplazo_y_ausencia():
     tabla = TablaIndice()
     assert len(tabla) == 0
@@ -16,6 +36,13 @@ def test_consulta_reemplazo_y_ausencia():
     assert tabla[9] == "observada"
     assert len(tabla) == 1 and 9 in tabla
     assert tabla.obtener(10, "ausente") == "ausente"
+
+
+def test_insertar_si_ausente_conserva_valor_y_reporta_si_es_nuevo():
+    tabla = TablaIndice(capacidad=4)
+    assert tabla.insertar_si_ausente("llave-á", 3) == (3, True)
+    assert tabla.insertar_si_ausente("llave-á", 9) == (3, False)
+    assert tabla["llave-á"] == 3 and len(tabla) == 1
 
 
 def test_colisiones_borrado_y_reinsercion():
@@ -72,7 +99,7 @@ def test_ids_dispersos_extremos_y_expansiones_sucesivas():
         assert clave in tabla
 
 
-@pytest.mark.parametrize("clave", [True, "1", 1.0, (1, "X"), (True, "N"), (1, 2), (1,)])
+@pytest.mark.parametrize("clave", [True, 1.0, (1, "X"), (True, "N"), (1, 2), (1,)])
 def test_rechaza_claves_invalidas_sin_normalizarlas(clave):
     tabla = TablaIndice()
     with pytest.raises((TypeError, ValueError)):

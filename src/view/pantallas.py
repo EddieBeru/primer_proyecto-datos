@@ -377,17 +377,22 @@ def _tarjeta_cripta(sup: pygame.Surface, rect: pygame.Rect, numero: int,
     p = m.px
     _panel(sup, rect, (252, 228, 198) if resaltada else paleta.PANEL,
            (160, 70, 0) if resaltada else DORADO)
-    _insignia(sup, (rect.x + p(30), rect.centery), str(numero))
+    _insignia(sup, (rect.x + m.ui_px(30), rect.centery), str(numero))
     fuente_nombre = m.fuente(T_CUERPO, negrita=True)
-    nombre_rect = pygame.Rect(rect.x+p(58),rect.y+8,rect.w-p(70),fuente_nombre.get_linesize())
+    nombre_rect = pygame.Rect(rect.x + m.ui_px(58), rect.y + m.ui_px(8),
+                              rect.w - m.ui_px(70), fuente_nombre.get_linesize())
     _texto.etiqueta(sup,fuente_nombre,nombre,nombre_rect,BLANCO)
     # Salas: puerta a escuadra + número.
     pygame.draw.rect(sup, paleta.MURO,
-                     pygame.Rect(rect.x + p(58), rect.bottom - p(28), 14, 18))
+                     pygame.Rect(rect.x + m.ui_px(58), rect.bottom - p(28), 14, 18))
     pygame.draw.rect(sup, paleta.PUERTA_ABIERTA,
-                     pygame.Rect(rect.x + p(61), rect.bottom - p(25), 8, 12))
-    sup.blit(m.fuente(T_NOTA).render(f"Salas: {salas}", True, GRIS),
-             (rect.x + p(78), rect.bottom - p(27)))
+                     pygame.Rect(rect.x + m.ui_px(61), rect.bottom - p(25), 8, 12))
+    fuente_nota = m.fuente(T_NOTA)
+    x_nota = rect.x + m.ui_px(78)
+    fin_nota = rect.right - p(104) - p(8)
+    _texto.etiqueta(sup, fuente_nota, f"Salas: {salas}",
+                    pygame.Rect(x_nota, rect.bottom - p(27),
+                                max(1, fin_nota - x_nota), fuente_nota.get_height()), GRIS)
     _puntos_dificultad(sup, rect.right - p(104), rect.bottom - p(19), dificultad)
 
 
@@ -458,7 +463,7 @@ def pantalla_juego(sup: pygame.Surface, fuente: pygame.Font, foto: "FotoEstado",
                    paso_jugador: tuple[bool, int, int] = (False, 0, 0),
                    pos_jugador: tuple[float, float] | None = None,
                    golpe: str | None = None,
-                   alcance: frozenset = frozenset(),
+                   alcance: tuple = (),
                    spots: tuple[list, list] | None = None,
                    tinte_dano: bool = False,
                    tajo: tuple[str, float] | None = None,
@@ -636,6 +641,49 @@ def pantalla_error(sup: pygame.Surface, fuente: pygame.Font, mensaje: str,
           resaltado=_encima(boton_volver, raton))
     _pie(sup, "Esc o el botón vuelven al menú", paleta.TEXTO_CLARO)
     return [(boton_volver, pygame.K_ESCAPE)]
+
+
+def pantalla_reporte_resolubilidad(sup, fuente, reporte, scroll=0,
+                                    puede_continuar=True, raton=None):
+    """Reporte textual completo en panel desplazable, con cuerpos legibles."""
+    m = medidas(sup)
+    p = m.px
+    _fondo_menu(sup)
+    margen = p(24)
+    caja = pygame.Rect(margen, p(24), sup.get_width() - 2 * margen,
+                       sup.get_height() - p(116))
+    _panel(sup, caja, paleta.PANEL, DORADO)
+    titulo = m.estilo("h2")
+    sup.blit(titulo.render("Verificación de resolubilidad", True, DORADO),
+             (caja.x + p(16), caja.y + p(12)))
+    cuerpo = m.estilo("cuerpo")
+    area = pygame.Rect(caja.x + p(16), caja.y + p(52), caja.w - p(32),
+                       caja.h - p(68))
+    lineas = []
+    for linea in reporte.splitlines():
+        lineas.extend(_texto.envolver(linea, cuerpo, area.w,
+                                      max(1, len(linea) + 1)) or [""])
+    alto_linea = max(cuerpo.get_linesize(), p(24))
+    max_scroll = max(0, len(lineas) * alto_linea - area.h)
+    scroll = max(0, min(max_scroll, scroll))
+    previo = sup.get_clip()
+    sup.set_clip(area)
+    inicio = scroll // alto_linea
+    y = area.y - scroll % alto_linea
+    for linea in lineas[inicio:]:
+        sup.blit(cuerpo.render(linea, True, paleta.TEXTO), (area.x, y))
+        y += alto_linea
+        if y >= area.bottom:
+            break
+    sup.set_clip(previo)
+    ancho = min(p(300), (sup.get_width() - p(48)) // 2)
+    yb = sup.get_height() - p(76)
+    continuar = pygame.Rect(sup.get_width() // 2 - ancho - p(8), yb, ancho, p(52))
+    volver = pygame.Rect(sup.get_width() // 2 + p(8), yb, ancho, p(52))
+    boton(sup, continuar, "1", "Continuar", "Se aplica la advertencia de forzado" if puede_continuar else "Inicio bloqueado",
+          primario=True, habilitado=puede_continuar, resaltado=_encima(continuar, raton))
+    boton(sup, volver, "Esc", "Volver", "", resaltado=_encima(volver, raton))
+    return [(continuar, pygame.K_1), (volver, pygame.K_ESCAPE)], max_scroll
 
 
 def pantalla_version(sup: pygame.Surface, fuente: pygame.Font, mensaje: str,

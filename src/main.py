@@ -11,6 +11,8 @@ import src.controller1.endpoints as endpoints
 
 def main(argv=None):
     cfg = parse_args(argv)
+    if cfg.verificar is not None:
+        return modo_verificar(cfg)
     if cfg.replay is not None:
         return modo_replay(cfg)
     if cfg.bench:
@@ -22,14 +24,40 @@ def main(argv=None):
     return rutina(cfg)
 
 
+def modo_verificar(cfg):
+    """Solo preparación estática y texto; no importa ni crea la vista."""
+    from src.orchestrator.reporte_resolubilidad import texto_reporte
+    ses = _nueva_sesion(cfg, log_ruta=None)
+    try:
+        resultado = ses.preparar_inicio(cfg.verificar, contar_lista=False)
+    except (CriptaError, ValueError, TypeError) as exc:
+        print(f"Cripta: {cfg.verificar}\nResultado: VERIFICACIÓN INCOMPLETA\nMotivo: {exc}")
+        return 2
+    print(texto_reporte(resultado))
+    return {"resoluble": 0, "no_resoluble": 1, "incompleta": 2}[resultado.estado]
+
+
 def modo_bench():
+    import json
+    from pathlib import Path
     from src.controller1.mergesort import mergesort
     from src.orchestrator.bench import correr_todo
     res = correr_todo()
+    capacidad = res.get("003_resolubilidad")
+    if capacidad is not None:
+        ruta = Path("docs/mediciones/003-resolubilidad-sinteticas.json")
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(json.dumps(capacidad, ensure_ascii=False, indent=2) + "\n",
+                        encoding="utf-8")
     print("bench por subsistema (sin red, sin vista):")
     for k in mergesort(list(res)):
         v = res[k]
-        print(f"  {k}: {v:.6f}" if isinstance(v, float) else f"  {k}: {v}")
+        if isinstance(v, float):
+            print(f"  {k}: {v:.6f}")
+        elif isinstance(v, dict):
+            print(f"  {k}: {json.dumps(v, ensure_ascii=False, separators=(',', ':'))}")
+        else:
+            print(f"  {k}: {v}")
     return 0
 
 
@@ -100,7 +128,7 @@ def modo_vista(cfg):
     dev = os.environ.get("CRIPTA_DEV") == "1"
     app = VistaApp(ses, dev=dev,
                    save_path=cfg.guardar or rutas_log_por_defecto()[1],
-                   preferencias=cargar_preferencias())
+                   preferencias=cargar_preferencias(), forzar=cfg.forzar)
     if foto is not None:
         app.foto = foto
         app.pantalla = "juego"
@@ -141,12 +169,17 @@ def modo_jugar(cfg):
                     print("No se encontraron criptas.")
                     return 1
                 print(f"Criptas: {ids}")
-            foto = ses.iniciar(ids[0], semilla=cfg.semilla)
+            foto = ses.iniciar(ids[0], semilla=cfg.semilla, forzar=cfg.forzar,
+                               contar_lista=not bool(cfg.cripta))
             print(f"Cripta {ids[0]}, semilla {cfg.semilla}.")
     except RateLimitedError as e:
         print(f"Servidor ocupado. Reintentar en {e.reintentar_en}s.")
         return 1
     except CriptaError as e:
+        if getattr(e, "resultado", None) is not None:
+            from src.orchestrator.reporte_resolubilidad import texto_reporte
+            print(texto_reporte(e.resultado))
+            return 1
         print(f"Error al iniciar: {e}")
         return 1
     if cfg.guardar:
