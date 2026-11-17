@@ -74,5 +74,5 @@ def test_constructor_comun_rechaza_reciprocidad_contradictoria():
 
     adelante = Room(1, "A", {"E": Exit(2, llave="llave-a")})
     atras = Room(2, "B", {"O": Exit(1, llave="llave-b")})
-    with pytest.raises(ValueError, match="recíprocas"):
+    with pytest.raises(ValueError, match=r"salidas recíprocas .*llave='llave-a'/'llave-b'"):
         preparar_metadatos((adelante, atras))

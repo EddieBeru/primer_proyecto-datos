@@ -186,6 +186,7 @@ class Sesion:
         from src.models.resolubilidad import UbicacionesLlaves, ResultadoResolubilidad
         from src.controller1 import endpoints
         from src.controller1.endpoints import esqueleto_completo
+        from src.controller1.session import iniciar_cripta
         try:
             if self.backend is endpoints:
                 info, budget = iniciar_cripta(cripta_id, contar_lista=contar_lista)

@@ -1,11 +1,39 @@
 """Política de inicio: prepara primero y nunca instala sesiones parciales."""
 
 import pytest
+import src.controller1.session as session_api
 
 from src.models.errors import InicioNoPermitidoError
 from src.models.resolubilidad import UbicacionesLlaves
 from src.orchestrator.sesion import Sesion
+import src.orchestrator.sesion as sesion_mod
+from src.controller1 import endpoints
 from test_sesion import FakeBackend, nueva_sesion, CRIPTA_ID
+
+
+def test_preparar_inicio_con_backend_real_crea_budget_sin_nameerror(monkeypatch):
+    backend = FakeBackend()
+    info = backend.fake._general
+    llamadas = []
+
+    def iniciar_falso(cripta_id, contar_lista=True):
+        llamadas.append((cripta_id, contar_lista))
+        return info, sesion_mod.BudgetAdapter(info.presupuesto_solicitudes)
+
+    monkeypatch.setattr(session_api, "iniciar_cripta", iniciar_falso)
+    monkeypatch.setattr(endpoints, "esqueleto_completo",
+                        lambda *args, **kwargs: dict(backend.fake._salas))
+    monkeypatch.setattr(
+        endpoints, "ubicaciones_llaves",
+        lambda cripta_id, budget, version: UbicacionesLlaves(
+            cripta_id, version, True, ()),
+    )
+
+    ses = Sesion(backend=endpoints, log_ruta=None)
+    resultado = ses.preparar_inicio(CRIPTA_ID, contar_lista=False)
+
+    assert resultado.estado in {"resoluble", "no_resoluble"}
+    assert llamadas == [(CRIPTA_ID, False)]
 
 
 def test_negativo_bloquea_sin_crear_estado_y_forzar_conserva_reporte(tmp_path):

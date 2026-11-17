@@ -95,11 +95,23 @@ def preparar_metadatos(salas):
             if inversa is not None and inversa.sala == sala.id and otro < extremo:
                 extremo = otro
             if inversa is not None and inversa.sala == sala.id:
-                if (getattr(salida, "costo", 100), getattr(salida, "llave", None),
-                    getattr(salida, "cerrada_inicial", getattr(salida, "cerrada", False))) != (
-                    getattr(inversa, "costo", 100), getattr(inversa, "llave", None),
-                    getattr(inversa, "cerrada_inicial", getattr(inversa, "cerrada", False))):
-                    raise ValueError("salidas recíprocas tienen datos contradictorios")
+                campos = (
+                    ("costo", getattr(salida, "costo", 100),
+                     getattr(inversa, "costo", 100)),
+                    ("llave", getattr(salida, "llave", None),
+                     getattr(inversa, "llave", None)),
+                    ("cerrada_inicial",
+                     getattr(salida, "cerrada_inicial", getattr(salida, "cerrada", False)),
+                     getattr(inversa, "cerrada_inicial", getattr(inversa, "cerrada", False))),
+                )
+                diferencias = [f"{nombre}={valor!r}/{valor_inverso!r}"
+                               for nombre, valor, valor_inverso in campos
+                               if valor != valor_inverso]
+                if diferencias:
+                    raise ValueError(
+                        f"salidas recíprocas {extremo!r} y {otro!r} tienen datos "
+                        f"contradictorios: {', '.join(diferencias)}"
+                    )
             salidas.append(DatosSalida(
                 direccion, salida.sala, getattr(salida, "costo", 100), extremo,
                 getattr(salida, "llave", None),
