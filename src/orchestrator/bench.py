@@ -358,6 +358,29 @@ def _dijkstra_lista_enlazada(estado, origen, destino, rango_max=None):
     return distancias.obtener(destino, None)
 
 
+def medir_ciclo_cazadores(cantidad=50, salas=1000):
+    """Medir drenaje real; preparación fuera del reloj, sin red ni render."""
+    from time import perf_counter_ns
+    from src.controller2.modelo import EnemigoInstancia
+    from src.controller2.fachada import Fachada
+    from src.orchestrator.sesion import Sesion
+    estado = _crear_cripta_bench(salas)
+    for i in range(2, cantidad + 2):
+        estado.salas[i].enemigos.append(EnemigoInstancia(
+            f"caz-{i}", "cazador-normal", 20, i, activa=True))
+    fachada = Fachada(estado, object(), _catalogo_cazadores(), oleada_cada=1000000)
+    for i in range(2, cantidad + 2):
+        fachada.agenda.programar(1, "turno", {"actor": f"caz-{i}", "kind": "enemigo"})
+    sesion = Sesion(log_ruta=None)
+    sesion.estado, sesion.fachada = estado, fachada
+    inicio = perf_counter_ns()
+    sesion._drenar()
+    duracion = (perf_counter_ns() - inicio) / 1e9
+    if fachada.error is not None:
+        raise RuntimeError(fachada.error)
+    return duracion
+
+
 def bench_cazadores(repeticiones: int = 3) -> dict:
     """Suite de evaluación de rendimiento de terreno y cazador (FR-CAZ-14, FR-CAZ-15).
     
@@ -465,6 +488,8 @@ def bench_cazadores(repeticiones: int = 3) -> dict:
     t_lista = _mide(lambda: _dijkstra_lista_enlazada(est_500, origen=400, destino=1, rango_max=50000), repeticiones)
 
     return {
+        "cazador_1_drenaje_real": medir_ciclo_cazadores(1),
+        "cazadores_50_drenaje_real": medir_ciclo_cazadores(50),
         "cazador_1_ciclo": t_1,
         "cazadores_50_ciclo": t_50,
         "cazador_rango_pequeno_100": t_peq_100,

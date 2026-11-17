@@ -86,3 +86,5 @@ python -m src.main --bench
 Suite completa posterior: `python -m pytest tests/ -q`:598 pasan,1 omitida (13,27s). `git diff --check` sin errores.
 
 2026-11-16: puertas recíprocas opuestas comparten apertura/cierre/deshacer mediante cambiar_puerta; incorporar una nueva sala conserva el extremo vivo. La regresión falló antes de corregir. Abrir desde la sala final registra también la puerta de salida. `python -m pytest tests/ -q`:599 pasan,1 omitida (15,36s). T046 de001 completada; rendimiento e integración final siguen pendientes.
+
+Medición real del drenaje001: `python -c 'from src.orchestrator.bench import medir_ciclo_cazadores; print(medir_ciclo_cazadores())'`. Preparación de1000 salas/50 cazadores fuera del cronómetro; Sesion._drenar procesa eventos desde t1 hasta decisión del jugador en t100, sin red/render ni receptor histórico. Siete muestras en `docs/mediciones/001-ciclo-real-2026-11-16.json`:54,5–92,4ms, incumple20ms aun antes de añadir historia. El benchmark expone ahora claves drenaje_real para no confundir decisiones aisladas con aceptación. Perfil indica búsquedas repetidas y escaneos de actores; T047 permanece pendiente.

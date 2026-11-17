@@ -428,3 +428,5 @@ Prompt (paráfrasis): corregir pendientes de 001, conectar 001/003 con 002/004 s
 Continuación2026-11-16: se integró el proveedor neutral en turnos del cazador, se añadió ocupación de salas sin contenido y persistencia5 selectiva, con pruebas primero de cierre inicial y entrada enemiga. Se retiró SalidaPonderadaFalsa de fixtures002; la prueba de Sesión usa Exit/SalidaViva reales y verifica reloj ponderado ida y viaje automático de vuelta. Validación localizada:98 pasan; cierre completo todavía pendiente.
 
 Continuación2026-11-16 (paráfrasis): corregir coherencia física de puertas y deshacer. Uso: función común de puerta recíproca, sincronización al incorporar salas y regresión de victoria al abrir desde salida; suite completa599 pasan/1 omitida.
+
+Continuación2026-11-16: medición del drenaje real para no atribuir a decisiones aisladas la aceptación del ciclo; siete muestras54,5–92,4ms, resultado negativo registrado. Se agregó función reproducible y métricas del drenaje a bench_cazadores; no se declara rendimiento logrado.

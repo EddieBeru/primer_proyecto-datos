@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-11-16",
+  "commit_base": "2ccf8272cc9165e7936b381d590cc2dc8d0cd201",
+  "python": "3.12.3",
+  "maquina": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "metodo": "Sesion._drenar, 1000 salas, eventos desde t=1 hasta turno jugador t=100; sin red/render; sin receptor historico (pendiente)",
+  "muestras_s": [
+    0.092365102,
+    0.08575621,
+    0.089679542,
+    0.087260538,
+    0.058374191,
+    0.054511144,
+    0.06435267
+  ],
+  "maximo_s": 0.092365102,
+  "cumple_20ms": false
+}
